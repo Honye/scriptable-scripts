@@ -9,7 +9,6 @@ const iCloudManager = FileManager.iCloud()
 const fs = iCloudManager.isFileStoredIniCloud(filePath) ? iCloudManager : FileManager.local()
 
 const main = () => {
-  genAlert(JSON.stringify(args))
   const urls = args.urls
   if (urls && urls.length) {
     for (const url of urls) {
