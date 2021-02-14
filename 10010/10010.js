@@ -39,7 +39,7 @@ const datafgColor = new Color("12A6E4") // 流量环前景颜色
 const dataTextColor = Color.dynamic(Color.black(), Color.white())
 const voicebgColor = new Color("F86527", 0.3) // 语音环背景颜色
 const voicefgColor = new Color("F86527") // 语音环前景颜色
-const newBG = 1  //是否设置或者使用新的背景图片，若要设置背景图片，请勿将下一行值设为true
+const newBG = 0  //是否设置或者使用新的背景图片，若要设置背景图片，请勿将下一行值设为true
 const removeBG = 0 //是否需要清空背景图片，如果设置过背景图片，想再使用纯色背景，需将此设置为true清除背景图片缓存
 
 const dataSfs = SFSymbol.named("antenna.radiowaves.left.and.right")
@@ -74,7 +74,7 @@ const main = async () => {
       render()
       break
     case 'Update':
-      console.log("update")
+      update()
       break
     default:
   }
@@ -338,6 +338,9 @@ const update = async () => {
   try {
     const code = await request.loadString()
     fm.writeString(module.filename, code)
+    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
+    alert.addAction('OK')
+    alert.presentAlert()
   } catch (e) {
     console.error(e)
   }
