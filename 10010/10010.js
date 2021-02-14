@@ -1,73 +1,123 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: red; icon-glyph: phone-volume;
-// Author: 脑瓜
-// 该组件支持两种模式，默认为圆环进度条模式，主屏幕长按小组件-->编辑小组件-->Parameter，输入1，使用文字模式
 
 /**
- * 中国联通信息展示
+ * 中国联通信息展示和自动签到
  * 
- * @author 脑瓜、kzddck、Honye
+ * 中国联通手机营业厅的 URL Scheme：`chinaunicom://`，可用于点击小组件打开手机营业厅客户端
+ * 
  */
 
-// #############设置##############
 const files = FileManager.local()
-const config = importModule('Config')['10010']()
-const Tel = config.phone
-//修改为你的cookie，cookie获取方法，需安装Stream在联通客户端中进行抓包!
-const clientCookie = config.clientCookie
-const Cookie = config.actionCookie
+/**
+ * 修改为你的 cookie，cookie 获取方法，需安装 Stream 在联通客户端中进行抓包
+ * 
+ * 为方便多手机号使用多个组件优先采用本文件配置，其次使用 Config.js 配置
+ */
+let conf = {
+  phone: '', // 联通手机号
+  clientCookie: '', // m.client.10010.com API cookie
+  actionCookie: '' // act.10010.com API cookie
+}
+if (!conf.phone) {
+  try {
+    conf = importModule('Config')['10010']()
+  } catch (e) {
+    console.error(e)
+  }
+}
+const Tel = conf.phone
+const clientCookie = conf.clientCookie
+const Cookie = conf.actionCookie
 const ringStackSize = 61 // 圆环大小
 const ringTextSize = 14 // 圆环中心文字大小
 const creditTextSize = 21 // 话费文本大小
 const textSize = 13 // 文字模式下文字大小
-const databgColor = new Color("12A6E4", 0.2) // 流量环背景颜色
+const databgColor = new Color("12A6E4", 0.3) // 流量环背景颜色
 const datafgColor = new Color("12A6E4") // 流量环前景颜色
-const dataTextColor = new Color('333333')
-const voicebgColor = new Color("F86527", 0.2) // 语音环背景颜色
+const dataTextColor = Color.dynamic(Color.black(), Color.white())
+const voicebgColor = new Color("F86527", 0.3) // 语音环背景颜色
 const voicefgColor = new Color("F86527") // 语音环前景颜色
-const newBG = 0  //是否设置或者使用新的背景图片，若要设置背景图片，请勿将下一行值设为true
+const newBG = 1  //是否设置或者使用新的背景图片，若要设置背景图片，请勿将下一行值设为true
 const removeBG = 0 //是否需要清空背景图片，如果设置过背景图片，想再使用纯色背景，需将此设置为true清除背景图片缓存
-const setbgColor = false //是否设置固定纯色背景，如要设置，请在下行指定背景颜色
-const bgColor = "ffffff" // 背景颜色
-const widgetParam = args.widgetParameter
-let data = await getData()
 
-const cuIconUrl = "https://vkceyugu.cdn.bspapp.com/VKCEYUGU-imgbed/f77d3cdc-b757-4acd-9766-a64421bf0c6d.png"
 const dataSfs = SFSymbol.named("antenna.radiowaves.left.and.right")
 dataSfs.applyHeavyWeight()
 const dataIcon = dataSfs.image
-const voiceIcon = SFSymbol.named("phone.fill").image
-const scoreIcon = SFSymbol.named("tag.fill").image
 const iconColor = new Color("FE8900")
-const phoneData = data.data.dataList[0] // 话费
-const credit = data.data.dataList[1] // 流量
-const voice = data.data.dataList[2] // 语音
-const score = data.data.dataList[3] // 积分
 const canvSize = 178
 const canvTextSize = 45
 const canvas = new DrawContext()
 const canvWidth = 18
 const canvRadius = 80
 const widget = new ListWidget()
+widget.url = 'chinaunicom://' // 打开联通客户端
 widget.setPadding(16, 16, 16, 16) // widget边距（上，下，左，右）
 
-// ############背景设置############
-const bgPath = files.joinPath(files.documentsDirectory(), "testPath");
-await setBgImg();
-if (removeBG) {
- rmBgImg();
+const main = async () => {
+  if (config.runsInWidget) {
+    render()
+    return
+  }
+  
+  const actions = ['Preview', 'Update']
+  const alert = new Alert()
+  alert.message = 'Preview the widget or update the script. Update will override the whole script.'
+  for (const action of actions) {
+    alert.addAction(action)
+  }
+  alert.addCancelAction('Cancel')
+  const index = await alert.presentSheet()
+  switch (actions[index]) {
+    case 'Preview':
+      render()
+      break
+    case 'Update':
+      console.log("update")
+      break
+    default:
+  }
 }
-if (setbgColor) {
-  widget.backgroundColor = new Color(bgColor)
+
+const render = async () => {
+  const data = await getData()
+  /** [话费, 流量, 语音] */
+  const [phoneData, credit, voice] = data.data.dataList
+  await setBackground()
+  console.log("shshshshshhsh")
+  await renderLogo(data)
+  await renderBalance(phoneData)
+  await renderArcs(credit, voice)
+
+  if (!config.runsInWidget) {
+    await widget.presentSmall()
+  }
+  Script.setWidget(widget)
+  Script.complete()
+}
+
+// ############背景设置############
+const appDir = files.joinPath(files.documentsDirectory(), Script.name())
+const bgPath = files.joinPath(appDir, 'background')
+
+const setBackground = () => {
+  widget.backgroundColor = Color.dynamic(new Color("ffffff"), new Color("2b2b2b"))
+  if (removeBG) {
+    return rmBgImg()
+  }
+  return setBgImg()
 }
 
 /** 设置小组件背景 */
-async function setBgImg () {
+const setBgImg = async () => {
   if (newBG && config.runsInApp) {
-    const img = await Photos.fromLibrary();
-    widget.backgroundImage = img;
-    files.writeImage(bgPath, img);
+    const img = await Photos.fromLibrary()
+    widget.backgroundImage = img
+    if (!files.fileExists(appDir)) {
+      files.createDirectory(appDir, true)
+    }
+    files.writeImage(bgPath, img)
   } else {
     if (files.fileExists(bgPath)) { 
       try {
@@ -92,59 +142,73 @@ async function rmBgImg () {
   }
 }
 
-// ############LOGO###############
-let headerStack = widget.addStack()
-headerStack.layoutVertically
-headerStack.addSpacer()
-let logo = headerStack.addImage(await getImg(cuIconUrl))
-logo.imageSize = new Size(393*0.25, 118*0.25)
-headerStack.addSpacer()
-widget.addSpacer()
-
-let creditStack = widget.addStack()
-creditStack.centerAlignContent()
-creditStack.addSpacer()
-const creditElement = creditStack.addText(phoneData.number);
-creditElement.textColor = dataTextColor;
-creditElement.font = Font.mediumRoundedSystemFont(creditTextSize)
-creditStack.addSpacer()
-widget.addSpacer()
-
-// ###############################
-let bodyStack = widget.addStack()
-bodyStack.layoutVertically()
-
-if (widgetParam == "1"){
-  await textLayout(dataIcon, phoneData.remainTitle, phoneData.number, phoneData.unit)
-  bodyStack.addSpacer(8)
-  await textLayout(voiceIcon, voice.remainTitle, voice.number, voice.unit)
-  bodyStack.addSpacer(8)
-  await textLayout(scoreIcon, score.remainTitle, score.number, score.unit)
-} else {
-canvas.size = new Size(canvSize, canvSize)
-canvas.opaque = false
-canvas.respectScreenScale = true
-
-const dataGap = (100 - credit.persent) * 3.6;
-const voiceGap = (100-voice.persent)*3.6
-
-drawArc(dataGap, datafgColor, databgColor)
-let ringStack = bodyStack.addStack()
-let ringLeft = ringStack.addStack()
-ringLeft.layoutVertically()
-ringLeft.size = new Size(ringStackSize, ringStackSize)
-ringLeft.backgroundImage = canvas.getImage()
-await ringContent(ringLeft, dataIcon, datafgColor, credit.number, credit.unit);
-ringStack.addSpacer()
-
-drawArc(voiceGap, voicefgColor, voicebgColor)
-let ringRight = ringStack.addStack()
-ringRight.layoutVertically()
-ringRight.size = new Size(ringStackSize, ringStackSize)
-ringRight.backgroundImage = canvas.getImage()
-await ringContent(ringRight, voiceIcon, voicefgColor, voice.number, voice.unit)
+/** 联通 Logo 显示 */
+const renderLogo = async ({signinState, _state}) => {
+  const stackStatus = widget.addStack()
+  stackStatus.addSpacer() 
+  const iconStatus = stackStatus.addImage(SFSymbol.named('circle.fill').image)
+  iconStatus.imageSize = new Size(6, 6)
+  iconStatus.tintColor = _state === 'expired'
+    ? Color.red()
+    : _state === 'signin_failed'
+      ? Color.orange()
+      : signinState === '1'
+        ? Color.gray()
+        : Color.green()
+  const cuIconUrl = "https://vkceyugu.cdn.bspapp.com/VKCEYUGU-imgbed/f77d3cdc-b757-4acd-9766-a64421bf0c6d.png"
+  const headerStack = widget.addStack()
+  headerStack.addSpacer()
+  const logo = headerStack.addImage(await getImg(cuIconUrl))
+  logo.imageSize = new Size(393 * 0.25, 118 * 0.25)
+  headerStack.addSpacer()
+  widget.addSpacer()
 }
-// ###############################
+
+/** 余额显示 */
+const renderBalance = async (data) => {
+  const stack = widget.addStack()
+  stack.centerAlignContent()
+  stack.addSpacer()
+  const elText = stack.addText(data.number)
+  elText.textColor = dataTextColor
+  elText.font = Font.mediumRoundedSystemFont(creditTextSize)
+  stack.addSpacer()
+  widget.addSpacer()
+}
+
+const renderArcs = async (flowData, voiceData) => {
+  const bodyStack = widget.addStack()
+  bodyStack.layoutVertically()
+
+  canvas.size = new Size(canvSize, canvSize)
+  canvas.opaque = false
+  canvas.respectScreenScale = true
+
+  const dataGap = (100 - flowData.persent) * 3.6
+  const voiceGap = (100 - voiceData.persent) * 3.6
+
+  drawArc(dataGap, datafgColor, databgColor)
+  let ringStack = bodyStack.addStack()
+  let ringLeft = ringStack.addStack()
+  ringLeft.layoutVertically()
+  ringLeft.size = new Size(ringStackSize, ringStackSize)
+  ringLeft.backgroundImage = canvas.getImage()
+  await ringContent(ringLeft, dataIcon, datafgColor, flowData.number, flowData.unit);
+  ringStack.addSpacer()
+
+  drawArc(voiceGap, voicefgColor, voicebgColor)
+  let ringRight = ringStack.addStack()
+  ringRight.layoutVertically()
+  ringRight.size = new Size(ringStackSize, ringStackSize)
+  ringRight.backgroundImage = canvas.getImage()
+  await ringContent(
+    ringRight,
+    SFSymbol.named("phone.fill").image,
+    voicefgColor,
+    voiceData.number,
+    voiceData.unit
+  )
+}
 
 async function getImg(url) {
   const req = new Request(url)
@@ -187,26 +251,12 @@ function ringContent(widget, icon, iconColor, text, unit){
   rowUnit.addSpacer()
  }
 
-function textLayout(icon, title, number, unit){
-  const rowItem = bodyStack.addStack()
-  rowItem.centerAlignContent()
-  let iconElement = rowItem.addImage(icon)
-  iconElement.imageSize = new Size(textSize, textSize)
-  iconElement.tintColor = iconColor
-  rowItem.addSpacer(4)
-  let titleElement = rowItem.addText(title)
-  titleElement.font = Font.systemFont(textSize)
-  rowItem.addSpacer()
-  let numberElement = rowItem.addText(number+unit)
-  numberElement.font = Font.systemFont(textSize)
-}
-
-function drawArc(deg, fillColor, strokeColor) {
-  let ctr = new Point(canvSize / 2, canvSize / 2),
-  bgx = ctr.x - canvRadius;
-  bgy = ctr.y - canvRadius;
-  bgd = 2 * canvRadius;
-  bgr = new Rect(bgx, bgy, bgd, bgd)
+function drawArc (deg, fillColor, strokeColor) {
+  const ctr = new Point(canvSize / 2, canvSize / 2)
+  const bgx = ctr.x - canvRadius
+  const bgy = ctr.y - canvRadius
+  const bgd = 2 * canvRadius
+  const bgr = new Rect(bgx, bgy, bgd, bgd)
 
   canvas.setFillColor(fillColor)
   canvas.setStrokeColor(strokeColor)
@@ -221,41 +271,76 @@ function drawArc(deg, fillColor, strokeColor) {
   }
 }
 
-async function getData() {
+const getData = async () => {
   const cachePath = files.joinPath(files.documentsDirectory(), "Chinaunicom-anker")
+  const headers = {
+    'User-Agent':'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0'
+  }
+
+  const url= 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@8.0102&desmobiel='+Tel+'&showType=0'
+  const req = new Request(url)
+  req.headers = {
+    ...headers,
+    cookie: clientCookie,
+  }
   try {
-    var url= 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@8.0100&desmobiel='+Tel+'&showType=0';
-var req = new Request(url)
-req.headers = {'cookie': clientCookie,'Host':'m.client.10010.com','User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148       unicom{version:iphone_c@8.0100}{systemVersion:dis}{yw_code:}'}
-var data = await req.loadJSON()
-console.log(data)
-
-var url1 = 'https://act.10010.com/SigninApp/signin/daySign'
-var req1 = new Request(url1);
-req1.headers = {'cookie': Cookie,'Host':'act.10010.com','User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148       unicom{version:iphone_c@8.0100}{systemVersion:dis}{yw_code:}'}
-var data1 = await req1.loadJSON()
-console.log(data1)
-    if (data.signinState === '0'){
+    const data = await req.loadJSON()
+    console.log("余额信息请求成功 => ")
+    // console.log(data)
+    if (data.code === 'Y') {
+      data._state = 'approved' // 正常通过请求
       files.writeString(cachePath, JSON.stringify(data))
-      log("==>数据请求成功")
     } else {
-      throw 'Internal Server Error'
+      throw data.message
     }
+    if (data.signinState === '1') {
+      // case '0'：已签到；'1'：未签到
+      const url1 = 'https://act.10010.com/SigninApp/signin/daySign'
+      const req1 = new Request(url1)
+      req1.headers = {
+        ...headers,
+        cookie: Cookie,
+        Host: 'act.10010.com'
+      }
+      try {
+        const data1 = await req1.loadJSON()
+        console.log("签到信息请求成功 => ")
+        // console.log(data1)
+        if (data1.status === '0000') {
+          data.signinState = '0'
+        } else {
+          throw data1.msg
+        }
+      } catch (e) {
+        console.warn('=== 签到失败 ===')
+        console.warn(e)
+        data._state = 'signin_failed' // 签到失败的
+      }
+    }
+    return data
+  } catch (e) {
+    const data = JSON.parse(files.readString(cachePath))
+    data._state = 'expired' // 缓存的数据
+    console.warn("=== 数据请求失败，使用缓存数据 ===")
+    console.warn(e)
+    return data
   }
-  catch (e) {
-    data = JSON.parse(files.readString(cachePath))
-    log("==>数据请求失败，使用缓存数据/"+ e)
-  }
-  return data
 }
 
-async function main () {  
-  if (!config.runsInWidget) {
-    await widget.presentSmall()  
-  }  
-  Script.setWidget(widget)  
-  Script.complete()
+/** 更新脚本 */
+const update = async () => {
+  let fm = FileManager.local()
+  if (fm.isFileStoredIniCloud(module.filename)) {
+    fm = FileManager.iCloud()
+  }
+  const url = 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js'
+  const request = new Request(url)
+  try {
+    const code = await request.loadString()
+    fm.writeString(module.filename, code)
+  } catch (e) {
+    console.error(e)
+  }
 }
-
 
 main()

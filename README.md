@@ -23,7 +23,9 @@ Features:
 
 ## 10010
 
-Show the balance, remaining flow, etc.
+- Show the balance, remaining flow, signin state, etc.
+- Support dark mode
+- Support update
 
 ![Demo Screenshot](./10010/screenshot/IMG_1249.JPG)
 
