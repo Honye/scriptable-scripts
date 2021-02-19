@@ -32,3 +32,16 @@ Features:
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js)
 
 [Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2F10010%2F10010.js) (must have [Installer](#Installer) installed)
+
+## Douban
+
+Daily movie
+
+|                     Small                      |                     Medium                      |    Large    |
+| :--------------------------------------------: | :---------------------------------------------: | :---------: |
+| ![Small widget](./douban/screenshot/small.jpg) | ![Small widget](./douban/screenshot/medium.jpg) | Not support |
+
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/douban/Douban.js)
+
+[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdouban%2FDouban.js) (must have [Installer](#Installer) installed)
+
