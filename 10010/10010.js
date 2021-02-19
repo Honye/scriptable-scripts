@@ -85,7 +85,6 @@ const render = async () => {
   /** [话费, 流量, 语音] */
   const [phoneData, credit, voice] = data.data.dataList
   await setBackground()
-  console.log("shshshshshhsh")
   await renderLogo(data)
   await renderBalance(phoneData)
   await renderArcs(credit, voice)
@@ -338,6 +337,7 @@ const update = async () => {
   try {
     const code = await request.loadString()
     fm.writeString(module.filename, code)
+    const alert = new Alert()
     alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
     alert.addAction('OK')
     alert.presentAlert()

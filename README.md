@@ -27,7 +27,9 @@ Features:
 - Support dark mode
 - Support update
 
-![Demo Screenshot](./10010/screenshot/IMG_1249.JPG)
+|                       Light                       |                      Dark                       |
+| :-----------------------------------------------: | :---------------------------------------------: |
+| ![Light mode](./10010/screenshot/small_light.jpg) | ![Dark mode](./10010/screenshot/small_dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js)
 
