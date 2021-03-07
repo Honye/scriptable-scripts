@@ -47,3 +47,17 @@ Daily movie
 
 [Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdouban%2FDouban.js) (must have [Installer](#Installer) installed)
 
+## Weibo
+
+Weibo hotsearch without ads
+
+- The number of unit items can be customized
+- Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
+
+|                    Light                    | Dark                                      |
+| :-----------------------------------------: | ----------------------------------------- |
+| ![light mode](./weibo/screenshot/light.jpg) | ![dark mode](./weibo/screenshot/dark.jpg) |
+
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js)
+
+[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fweibo%2FWeibo.js) (must have [Installer](#Installer) installed)
