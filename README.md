@@ -61,3 +61,18 @@ Weibo hotsearch without ads
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js)
 
 [Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fweibo%2FWeibo.js) (must have [Installer](#Installer) installed)
+
+## GitHub Contributions
+
+Fill your username and theme in the widget Parameter, separated by commas. 
+
+- Theme support `system` (default), `light` and `dark`
+- Tap the widget open the user GitHub page
+
+| Small & Light                                                | Medium & Dark                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![small widget](./GitHub Contributions/screenshot/small-light.jpg) | ![medium widget](./GitHub Contributions/screenshot/medium-dark.jpg) |
+
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/GitHub%20Contributions/GitHub%20Contributions.js)
+
+[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2FGitHub%20Contributions%2FGitHub%20Contributions.js) (must have [Installer](#Installer) installed)
