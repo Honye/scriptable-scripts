@@ -71,7 +71,7 @@ Fill your username and theme in the widget Parameter, separated by commas.
 
 | Small & Light                                                | Medium & Dark                                                |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| ![small widget](./GitHub Contributions/screenshot/small-light.jpg) | ![medium widget](./GitHub Contributions/screenshot/medium-dark.jpg) |
+| ![small widget](./GitHub%20Contributions/screenshot/small-light.jpg) | ![medium widget](./GitHub%20Contributions/screenshot/medium-dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/GitHub%20Contributions/GitHub%20Contributions.js)
 
