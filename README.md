@@ -51,12 +51,19 @@ Daily movie
 
 Weibo hotsearch without ads
 
-- The number of unit items can be customized
+- Customizable appearance. Support `system`, `light` and `dark`
 - Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
 
-|                    Light                    | Dark                                      |
-| :-----------------------------------------: | ----------------------------------------- |
-| ![light mode](./weibo/screenshot/light.jpg) | ![dark mode](./weibo/screenshot/dark.jpg) |
+Fill your prefer `client`  and `theme` in the widget Parameter, separated by commas. Like `2,dark`
+
+| Parameter | Description                   |
+| --------- | ----------------------------- |
+| client    | `1` (H5) or `2` (Weibo intl.) |
+| theme     | `system`, `light` or `dark`   |
+
+| Medium & Light                                     | Medium & Dark                                    |
+| :------------------------------------------------- | ------------------------------------------------ |
+| ![light mode](./weibo/screenshot/medium-light.jpg) | ![dark mode](./weibo/screenshot/medium-dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js)
 
