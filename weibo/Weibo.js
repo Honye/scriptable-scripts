@@ -1,6 +1,26 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: pink; icon-glyph: fire;
+/**
+ * Top trending searches on Weibo
+ *
+ * @author Honye
+ */
+const fontSize = 14
+const gap = 8
+const logoSize = 30
+const paddingVertical = 10
+const themes = {
+  light: {
+    background: new Color('#FFFFFF'),
+    color: Color.black()
+  },
+  dark: {
+    background: new Color('#181919', 1),
+    color: Color.white()
+  }
+}
+
 /** Scoped Keychain */
 const KeyStorage = {
   set: (key, value) => {
@@ -15,6 +35,39 @@ const KeyStorage = {
   }
 }
 
+/**
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.message]
+ * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {string} [options.cancelText = 'Cancel']
+ */
+const presentSheet = async (options) => {
+  options = {
+    showCancel: true,
+    cancelText: 'Cancel',
+    ...options
+  };
+  const alert = new Alert()
+  if (options.title) {
+    alert.title = options.title
+  }
+  if (options.message) {
+    alert.message = options.message
+  }
+  if (!options.options) {
+    throw new Error('The "options" property of the parameter cannot be empty')
+  }
+  for (const option of options.options) {
+    alert.addAction(option.title)
+  }
+  if (options.showCancel) {
+    alert.addCancelAction(options.cancelText)
+  }
+  const value = await alert.presentSheet()
+  return { value, option: options.options[value] }
+}
+
 /** 微博国际版页面 */
 const InternationalScheme = {
   hotSearch: () => 'weibointernational://hotsearch',
@@ -27,10 +80,99 @@ const H5Page = {
   search: (keyword) => `https://m.weibo.cn/search?containerid=${encodeURIComponent('100103type=1&t=10&q=' + keyword)}`
 }
 
-let conf = {
-  /** items count */
-  count: KeyStorage.get('count') || 7,
-  client: KeyStorage.get('client') || 'h5'
+const phoneSizes = {
+  // 12 Pro Max
+  "2778": {
+    small:  510,
+    medium: 1092,
+    large:  1146
+  },
+  
+  // 12 and 12 Pro
+  "2532": {
+    small:  474,
+    medium: 1014,
+    large:  1062
+  },
+  
+  // 11 Pro Max, XS Max
+  "2688": {
+    small:  507,
+    medium: 1080,
+    large:  1137
+  },
+  
+  // 11, XR
+  "1792": {
+    small:  338,
+    medium: 720,
+    large:  758
+  },
+    
+    
+  // 11 Pro, XS, X, 12 mini
+  "2436": {
+    small: 465,
+    medium: 987,
+    large:  1035
+  },
+  
+  // Plus phones
+  "2208": {
+    small:  471,
+    medium: 1044,
+    large:  1071
+  },
+    
+  // SE2 and 6/6S/7/8
+  "1334": {
+    small:  296,
+    medium: 642,
+    large:  648
+  },
+    
+    
+  // SE1
+  "1136": {
+    small:  282,
+    medium: 584,
+    large:  622
+  },
+    
+  // 11 and XR in Display Zoom mode
+  "1624": {
+    small: 310,
+    medium: 658,
+    large: 690
+  },
+    
+  // Plus in Display Zoom mode
+  "2001" : {
+    small: 444,
+    medium: 963,
+    large: 972
+  }
+}
+
+const conf = {
+  client: 'h5',
+  theme: 'system'
+}
+const screen = Device.screenResolution()
+const scale = Device.screenScale()
+const phone = phoneSizes[screen.height]
+let widgetFamily = 'medium'
+if (config.runsInWidget) {
+  widgetFamily = config.widgetFamily
+  const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim())
+  conf.client = client === '2' ? 'international' : conf.client
+  conf.theme = theme || conf.theme
+}
+const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale
+conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
+const storedClient = KeyStorage.get('client')
+if (storedClient) {
+  conf.client = storedClient
 }
 
 const Pages = (() => {
@@ -51,8 +193,6 @@ const main = async () => {
   const url = 'https://weibointl.api.weibo.cn/portal.php?ct=feed&a=search_topic'
   const request = new Request(url)
   const data = await request.loadJSON()
-  // console.log('国际版微博热搜 ===>')
-  console.log(data)
   const widget = await createWidget(data)
   return widget
 }
@@ -61,12 +201,15 @@ let stackBottom;
 let widgetBottom;
 const createWidget = async (data) => {
   const widget = new ListWidget()
+  widget.backgroundColor = conf.theme === 'system'
+    ? Color.dynamic(themes.light.background, themes.dark.background)
+    : themes[conf.theme].background
   widget.url = Pages.hotSearch()
-  widget.setPadding(12, 18, 12, 18)
+  widget.setPadding(paddingVertical, 12, paddingVertical, 14)
   const max = conf.count
+  const logoLines = Math.ceil((logoSize + gap) / (fontSize + gap))
   for (let i = 0; i < max; ++i) {
     const item = data.data[i]
-    const logoLines = 2
     if (i === 0) {
       const stack = widget.addStack()
       await addItem(stack, item)
@@ -75,27 +218,26 @@ const createWidget = async (data) => {
       textTime.font = Font.systemFont(10)
       textTime.textColor = Color.gray()
     } else if (i < max - logoLines) {
+      widget.addSpacer(gap)
       await addItem(widget, item)
     } else {
       if (!widgetBottom) {
+        widget.addSpacer(gap)
         stackBottom = widget.addStack()
         stackBottom.bottomAlignContent()
         widgetBottom = stackBottom.addStack()
         widgetBottom.layoutVertically()
         addItem(widgetBottom, item)
       } else {
-        widgetBottom.addSpacer(5)
+        widgetBottom.addSpacer(gap)
         await addItem(widgetBottom, item)
       }
       widgetBottom.length = (widgetBottom.length || 0) + 1
       if (widgetBottom.length === logoLines) {
         stackBottom.addSpacer()
         const imageLogo = stackBottom.addImage(await getImage('https://www.sinaimg.cn/blog/developer/wiki/LOGO_64x64.png'))
-        imageLogo.imageSize = new Size(30, 30)
+        imageLogo.imageSize = new Size(logoSize, logoSize)
       }
-    }
-    if (i < max - 1) {
-      widget.addSpacer(5)
     }
   }
   return widget
@@ -113,12 +255,20 @@ const addItem = async (widget, item) => {
   }).join('&')
   stack.url = Pages.search(query.keyword)
   stack.centerAlignContent()
-  const textIndex = stack.addText(String(item.pic_id))
-  textIndex.textColor = Color.yellow()
+  const lineHeight = 1
+  stack.size = new Size(-1, fontSize * lineHeight)
+  const stackIndex = stack.addStack()
+  stackIndex.size = new Size(fontSize * 1.4, -1)
+  const textIndex = stackIndex.addText(String(item.pic_id))
+  textIndex.rightAlignText()
+  textIndex.textColor = item.pic_id > 3 ? new Color('#F5C94C', 1) : new Color('#FE4F67', 1)
+  textIndex.font = Font.boldSystemFont(fontSize)
   stack.addSpacer(4)
-  textIndex.font = Font.boldSystemFont(14)
   const textTitle = stack.addText(item.title)
-  textTitle.font = Font.systemFont(14)
+  textTitle.font = Font.systemFont(fontSize)
+  textTitle.textColor = conf.theme === 'system'
+    ? Color.dynamic(themes.light.color, themes.dark.color)
+    : themes[conf.theme].color
   textTitle.lineLimit = 1
   if (item.icon) {
     stack.addSpacer(4)
@@ -156,41 +306,30 @@ const update = async () => {
 
 /** Settings */
 const settings = async () => {
-  const alert = new Alert()
-  alert.title = 'Settings'
-  alert.message = 
-  `1. 设置显示列表项数量
-  2. 设置使用什么客户端查看详情（international 或 h5）`
-  alert.addTextField('Items count', String(conf.count))
-  alert.addTextField('"international"/"h5"', 'h5')
-  alert.addCancelAction('Cancel')
-  alert.addAction('Confirm')
-  const index = await alert.presentAlert()
-  switch (index) {
-    case 0: {
-      // Confirm
-      const value = Number(alert.textFieldValue(0)) || conf.count
-      KeyStorage.set('count', value)
-      const client = alert.textFieldValue(1) || conf.client
-      KeyStorage.set('client', client)
-      conf.count = value
-      conf.client = client
-      break
-    }
-    default:
-  }
+  const res = await presentSheet({
+    title: 'Settings',
+    message: 'Which client to use to view details?',
+    options: [
+      { title: 'Weibo intl. (微博国际版)', value: 'international' },
+      { title: 'Browser (H5)', value: 'h5' }
+    ]
+  })
+  const client = res.option?.value || conf.client
+  KeyStorage.set('client', client)
+  conf.client = client
 }
 
 if (config.runsInApp) {
-  const actions = ['Preview', 'Settings', 'Update']
-  const alert = new Alert()
-  alert.message = 'Preview the widget or update the script. Update will override the whole script.'
-  for (const action of actions) {
-    alert.addAction(action)
-  }
-  alert.addCancelAction('Cancel')
-  const index = await alert.presentSheet()
-  switch (actions[index]) {
+  const res = await presentSheet({
+    message: 'Preview the widget or update the script. Update will override the whole script.',
+    options: [
+      { title: 'Preview', value: 'Preview' },
+      { title: 'Settings', value: 'Settings' },
+      { title: 'Update', value: 'Update' }
+    ]
+  })
+  const value = res.option?.value
+  switch (value) {
     case 'Preview':
       break
     case 'Settings':
