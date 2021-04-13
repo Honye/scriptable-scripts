@@ -13,15 +13,15 @@ let user = 'Honye';
 let columns = 20;
 const widgetFamily = config.widgetFamily || 'medium';
 let theme = 'system';
-const colors = ["#ebedf0","#9be9a8","#40c463","#30a14e","#216e39"];
+const colors = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
 const themes = {
   dark: {
     background: new Color('#2C2C2E', 1),
-    colors: ["#3e3e41","#9be9a8","#40c463","#30a14e","#216e39"]
+    colors: ["#3e3e41", "#9be9a8", "#40c463", "#30a14e", "#216e39"]
   },
   light: {
     background: new Color('#FFFFFF', 1),
-    colors: ["#ebedf0","#9be9a8","#40c463","#30a14e","#216e39"]
+    colors: ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"]
   }
 };
 if (config.runsInWidget) {
@@ -41,92 +41,122 @@ const getImage = async (url) => {
   return image;
 }
 
-const phoneSizes = {
-  // 12 Pro Max
-  "2778": {
-    small:  510,
-    medium: 1092,
-    large:  1146
-  },
-  
-  // 12 and 12 Pro
-  "2532": {
-    small:  474,
-    medium: 1014,
-    large:  1062
-  },
-  
-  // 11 Pro Max, XS Max
-  "2688": {
-    small:  507,
-    medium: 1080,
-    large:  1137
-  },
-  
-  // 11, XR
-  "1792": {
-    small:  338,
-    medium: 720,
-    large:  758
-  },
-    
-    
-  // 11 Pro, XS, X, 12 mini
-  "2436": {
-    small: 465,
-    medium: 987,
-    large:  1035
-  },
-  
-  // Plus phones
-  "2208": {
-    small:  471,
-    medium: 1044,
-    large:  1071
-  },
-    
-  // SE2 and 6/6S/7/8
-  "1334": {
-    small:  296,
-    medium: 642,
-    large:  648
-  },
-    
-    
-  // SE1
-  "1136": {
-    small:  282,
-    medium: 584,
-    large:  622
-  },
-    
-  // 11 and XR in Display Zoom mode
-  "1624": {
-    small: 310,
-    medium: 658,
-    large: 690
-  },
-    
-  // Plus in Display Zoom mode
-  "2001" : {
-    small: 444,
-    medium: 963,
-    large: 972
+/**
+ * @param {number} [height] The screen height measured in pixels
+ */
+const phoneSize = (height) => {
+  let phones = {
+
+    // 12 Pro Max
+    "2778": {
+      small: 510,
+      medium: 1092,
+      large: 1146
+    },
+
+    // 12 and 12 Pro
+    "2532": {
+      small: 474,
+      medium: 1014,
+      large: 1062
+    },
+
+    // 11 Pro Max, XS Max
+    "2688": {
+      small: 507,
+      medium: 1080,
+      large: 1137
+    },
+
+    // 11, XR
+    "1792": {
+      small: 338,
+      medium: 720,
+      large: 758
+    },
+
+
+    // 11 Pro, XS, X, 12 mini
+    "2436": {
+      small: 465,
+      medium: 987,
+      large: 1035
+    },
+
+    // Plus phones
+    "2208": {
+      small: 471,
+      medium: 1044,
+      large: 1071
+    },
+
+    // SE2 and 6/6S/7/8
+    "1334": {
+      small: 296,
+      medium: 642,
+      large: 648
+    },
+
+
+    // SE1
+    "1136": {
+      small: 282,
+      medium: 584,
+      large: 622
+    },
+
+    // 11 and XR in Display Zoom mode
+    "1624": {
+      small: 310,
+      medium: 658,
+      large: 690
+    },
+
+    // Plus in Display Zoom mode
+    "2001": {
+      small: 444,
+      medium: 963,
+      large: 972
+    }
+  }
+  height = height || Device.screenResolution().height
+  const scale = Device.screenScale()
+
+  if (config.runsInWidget) {
+    const phone = phones[height]
+    if (phone) {
+      return phone
+    }
+
+    const pc = {
+      small: 164 * scale,
+      medium: 344 * scale,
+      large: 354 * scale
+    }
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return {
+    small: 155 * scale,
+    medium: 329 * scale,
+    large: 345 * scale
   }
 }
 
 const screen = Device.screenResolution();
 const scale = Device.screenScale();
-const widgetWidth = phoneSizes[screen.height][widgetFamily] / scale;
+const widgetWidth = phoneSize(screen.height)[widgetFamily] / scale;
 const rectWidth = (widgetWidth - 24 - gap.x * (columns - 1)) / columns;
 const url = `https://github.com/${user}`;
+
 const widget = new ListWidget();
 widget.url = url;
 widget.backgroundColor = theme === 'system'
   ? Color.dynamic(
-      themes.light.background,
-      themes.dark.background
-    )
+    themes.light.background,
+    themes.dark.background
+  )
   : themes[theme].background;
 
 const req = new Request(url);
@@ -179,11 +209,11 @@ for (let [index, level] of colorsData.entries()) {
   const row = ls[index % 7];
   const hex = colors[level];
   const color = new Color(hex, 1);
-  
+
   const rect = row.addStack();
   rect.size = new Size(rectWidth, rectWidth);
   rect.cornerRadius = 2;
-  rect.backgroundColor = colorsData[index] === '0' 
+  rect.backgroundColor = colorsData[index] === '0'
     ? Color.dynamic(color, new Color('#3E3E41', 1))
     : color;
   rect.backgroundColor = theme === 'system'
@@ -192,7 +222,7 @@ for (let [index, level] of colorsData.entries()) {
       new Color(themes.dark.colors[level], 1)
     )
     : new Color(themes[theme].colors[level], 1);
-  
+
   if (index < 7 * (columns - 1)) {
     row.addSpacer(3);
   }
