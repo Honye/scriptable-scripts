@@ -1,0 +1,9 @@
+{
+  "name": "Weibo",
+  "version": "1.0.3",
+  "description": "Top trending searches on Weibo",
+  "setting": {
+    "icon-glyph": "fire",
+    "icon-color": "pink"
+  }
+}

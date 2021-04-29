@@ -1,0 +1,11 @@
+{
+  "description": [
+    "中国联通信息展示和自动签到",
+    "",
+    "中国联通手机营业厅的 URL Scheme：`chinaunicom://`，可用于点击小组件打开手机营业厅客户端"
+  ],
+  "setting": {
+    "icon-glyph": "phone-volume",
+    "icon-color": "red"
+  }
+}

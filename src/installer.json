@@ -1,0 +1,12 @@
+{
+  "name": "Installer",
+  "setting": {
+    "icon-glyph": "magic",
+    "icon-color": "orange",
+    "share-sheet-inputs": [
+      "file-url",
+      "url",
+      "plain-text"
+    ]
+  }
+}

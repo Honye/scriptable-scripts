@@ -1,0 +1,31 @@
+{
+  "name": "scriptable-scripts",
+  "version": "1.0.0",
+  "description": "Development template and some scripts used for the iOS app [Scriptable](https://scriptable.app/).",
+  "main": "src",
+  "scripts": {
+    "dev": "rollup --config --watch",
+    "build": "rollup --config",
+    "clean": "rm -rf ./dist/*",
+    "prebuild": "npm run clean",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Honye/scriptable-scripts.git"
+  },
+  "keywords": [
+    "scriptable",
+    "scripts"
+  ],
+  "author": "Honye",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Honye/scriptable-scripts/issues"
+  },
+  "homepage": "https://github.com/Honye/scriptable-scripts#readme",
+  "devDependencies": {
+    "@types/scriptable-ios": "^1.6.1",
+    "rollup": "^2.45.2"
+  }
+}

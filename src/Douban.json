@@ -1,0 +1,12 @@
+{
+  "description": [
+    "Daily Douban",
+    "",
+    "- Only support small and medium",
+    "- Tap widget to open the movie web page"
+  ],
+  "setting": {
+    "icon-glyph": "film",
+    "icon-color": "deep-green"
+  }
+}
