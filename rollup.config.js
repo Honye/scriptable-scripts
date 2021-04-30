@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import serve from 'rollup-plugin-serve';
 import { version } from './package.json';
 
 console.info(`Scriptable Template v${version}`);
@@ -62,7 +63,13 @@ files.forEach((filename) => {
           conf.name ? (conf.name + suffix) : filename
         ),
         format: 'es'
-      }
+      },
+      plugins:
+        process.env.NODE_ENV === 'development'
+          ? [
+            serve(config.dest)
+          ]
+          : []
     });
   }
 });

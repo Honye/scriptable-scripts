@@ -4,7 +4,7 @@
   "description": "Development template and some scripts used for the iOS app [Scriptable](https://scriptable.app/).",
   "main": "src",
   "scripts": {
-    "dev": "rollup --config --watch",
+    "dev": "rollup --config --watch --environment NODE_ENV:development",
     "build": "rollup --config",
     "clean": "rm -rf ./dist/*",
     "prebuild": "npm run clean",
@@ -26,6 +26,7 @@
   "homepage": "https://github.com/Honye/scriptable-scripts#readme",
   "devDependencies": {
     "@types/scriptable-ios": "^1.6.1",
-    "rollup": "^2.45.2"
+    "rollup": "^2.45.2",
+    "rollup-plugin-serve": "^1.1.0"
   }
 }
