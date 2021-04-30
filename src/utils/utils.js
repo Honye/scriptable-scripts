@@ -5,6 +5,7 @@
  * @param {string} [options.title]
  * @param {string} [options.message]
  * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {boolean} [options.showCancel = true]
  * @param {string} [options.cancelText = 'Cancel']
  */
 export async function presentSheet(options) {
@@ -210,3 +211,19 @@ export const updateCode = async (options) => {
   }
 }
 
+/**
+ * @param {{[language: string]: string} | string[]} langs 
+ */
+export const i18n = (langs) => {
+  const language = Device.language()
+  if (Array.isArray(langs)) {
+    langs = {
+      en: langs[0],
+      zh: langs[1],
+      others: langs[0]
+    }
+  } else {
+    langs.others = langs.others || langs.en
+  }
+  return langs[language] || langs.others
+};
