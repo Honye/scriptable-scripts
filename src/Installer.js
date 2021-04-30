@@ -1,76 +1,16 @@
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-glyph: cloud-download-alt; icon-color: deep-gray; share-sheet-inputs: file-url,url,plain-text;
-/**
- * @version 1.0.0
- * @author Honye
- */
+import { presentSheet, i18n } from './utils/utils'
 
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-async function presentSheet(options) {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return {
-    value,
-    option: options.options[value]
-  }
-}
-
-/**
- * @param {{[language: string]: string} | string[]} langs 
- */
-const i18n = (langs) => {
-  const language = Device.language();
-  if (Array.isArray(langs)) {
-    langs = {
-      en: langs[0],
-      zh: langs[1],
-      others: langs[0]
-    };
-  } else {
-    langs.others = langs.others || langs.en;
-  }
-  return langs[language] || langs.others
-};
-
-const filePath = module.filename;
-const appRoot = filePath.substring(0, filePath.lastIndexOf('/'));
-const iCloudManager = FileManager.iCloud();
-const fs = iCloudManager.isFileStoredIniCloud(filePath) ? iCloudManager : FileManager.local();
+const filePath = module.filename
+const appRoot = filePath.substring(0, filePath.lastIndexOf('/'))
+const iCloudManager = FileManager.iCloud()
+const fs = iCloudManager.isFileStoredIniCloud(filePath) ? iCloudManager : FileManager.local()
 
 const main = async () => {
   if (config.runsInApp) {
-    const params = args.queryParameters;
-    const scriptURL = params && params.url;
+    const params = args.queryParameters
+    const scriptURL = params && params.url
     if (scriptURL) {
-      installByURL(scriptURL);
+      installByURL(scriptURL)
       return
     }
 
@@ -89,11 +29,11 @@ const main = async () => {
       /** Development */
       case 1: {
         const alert = new Alert();
-        alert.title = i18n(['Development', '开发服']);
+        alert.title = i18n(['Development', '开发服'])
         alert.message = i18n([
           'The file will be overwritten if it exists!',
           '如果文件已存在将会被覆盖！'
-        ]);
+        ])
         const host = Keychain.contains('dev-host') && Keychain.get('dev-host') || '';
         const port = Keychain.contains('dev-port') && Keychain.get('dev-port') || '';
         const name = Keychain.contains('dev-name') && Keychain.get('dev-name') || '';
@@ -124,13 +64,13 @@ const main = async () => {
     }
   }
 
-  const urls = args.urls;
+  const urls = args.urls
   if (urls && urls.length) {
     for (const url of urls) {
       installByURL(url);
     }
   }
-};
+}
 
 /**
  * download and install script from the url
@@ -147,7 +87,7 @@ async function installByURL(url, options) {
   const request = new Request(url);
   const text = await request.loadString()
     .catch(async (e) => {
-      console.error(e);
+      console.error(e)
       const notification = new Notification();
       notification.title = Script.name();
       notification.body = e.toString();
@@ -184,10 +124,10 @@ async function installByURL(url, options) {
   ]));
 }
 
-async function genAlert (message) {
-  const _alert = new Alert();
-  _alert.message = message;
+async function genAlert(message) {
+  const _alert = new Alert()
+  _alert.message = message
   return _alert.presentAlert()
 }
 
-await main();
+await main()

@@ -1,8 +1,8 @@
 {
   "name": "Installer",
   "setting": {
-    "icon-glyph": "magic",
-    "icon-color": "orange",
+    "icon-glyph": "cloud-download-alt",
+    "icon-color": "deep-gray",
     "share-sheet-inputs": [
       "file-url",
       "url",
