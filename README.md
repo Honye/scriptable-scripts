@@ -80,6 +80,6 @@ Fill your username and theme in the widget Parameter, separated by commas.
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | ![small widget](./GitHub%20Contributions/screenshot/small-light.jpg) | ![medium widget](./GitHub%20Contributions/screenshot/medium-dark.jpg) |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/GitHub%20Contributions/GitHub%20Contributions.js)
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/GitHub%20Contributions.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2FGitHub%20Contributions%2FGitHub%20Contributions.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FGitHub%2520Contributions.js) (must have [Installer](#Installer) installed)
