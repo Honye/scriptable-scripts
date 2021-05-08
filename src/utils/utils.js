@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 
 /**
  * @param {object} options
@@ -8,12 +8,12 @@
  * @param {boolean} [options.showCancel = true]
  * @param {string} [options.cancelText = 'Cancel']
  */
-export async function presentSheet(options) {
+export async function presentSheet (options) {
   options = {
     showCancel: true,
     cancelText: 'Cancel',
     ...options
-  };
+  }
   const alert = new Alert()
   if (options.title) {
     alert.title = options.title
@@ -41,106 +41,106 @@ export async function presentSheet(options) {
  * @param {number} [height] The screen height measured in pixels
  */
 export const phoneSize = (height) => {
-  let phones = {  
+  const phones = {
     /** 12 Pro Max */
-    "2778": {
-      small:  510,
+    2778: {
+      small: 510,
       medium: 1092,
-      large:  1146,
-      left:  96,
+      large: 1146,
+      left: 96,
       right: 678,
-      top:    246,
+      top: 246,
       middle: 882,
       bottom: 1518
     },
     /** 12 and 12 Pro */
-    "2532": {
-      small:  474,
+    2532: {
+      small: 474,
       medium: 1014,
-      large:  1062,
-      left:  78,
+      large: 1062,
+      left: 78,
       right: 618,
-      top:    231,
+      top: 231,
       middle: 819,
       bottom: 1407
     },
     /** 11 Pro Max, XS Max */
-    "2688": {
-      small:  507,
+    2688: {
+      small: 507,
       medium: 1080,
-      large:  1137,
-      left:  81,
+      large: 1137,
+      left: 81,
       right: 654,
-      top:    228,
+      top: 228,
       middle: 858,
       bottom: 1488
     },
     /** 11, XR */
-    "1792": {
-      small:  338,
+    1792: {
+      small: 338,
       medium: 720,
-      large:  758,
-      left:  55,
+      large: 758,
+      left: 55,
       right: 437,
-      top:    159,
+      top: 159,
       middle: 579,
       bottom: 999
     },
     /** 11 Pro, XS, X, 12 mini */
-    "2436": {
-      small:  465,
+    2436: {
+      small: 465,
       medium: 987,
-      large:  1035,
+      large: 1035,
       x: {
-        left:  69,
+        left: 69,
         right: 591,
-        top:    213,
+        top: 213,
         middle: 783,
-        bottom: 1353,
+        bottom: 1353
       },
       mini: {
-        left:  69,
+        left: 69,
         right: 591,
-        top:    231,
+        top: 231,
         middle: 801,
-        bottom: 1371,
+        bottom: 1371
       }
     },
     /** Plus phones */
-    "2208": {
-      small:  471,
+    2208: {
+      small: 471,
       medium: 1044,
-      large:  1071,
-      left:  99,
+      large: 1071,
+      left: 99,
       right: 672,
-      top:    114,
+      top: 114,
       middle: 696,
       bottom: 1278
     },
     /** SE2 and 6/6S/7/8 */
-    "1334": {
-      small:  296,
+    1334: {
+      small: 296,
       medium: 642,
-      large:  648,
-      left:  54,
+      large: 648,
+      left: 54,
       right: 400,
-      top:    60,
+      top: 60,
       middle: 412,
       bottom: 764
     },
     /** SE1 */
-    "1136": {
-      small:  282,
+    1136: {
+      small: 282,
       medium: 584,
-      large:  622,
+      large: 622,
       left: 30,
       right: 332,
-      top:  59,
+      top: 59,
       middle: 399,
       bottom: 399
     },
     /** 11 and XR in Display Zoom mode */
-    "1624": {
+    1624: {
       small: 310,
       medium: 658,
       large: 690,
@@ -148,10 +148,10 @@ export const phoneSize = (height) => {
       right: 394,
       top: 142,
       middle: 522,
-      bottom: 902 
+      bottom: 902
     },
     /** Plus in Display Zoom mode */
-    "2001" : {
+    2001: {
       small: 444,
       medium: 963,
       large: 972,
@@ -160,17 +160,17 @@ export const phoneSize = (height) => {
       top: 90,
       middle: 618,
       bottom: 1146
-    },
+    }
   }
   height = height || Device.screenResolution().height
   const scale = Device.screenScale()
-  
+
   if (config.runsInWidget) {
     const phone = phones[height]
     if (phone) {
       return phone
     }
-    
+
     const pc = {
       small: 164 * scale,
       medium: 344 * scale,
@@ -193,26 +193,26 @@ export const phoneSize = (height) => {
  * @param {string} options.fileURL
  */
 export const updateCode = async (options) => {
-  const { fileURL } = options;
-  let fm = FileManager.local();
+  const { fileURL } = options
+  let fm = FileManager.local()
   if (fm.isFileStoredIniCloud(module.filename)) {
-    fm = FileManager.iCloud();
+    fm = FileManager.iCloud()
   }
-  const request = new Request(fileURL);
+  const request = new Request(fileURL)
   try {
-    const code = await request.loadString();
-    fm.writeString(module.filename, code);
-    const alert = new Alert();
-    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.';
-    alert.addAction('OK');
-    alert.presentAlert();
+    const code = await request.loadString()
+    fm.writeString(module.filename, code)
+    const alert = new Alert()
+    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
+    alert.addAction('OK')
+    alert.presentAlert()
   } catch (e) {
-    console.error(e);
+    console.error(e)
   }
 }
 
 /**
- * @param {{[language: string]: string} | string[]} langs 
+ * @param {{[language: string]: string} | string[]} langs
  */
 export const i18n = (langs) => {
   const language = Device.language()
@@ -226,4 +226,4 @@ export const i18n = (langs) => {
     langs.others = langs.others || langs.en
   }
   return langs[language] || langs.others
-};
+}

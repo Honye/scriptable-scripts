@@ -13,7 +13,7 @@
 const files = FileManager.local();
 /**
  * 修改为你的 cookie，cookie 获取方法，需安装 Stream 在联通客户端中进行抓包
- * 
+ *
  * 为方便多手机号使用多个组件优先采用本文件配置，其次使用 Config.js 配置
  */
 let conf = {
@@ -34,16 +34,15 @@ const Cookie = conf.actionCookie;
 const ringStackSize = 61; // 圆环大小
 const ringTextSize = 14; // 圆环中心文字大小
 const creditTextSize = 21; // 话费文本大小
-const databgColor = new Color("12A6E4", 0.3); // 流量环背景颜色
-const datafgColor = new Color("12A6E4"); // 流量环前景颜色
+const databgColor = new Color('12A6E4', 0.3); // 流量环背景颜色
+const datafgColor = new Color('12A6E4'); // 流量环前景颜色
 const dataTextColor = Color.dynamic(Color.black(), Color.white());
-const voicebgColor = new Color("F86527", 0.3); // 语音环背景颜色
-const voicefgColor = new Color("F86527"); // 语音环前景颜色
+const voicebgColor = new Color('F86527', 0.3); // 语音环背景颜色
+const voicefgColor = new Color('F86527'); // 语音环前景颜色
 
-const dataSfs = SFSymbol.named("antenna.radiowaves.left.and.right");
+const dataSfs = SFSymbol.named('antenna.radiowaves.left.and.right');
 dataSfs.applyHeavyWeight();
 const dataIcon = dataSfs.image;
-new Color("FE8900");
 const canvSize = 178;
 const canvas = new DrawContext();
 const canvWidth = 18;
@@ -57,7 +56,7 @@ const main = async () => {
     render();
     return
   }
-  
+
   const actions = ['Preview', 'Update'];
   const alert = new Alert();
   alert.message = 'Preview the widget or update the script. Update will override the whole script.';
@@ -81,7 +80,7 @@ const render = async () => {
   /** [话费, 流量, 语音] */
   const [phoneData, credit, voice] = data.data.dataList;
   await setBackground();
-  
+
   const { signinState, _state } = data;
   const status = _state === 'expired'
     ? 'failed'
@@ -106,20 +105,20 @@ const appDir = files.joinPath(files.documentsDirectory(), Script.name());
 const bgPath = files.joinPath(appDir, 'background');
 
 const setBackground = () => {
-  widget.backgroundColor = Color.dynamic(new Color("ffffff"), new Color("242426"));
+  widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'));
   return setBgImg()
 };
 
 /** 设置小组件背景 */
 const setBgImg = async () => {
   {
-    if (files.fileExists(bgPath)) { 
+    if (files.fileExists(bgPath)) {
       try {
         widget.backgroundImage = files.readImage(bgPath);
-        log("读取图片成功");
-      } catch (e){
+        log('读取图片成功');
+      } catch (e) {
         log(e.message);
-      }  
+      }
     }
   }
 };
@@ -130,7 +129,7 @@ const setBgImg = async () => {
  */
 const renderLogo = async (status) => {
   const stackStatus = widget.addStack();
-  stackStatus.addSpacer(); 
+  stackStatus.addSpacer();
   const iconStatus = stackStatus.addImage(SFSymbol.named('circle.fill').image);
   iconStatus.imageSize = new Size(6, 6);
   const colors = {
@@ -140,7 +139,7 @@ const renderLogo = async (status) => {
     failed: Color.red()
   };
   iconStatus.tintColor = colors[status];
-  const cuIconUrl = "https://vkceyugu.cdn.bspapp.com/VKCEYUGU-imgbed/f77d3cdc-b757-4acd-9766-a64421bf0c6d.png";
+  const cuIconUrl = 'https://vkceyugu.cdn.bspapp.com/VKCEYUGU-imgbed/f77d3cdc-b757-4acd-9766-a64421bf0c6d.png';
   const headerStack = widget.addStack();
   headerStack.addSpacer();
   const logo = headerStack.addImage(await getImg(cuIconUrl));
@@ -184,8 +183,8 @@ const renderArcs = async (flowData, voiceData) => {
   const voiceGap = (100 - voiceData.persent) * 3.6;
 
   drawArc(dataGap, datafgColor, databgColor);
-  let ringStack = bodyStack.addStack();
-  let ringLeft = ringStack.addStack();
+  const ringStack = bodyStack.addStack();
+  const ringLeft = ringStack.addStack();
   ringLeft.layoutVertically();
   ringLeft.size = new Size(ringStackSize, ringStackSize);
   ringLeft.backgroundImage = canvas.getImage();
@@ -193,34 +192,34 @@ const renderArcs = async (flowData, voiceData) => {
   ringStack.addSpacer();
 
   drawArc(voiceGap, voicefgColor, voicebgColor);
-  let ringRight = ringStack.addStack();
+  const ringRight = ringStack.addStack();
   ringRight.layoutVertically();
   ringRight.size = new Size(ringStackSize, ringStackSize);
   ringRight.backgroundImage = canvas.getImage();
   await ringContent(
     ringRight,
-    SFSymbol.named("phone.fill").image,
+    SFSymbol.named('phone.fill').image,
     voicefgColor,
     voiceData.number,
     voiceData.unit
   );
 };
 
-async function getImg(url) {
+async function getImg (url) {
   const req = new Request(url);
   const img = await req.loadImage();
   return img
 }
 
-function sinDeg	(deg) {
-    return Math.sin((deg * Math.PI) / 180)
-  }
+function sinDeg (deg) {
+  return Math.sin((deg * Math.PI) / 180)
+}
 
-function cosDeg(deg) {
-    return Math.cos((deg * Math.PI) / 180)
-  }
+function cosDeg (deg) {
+  return Math.cos((deg * Math.PI) / 180)
+}
 
-function ringContent(widget, icon, iconColor, text, unit){
+function ringContent (widget, icon, iconColor, text, unit) {
   const rowIcon = widget.addStack();
   rowIcon.addSpacer();
   const iconElement = rowIcon.addImage(icon);
@@ -228,16 +227,16 @@ function ringContent(widget, icon, iconColor, text, unit){
   iconElement.imageSize = new Size(12, 12);
   iconElement.imageOpacity = 0.7;
   rowIcon.addSpacer();
-  
+
   widget.addSpacer(1);
-  
+
   const rowText = widget.addStack();
   rowText.addSpacer();
   const textElement = rowText.addText(text);
   textElement.textColor = dataTextColor;
   textElement.font = Font.mediumSystemFont(ringTextSize);
   rowText.addSpacer();
-  
+
   const rowUnit = widget.addStack();
   rowUnit.addSpacer();
   const unitElement = rowUnit.addText(unit);
@@ -245,7 +244,7 @@ function ringContent(widget, icon, iconColor, text, unit){
   unitElement.font = Font.boldSystemFont(8);
   unitElement.textOpacity = 0.5;
   rowUnit.addSpacer();
- }
+}
 
 function drawArc (deg, fillColor, strokeColor) {
   const ctr = new Point(canvSize / 2, canvSize / 2);
@@ -260,28 +259,28 @@ function drawArc (deg, fillColor, strokeColor) {
   canvas.strokeEllipse(bgr);
 
   for (let t = 0; t < deg; t++) {
-    rect_x = ctr.x + canvRadius * sinDeg(t) - canvWidth / 2;
-    rect_y = ctr.y - canvRadius * cosDeg(t) - canvWidth / 2;
-    rect_r = new Rect(rect_x, rect_y, canvWidth, canvWidth);
-    canvas.fillEllipse(rect_r);
+    const rectX = ctr.x + canvRadius * sinDeg(t) - canvWidth / 2;
+    const rectY = ctr.y - canvRadius * cosDeg(t) - canvWidth / 2;
+    const rectR = new Rect(rectX, rectY, canvWidth, canvWidth);
+    canvas.fillEllipse(rectR);
   }
 }
 
 const getData = async () => {
-  const cachePath = files.joinPath(files.documentsDirectory(), "Chinaunicom-anker");
+  const cachePath = files.joinPath(files.documentsDirectory(), 'Chinaunicom-anker');
   const headers = {
-    'User-Agent':'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0'
+    'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0'
   };
 
-  const url= 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@8.0102&desmobiel='+Tel+'&showType=0';
+  const url = 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@8.0102&desmobiel=' + Tel + '&showType=0';
   const req = new Request(url);
   req.headers = {
     ...headers,
-    cookie: clientCookie,
+    cookie: clientCookie
   };
   try {
     const data = await req.loadJSON();
-    console.log("余额信息请求成功 => ");
+    console.log('余额信息请求成功 => ');
     // console.log(data)
     if (data.code === 'Y') {
       data._state = 'approved'; // 正常通过请求
@@ -300,7 +299,7 @@ const getData = async () => {
       };
       try {
         const data1 = await req1.loadJSON();
-        console.log("签到信息请求成功 => ");
+        console.log('签到信息请求成功 => ');
         // console.log(data1)
         if (data1.status === '0000' || (data1.msg || '').includes('已经签到')) {
           data.signinState = '0';
@@ -317,7 +316,7 @@ const getData = async () => {
   } catch (e) {
     const data = JSON.parse(files.readString(cachePath));
     data._state = 'expired'; // 缓存的数据
-    console.warn("=== 数据请求失败，使用缓存数据 ===");
+    console.warn('=== 数据请求失败，使用缓存数据 ===');
     console.warn(e);
     return data
   }

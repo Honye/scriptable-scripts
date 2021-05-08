@@ -1,3 +1,5 @@
+import { phoneSize } from './utils/utils'
+
 const fontSize = 14
 const gap = 8
 const logoSize = 30
@@ -23,7 +25,6 @@ const KeyStorage = {
     if (Keychain.contains(_key)) {
       return JSON.parse(Keychain.get(_key))
     }
-    return
   }
 }
 
@@ -39,7 +40,7 @@ const presentSheet = async (options) => {
     showCancel: true,
     cancelText: 'Cancel',
     ...options
-  };
+  }
   const alert = new Alert()
   if (options.title) {
     alert.title = options.title
@@ -70,109 +71,6 @@ const InternationalScheme = {
 const H5Page = {
   hotSearch: () => `https://m.weibo.cn/p/index?containerid=${encodeURIComponent('106003&filter_type=realtimehot')}`,
   search: (keyword) => `https://m.weibo.cn/search?containerid=${encodeURIComponent('100103type=1&t=10&q=' + keyword)}`
-}
-
-/**
- * @param {number} [height] The screen height measured in pixels
- */
-const phoneSize = (height) => {
-  let phones = {
-
-    // 12 Pro Max
-    "2778": {
-      small: 510,
-      medium: 1092,
-      large: 1146
-    },
-
-    // 12 and 12 Pro
-    "2532": {
-      small: 474,
-      medium: 1014,
-      large: 1062
-    },
-
-    // 11 Pro Max, XS Max
-    "2688": {
-      small: 507,
-      medium: 1080,
-      large: 1137
-    },
-
-    // 11, XR
-    "1792": {
-      small: 338,
-      medium: 720,
-      large: 758
-    },
-
-
-    // 11 Pro, XS, X, 12 mini
-    "2436": {
-      small: 465,
-      medium: 987,
-      large: 1035
-    },
-
-    // Plus phones
-    "2208": {
-      small: 471,
-      medium: 1044,
-      large: 1071
-    },
-
-    // SE2 and 6/6S/7/8
-    "1334": {
-      small: 296,
-      medium: 642,
-      large: 648
-    },
-
-
-    // SE1
-    "1136": {
-      small: 282,
-      medium: 584,
-      large: 622
-    },
-
-    // 11 and XR in Display Zoom mode
-    "1624": {
-      small: 310,
-      medium: 658,
-      large: 690
-    },
-
-    // Plus in Display Zoom mode
-    "2001": {
-      small: 444,
-      medium: 963,
-      large: 972
-    }
-  }
-  height = height || Device.screenResolution().height
-  const scale = Device.screenScale()
-
-  if (config.runsInWidget) {
-    const phone = phones[height]
-    if (phone) {
-      return phone
-    }
-
-    const pc = {
-      small: 164 * scale,
-      medium: 344 * scale,
-      large: 354 * scale
-    }
-    return pc
-  }
-
-  // in app screen fixed 375x812 pt
-  return {
-    small: 155 * scale,
-    medium: 329 * scale,
-    large: 345 * scale
-  }
 }
 
 const conf = {
@@ -218,8 +116,8 @@ const main = async () => {
   return widget
 }
 
-let stackBottom;
-let widgetBottom;
+let stackBottom
+let widgetBottom
 const createWidget = async (data) => {
   const widget = new ListWidget()
   widget.backgroundColor = conf.theme === 'system'
@@ -266,14 +164,12 @@ const createWidget = async (data) => {
 
 const addItem = async (widget, item) => {
   const stack = widget.addStack()
-  let [path, queryString] = item.scheme.split('?')
+  const [, queryString] = item.scheme.split('?')
   const query = {}
-  // Scriptable url's query must be encoded
-  queryString = queryString.split('&').map((item) => {
+  queryString.split('&').forEach((item) => {
     const [key, value] = item.split('=')
     query[key] = value
-    return `${key}=${encodeURIComponent(value)}`
-  }).join('&')
+  })
   stack.url = Pages.search(query.keyword)
   stack.centerAlignContent()
   const lineHeight = 1

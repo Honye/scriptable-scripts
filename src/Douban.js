@@ -5,7 +5,7 @@ const main = async () => {
     await render()
     return
   }
-  
+
   const actions = ['Preview', 'Update']
   const alert = new Alert()
   alert.message = 'Preview the widget or update the script. Update will override the whole script.'
@@ -36,12 +36,12 @@ const render = async () => {
   }
   const data = await request.loadJSON()
   // console.log(data)
-  
+
   const widgetFamily = config.widgetFamily
   switch (widgetFamily) {
     case 'small':
       await renderSmall(data)
-     break
+      break
     case 'medium':
       await renderMedium(data)
       break
@@ -124,7 +124,7 @@ const shadowImage = async (image) => {
   const ctx = new DrawContext()
   ctx.size = size
   ctx.drawImageInRect(image, new Rect(0, 0, size.width, size.height))
-  ctx.setFillColor(new Color("#000000", 0.2))
+  ctx.setFillColor(new Color('#000000', 0.2))
   ctx.fillRect(new Rect(0, 0, size.width, size.height))
   const res = await ctx.getImage()
   return res

@@ -24,42 +24,42 @@ const main = async () => {
         { title: i18n(['Development', '开发服']) }
       ],
       cancelText: i18n(['Cancel', '取消'])
-    });
+    })
     switch (value) {
       /** Development */
       case 1: {
-        const alert = new Alert();
+        const alert = new Alert()
         alert.title = i18n(['Development', '开发服'])
         alert.message = i18n([
           'The file will be overwritten if it exists!',
           '如果文件已存在将会被覆盖！'
         ])
-        const host = Keychain.contains('dev-host') && Keychain.get('dev-host') || '';
-        const port = Keychain.contains('dev-port') && Keychain.get('dev-port') || '';
-        const name = Keychain.contains('dev-name') && Keychain.get('dev-name') || '';
-        alert.addTextField('host', host);
-        alert.addTextField('port', port);
+        const host = (Keychain.contains('dev-host') && Keychain.get('dev-host')) || ''
+        const port = (Keychain.contains('dev-port') && Keychain.get('dev-port')) || ''
+        const name = (Keychain.contains('dev-name') && Keychain.get('dev-name')) || ''
+        alert.addTextField('host', host)
+        alert.addTextField('port', port)
         alert.addTextField(
           i18n(['name', '文件名']),
           name
-        );
-        alert.addAction(i18n(['Download', '下载']));
-        alert.addCancelAction(i18n(['Cancel', '取消']));
-        const number = await alert.present();
+        )
+        alert.addAction(i18n(['Download', '下载']))
+        alert.addCancelAction(i18n(['Cancel', '取消']))
+        const number = await alert.present()
         /** Download */
         if (number === 0) {
-          const host = alert.textFieldValue(0);
-          const port = alert.textFieldValue(1);
-          const name = alert.textFieldValue(2);
-          Keychain.set('dev-host', host);
-          Keychain.set('dev-port', port);
-          Keychain.set('dev-name', name);
+          const host = alert.textFieldValue(0)
+          const port = alert.textFieldValue(1)
+          const name = alert.textFieldValue(2)
+          Keychain.set('dev-host', host)
+          Keychain.set('dev-port', port)
+          Keychain.set('dev-name', name)
           installByURL(
             `http://${host}:${port}/${name}.js`,
             { override: true }
-          );
+          )
         }
-        break;
+        break
       }
     }
   }
@@ -67,64 +67,64 @@ const main = async () => {
   const urls = args.urls
   if (urls && urls.length) {
     for (const url of urls) {
-      installByURL(url);
+      installByURL(url)
     }
   }
 }
 
 /**
  * download and install script from the url
- * 
+ *
  * @param {string} url url of the script
  * @param {object} options
  * @param {boolean} [options.override] weather override the existed file
  */
-async function installByURL(url, options) {
+async function installByURL (url, options) {
   const { override } = {
     override: false,
     ...options
-  };
-  const request = new Request(url);
+  }
+  const request = new Request(url)
   const text = await request.loadString()
     .catch(async (e) => {
       console.error(e)
-      const notification = new Notification();
-      notification.title = Script.name();
-      notification.body = e.toString();
-      await notification.schedule();
-      throw e;
-    });
-  const fileName = url.substring(url.lastIndexOf('/') + 1);
-  let filePath = `${appRoot}/${fileName}`;
+      const notification = new Notification()
+      notification.title = Script.name()
+      notification.body = e.toString()
+      await notification.schedule()
+      throw e
+    })
+  const fileName = url.substring(url.lastIndexOf('/') + 1)
+  let filePath = `${appRoot}/${fileName}`
   if (fs.fileExists(filePath) && !override) {
-    const alert = new Alert();
+    const alert = new Alert()
     alert.message = i18n([
       `${fileName} existed, please rename`,
       `${fileName} 已存在，请重命名`
-    ]);
+    ])
     alert.addTextField(
       i18n(['new file name', '新文件名']),
       fs.fileName(filePath) + '1'
-    );
-    alert.addAction(i18n(['Save', '保存']));
-    alert.addCancelAction(i18n(['Cancel', '取消']));
-    const num = await alert.present();
-    if (num === -1) return;
-    const newName = alert.textFieldValue(0);
+    )
+    alert.addAction(i18n(['Save', '保存']))
+    alert.addCancelAction(i18n(['Cancel', '取消']))
+    const num = await alert.present()
+    if (num === -1) return
+    const newName = alert.textFieldValue(0)
     if (newName) {
-      filePath = `${appRoot}/${newName}.js`;
+      filePath = `${appRoot}/${newName}.js`
     } else {
-      return;
+      return
     }
   }
-  fs.writeString(filePath, text);
+  fs.writeString(filePath, text)
   await genAlert(i18n([
     `${fileName} installed success`,
     `${fileName} 安装成功`
-  ]));
+  ]))
 }
 
-async function genAlert(message) {
+async function genAlert (message) {
   const _alert = new Alert()
   _alert.message = message
   return _alert.presentAlert()

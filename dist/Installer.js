@@ -14,7 +14,7 @@
  * @param {boolean} [options.showCancel = true]
  * @param {string} [options.cancelText = 'Cancel']
  */
-async function presentSheet(options) {
+async function presentSheet (options) {
   options = {
     showCancel: true,
     cancelText: 'Cancel',
@@ -44,7 +44,7 @@ async function presentSheet(options) {
 }
 
 /**
- * @param {{[language: string]: string} | string[]} langs 
+ * @param {{[language: string]: string} | string[]} langs
  */
 const i18n = (langs) => {
   const language = Device.language();
@@ -94,9 +94,9 @@ const main = async () => {
           'The file will be overwritten if it exists!',
           '如果文件已存在将会被覆盖！'
         ]);
-        const host = Keychain.contains('dev-host') && Keychain.get('dev-host') || '';
-        const port = Keychain.contains('dev-port') && Keychain.get('dev-port') || '';
-        const name = Keychain.contains('dev-name') && Keychain.get('dev-name') || '';
+        const host = (Keychain.contains('dev-host') && Keychain.get('dev-host')) || '';
+        const port = (Keychain.contains('dev-port') && Keychain.get('dev-port')) || '';
+        const name = (Keychain.contains('dev-name') && Keychain.get('dev-name')) || '';
         alert.addTextField('host', host);
         alert.addTextField('port', port);
         alert.addTextField(
@@ -119,7 +119,7 @@ const main = async () => {
             { override: true }
           );
         }
-        break;
+        break
       }
     }
   }
@@ -134,12 +134,12 @@ const main = async () => {
 
 /**
  * download and install script from the url
- * 
+ *
  * @param {string} url url of the script
  * @param {object} options
  * @param {boolean} [options.override] weather override the existed file
  */
-async function installByURL(url, options) {
+async function installByURL (url, options) {
   const { override } = {
     override: false,
     ...options
@@ -152,7 +152,7 @@ async function installByURL(url, options) {
       notification.title = Script.name();
       notification.body = e.toString();
       await notification.schedule();
-      throw e;
+      throw e
     });
   const fileName = url.substring(url.lastIndexOf('/') + 1);
   let filePath = `${appRoot}/${fileName}`;
@@ -169,12 +169,12 @@ async function installByURL(url, options) {
     alert.addAction(i18n(['Save', '保存']));
     alert.addCancelAction(i18n(['Cancel', '取消']));
     const num = await alert.present();
-    if (num === -1) return;
+    if (num === -1) return
     const newName = alert.textFieldValue(0);
     if (newName) {
       filePath = `${appRoot}/${newName}.js`;
     } else {
-      return;
+      return
     }
   }
   fs.writeString(filePath, text);

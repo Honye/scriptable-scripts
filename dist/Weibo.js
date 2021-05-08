@@ -8,6 +8,156 @@
  * @author Honye
  */
 
+/**
+ * @param {number} [height] The screen height measured in pixels
+ */
+const phoneSize = (height) => {
+  const phones = {
+    /** 12 Pro Max */
+    2778: {
+      small: 510,
+      medium: 1092,
+      large: 1146,
+      left: 96,
+      right: 678,
+      top: 246,
+      middle: 882,
+      bottom: 1518
+    },
+    /** 12 and 12 Pro */
+    2532: {
+      small: 474,
+      medium: 1014,
+      large: 1062,
+      left: 78,
+      right: 618,
+      top: 231,
+      middle: 819,
+      bottom: 1407
+    },
+    /** 11 Pro Max, XS Max */
+    2688: {
+      small: 507,
+      medium: 1080,
+      large: 1137,
+      left: 81,
+      right: 654,
+      top: 228,
+      middle: 858,
+      bottom: 1488
+    },
+    /** 11, XR */
+    1792: {
+      small: 338,
+      medium: 720,
+      large: 758,
+      left: 55,
+      right: 437,
+      top: 159,
+      middle: 579,
+      bottom: 999
+    },
+    /** 11 Pro, XS, X, 12 mini */
+    2436: {
+      small: 465,
+      medium: 987,
+      large: 1035,
+      x: {
+        left: 69,
+        right: 591,
+        top: 213,
+        middle: 783,
+        bottom: 1353
+      },
+      mini: {
+        left: 69,
+        right: 591,
+        top: 231,
+        middle: 801,
+        bottom: 1371
+      }
+    },
+    /** Plus phones */
+    2208: {
+      small: 471,
+      medium: 1044,
+      large: 1071,
+      left: 99,
+      right: 672,
+      top: 114,
+      middle: 696,
+      bottom: 1278
+    },
+    /** SE2 and 6/6S/7/8 */
+    1334: {
+      small: 296,
+      medium: 642,
+      large: 648,
+      left: 54,
+      right: 400,
+      top: 60,
+      middle: 412,
+      bottom: 764
+    },
+    /** SE1 */
+    1136: {
+      small: 282,
+      medium: 584,
+      large: 622,
+      left: 30,
+      right: 332,
+      top: 59,
+      middle: 399,
+      bottom: 399
+    },
+    /** 11 and XR in Display Zoom mode */
+    1624: {
+      small: 310,
+      medium: 658,
+      large: 690,
+      left: 46,
+      right: 394,
+      top: 142,
+      middle: 522,
+      bottom: 902
+    },
+    /** Plus in Display Zoom mode */
+    2001: {
+      small: 444,
+      medium: 963,
+      large: 972,
+      left: 81,
+      right: 600,
+      top: 90,
+      middle: 618,
+      bottom: 1146
+    }
+  };
+  height = height || Device.screenResolution().height;
+  const scale = Device.screenScale();
+
+  if (config.runsInWidget) {
+    const phone = phones[height];
+    if (phone) {
+      return phone
+    }
+
+    const pc = {
+      small: 164 * scale,
+      medium: 344 * scale,
+      large: 354 * scale
+    };
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return {
+    small: 155 * scale,
+    medium: 329 * scale,
+    large: 345 * scale
+  }
+};
+
 const fontSize = 14;
 const gap = 8;
 const logoSize = 30;
@@ -33,7 +183,6 @@ const KeyStorage = {
     if (Keychain.contains(_key)) {
       return JSON.parse(Keychain.get(_key))
     }
-    return
   }
 };
 
@@ -80,109 +229,6 @@ const InternationalScheme = {
 const H5Page = {
   hotSearch: () => `https://m.weibo.cn/p/index?containerid=${encodeURIComponent('106003&filter_type=realtimehot')}`,
   search: (keyword) => `https://m.weibo.cn/search?containerid=${encodeURIComponent('100103type=1&t=10&q=' + keyword)}`
-};
-
-/**
- * @param {number} [height] The screen height measured in pixels
- */
-const phoneSize = (height) => {
-  let phones = {
-
-    // 12 Pro Max
-    "2778": {
-      small: 510,
-      medium: 1092,
-      large: 1146
-    },
-
-    // 12 and 12 Pro
-    "2532": {
-      small: 474,
-      medium: 1014,
-      large: 1062
-    },
-
-    // 11 Pro Max, XS Max
-    "2688": {
-      small: 507,
-      medium: 1080,
-      large: 1137
-    },
-
-    // 11, XR
-    "1792": {
-      small: 338,
-      medium: 720,
-      large: 758
-    },
-
-
-    // 11 Pro, XS, X, 12 mini
-    "2436": {
-      small: 465,
-      medium: 987,
-      large: 1035
-    },
-
-    // Plus phones
-    "2208": {
-      small: 471,
-      medium: 1044,
-      large: 1071
-    },
-
-    // SE2 and 6/6S/7/8
-    "1334": {
-      small: 296,
-      medium: 642,
-      large: 648
-    },
-
-
-    // SE1
-    "1136": {
-      small: 282,
-      medium: 584,
-      large: 622
-    },
-
-    // 11 and XR in Display Zoom mode
-    "1624": {
-      small: 310,
-      medium: 658,
-      large: 690
-    },
-
-    // Plus in Display Zoom mode
-    "2001": {
-      small: 444,
-      medium: 963,
-      large: 972
-    }
-  };
-  height = height || Device.screenResolution().height;
-  const scale = Device.screenScale();
-
-  if (config.runsInWidget) {
-    const phone = phones[height];
-    if (phone) {
-      return phone
-    }
-
-    const pc = {
-      small: 164 * scale,
-      medium: 344 * scale,
-      large: 354 * scale
-    };
-    return pc
-  }
-
-  // in app screen fixed 375x812 pt
-  return {
-    small: 155 * scale,
-    medium: 329 * scale,
-    large: 345 * scale
-  }
 };
 
 const conf = {
@@ -275,14 +321,12 @@ const createWidget = async (data) => {
 
 const addItem = async (widget, item) => {
   const stack = widget.addStack();
-  let [path, queryString] = item.scheme.split('?');
+  const [, queryString] = item.scheme.split('?');
   const query = {};
-  // Scriptable url's query must be encoded
-  queryString = queryString.split('&').map((item) => {
+  queryString.split('&').forEach((item) => {
     const [key, value] = item.split('=');
     query[key] = value;
-    return `${key}=${encodeURIComponent(value)}`
-  }).join('&');
+  });
   stack.url = Pages.search(query.keyword);
   stack.centerAlignContent();
   const lineHeight = 1;
