@@ -54,7 +54,7 @@ Weibo hotsearch without ads
 - Customizable appearance. Support `system`, `light` and `dark`
 - Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
 
-Fill your prefer `client`  and `theme` in the widget Parameter, separated by commas. Like `2,dark`
+Fill your prefer `client` and `theme` in the widget Parameter, separated by commas. Like `2,dark`
 
 | Parameter | Description                   |
 | --------- | ----------------------------- |
@@ -83,3 +83,19 @@ Fill your username and theme in the widget Parameter, separated by commas.
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/GitHub%20Contributions.js)
 
 [Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FGitHub%2520Contributions.js) (must have [Installer](#Installer) installed)
+
+## Photos
+
+Randomly display the pictures in the album.
+
+| Parameter | Description           |
+| --------- | --------------------- |
+| album     | The name of the album |
+
+| Albums (In APP)                                              | Photos (In APP)                                              | Widget                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| <img src="./docs/assets/IMG_1568.PNG" alt="Albums" style="zoom:30%;" /> | <img src="./docs/assets/IMG_1569.PNG" alt="Photos" style="zoom:30%;" /> | <img src="./docs/assets/IMG_1570.PNG" alt="Widget" style="zoom:30%;" /> |
+
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Photos.js)
+
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FPhotos.js) (must have [Installer](#Installer) installed)

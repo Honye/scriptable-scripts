@@ -1,0 +1,13 @@
+{
+  "description": [],
+  "setting": {
+    "icon-glyph": "images",
+    "icon-color": "cyan",
+    "share-sheet-inputs": [
+      "file-url",
+      "url",
+      "image",
+      "plain-text"
+    ]
+  }
+}
