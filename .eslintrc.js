@@ -14,6 +14,7 @@ module.exports = {
       configFile: './babel.config.js'
     }
   },
+  ignorePatterns: ['dist/'],
   globals: {
     importModule: 'writable',
     log: 'writable',
@@ -22,9 +23,11 @@ module.exports = {
     Device: 'readonly',
     config: 'readonly',
     Font: 'readonly',
+    Image: 'readonly',
     Keychain: 'readonly',
     Notification: 'readonly',
     Point: 'readonly',
+    QuickLook: 'readonly',
     Rect: 'readonly',
     Request: 'readonly',
     Script: 'readonly',
@@ -35,7 +38,9 @@ module.exports = {
     Photos: 'readonly',
     DrawContext: 'readonly',
     Alert: 'readonly',
-    ListWidget: 'readonly'
+    ListWidget: 'readonly',
+    UITable: 'readonly',
+    UITableRow: 'readonly'
   },
   rules: {
   }
