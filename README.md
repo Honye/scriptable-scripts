@@ -33,7 +33,7 @@ Features:
 
 |                       Light                       |                      Dark                       |
 | :-----------------------------------------------: | :---------------------------------------------: |
-| ![Light mode](./10010/screenshot/small_light.jpg) | ![Dark mode](./10010/screenshot/small_dark.jpg) |
+| ![Light mode](./docs/assets/10010_small_light.jpg) | ![Dark mode](./docs/assets/10010_small_dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js)
 
@@ -45,7 +45,7 @@ Daily movie
 
 |                     Small                      |                     Medium                      |    Large    |
 | :--------------------------------------------: | :---------------------------------------------: | :---------: |
-| ![Small widget](./douban/screenshot/small.jpg) | ![Small widget](./douban/screenshot/medium.jpg) | Not support |
+| ![Small widget](./docs/assets/douban_small.jpg) | ![Small widget](./docs/assets/douban_medium.jpg) | Not support |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
 
@@ -67,7 +67,7 @@ Fill your prefer `client` and `theme` in the widget Parameter, separated by comm
 
 | Medium & Light                                     | Medium & Dark                                    |
 | :------------------------------------------------- | ------------------------------------------------ |
-| ![light mode](./weibo/screenshot/medium-light.jpg) | ![dark mode](./weibo/screenshot/medium-dark.jpg) |
+| ![light mode](./docs/assets/weibo_medium_light.jpg) | ![dark mode](./docs/assets/weibo_medium_dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
@@ -82,7 +82,7 @@ Fill your username and theme in the widget Parameter, separated by commas.
 
 | Small & Light                                                | Medium & Dark                                                |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| ![small widget](./GitHub%20Contributions/screenshot/small-light.jpg) | ![medium widget](./GitHub%20Contributions/screenshot/medium-dark.jpg) |
+| ![small widget](./docs/assets/github_small_light.jpg) | ![medium widget](./docs/assets/github_medium_dark.jpg) |
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/GitHub%20Contributions.js)
 
