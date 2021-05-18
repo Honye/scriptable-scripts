@@ -1,6 +1,10 @@
 # Scriptable Scripts
 
+English | [中文](./README.zh.md)
+
 Some scripts used in the iOS app [Scriptable](https://scriptable.app/). 
+
+[iOS Scriptable](https://scriptable.app/) | [macOS Scriptable](https://scriptable.app/mac-beta/)
 
 ## Installer Shortcut
 
@@ -8,7 +12,7 @@ Quick install Scriptable script via the share menu, clipboard or scan QRCode.
 
 Quick install the [Installer](#Installer) script.
 
-[Link](https://www.icloud.com/shortcuts/5348320491144e2f8b594d4a934e678e)
+[Link](https://www.icloud.com/shortcuts/947cf9b80e4540a286f3c5beb19b791f)
 
 ## Installer
 
@@ -19,7 +23,7 @@ Features:
 1. When accessing the JS file online, it can be installed directly through the share menu.
 2. Support to install JS files through URL Scheme. `scriptable:///run/installer?url=<encoded url>` or `https://open.scriptable.app/run/installer?url=<encoded url>`
 
-[Source Code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/installer.js)
+[Source Code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
 
 ## 10010
 
@@ -43,9 +47,9 @@ Daily movie
 | :--------------------------------------------: | :---------------------------------------------: | :---------: |
 | ![Small widget](./douban/screenshot/small.jpg) | ![Small widget](./douban/screenshot/medium.jpg) | Not support |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/douban/Douban.js)
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdouban%2FDouban.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (must have [Installer](#Installer) installed)
 
 ## Weibo
 
@@ -65,9 +69,9 @@ Fill your prefer `client` and `theme` in the widget Parameter, separated by comm
 | :------------------------------------------------- | ------------------------------------------------ |
 | ![light mode](./weibo/screenshot/medium-light.jpg) | ![dark mode](./weibo/screenshot/medium-dark.jpg) |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js)
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fweibo%2FWeibo.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js) (must have [Installer](#Installer) installed)
 
 ## GitHub Contributions
 
