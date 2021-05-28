@@ -1,48 +1,48 @@
-import path from 'path';
-import fs from 'fs';
-import serve from 'rollup-plugin-serve';
-import { version } from './package.json';
+import path from 'path'
+import fs from 'fs'
+import serve from 'rollup-plugin-serve'
+import { version } from './package.json'
 
-console.info(`Scriptable Template v${version}`);
+console.info(`Scriptable Template v${version}`)
 
 const config = {
   author: 'Honye',
   input: './src',
   dest: 'dist'
-};
+}
 
-const files = fs.readdirSync(config.input);
-const modules = [];
+const files = fs.readdirSync(config.input)
+const modules = []
 files.forEach((filename) => {
-  const matches = filename.match(/(^.+?)(\.js)$/);
+  const matches = filename.match(/(^.+?)(\.js)$/)
   if (matches) {
-    const [name, suffix] = matches.splice(1);
-    let conf = {};
+    const [name, suffix] = matches.splice(1)
+    let conf = {}
     try {
-      conf = require(`./src/${name}.json`);
+      conf = require(`./src/${name}.json`)
     } catch (e) {}
-    const annotations = [];
+    const annotations = []
     if (conf.description) {
-      const { description } = conf;
+      const { description } = conf
       if (Array.isArray(description)) {
         for (const item of description) {
-          annotations.push(` * ${item}`);
+          annotations.push(` * ${item}`)
         }
       } else {
-        annotations.push(` * ${description}`);
+        annotations.push(` * ${description}`)
       }
-      annotations.push(' *');
+      annotations.push(' *')
     }
-    annotations.push(` * @version ${conf.version || '1.0.0'}`);
+    annotations.push(` * @version ${conf.version || '1.0.0'}`)
     if (config.author) {
-      annotations.push(` * @author ${conf.author || config.author}`);
+      annotations.push(` * @author ${conf.author || config.author}`)
     }
     const banners = [
       '/**\n' + annotations.join('\n') + '\n */\n'
     ]
     if (conf.setting) {
-      const { setting } = conf;
-      const items = [];
+      const { setting } = conf
+      const items = []
       for (const key in setting) {
         items.push(`${key}: ${setting[key]};`)
       }
@@ -51,7 +51,7 @@ files.forEach((filename) => {
           '// Variables used by Scriptable.\n' +
           '// These must be at the very top of the file. Do not edit.\n' +
           `// ${items.join(' ')}`
-        );
+        )
       }
     }
     modules.push({
@@ -67,11 +67,11 @@ files.forEach((filename) => {
       plugins:
         process.env.NODE_ENV === 'development'
           ? [
-            serve(config.dest)
-          ]
+              serve(config.dest)
+            ]
           : []
-    });
+    })
   }
-});
+})
 
-export default modules;
+export default modules
