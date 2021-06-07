@@ -3,17 +3,28 @@ import fs from 'fs'
 import serve from 'rollup-plugin-serve'
 import { version } from './package.json'
 
-console.info(`Scriptable Template v${version}`)
+console.info(`Scriptable Template v${version}\r\n`)
 
 const config = {
   author: 'Honye',
   input: './src',
+  exclude: ['./src/utils.js'],
   dest: 'dist'
 }
 
 const files = fs.readdirSync(config.input)
 const modules = []
-files.forEach((filename) => {
+const excludeIds = config.exclude.reduce((ids, str) => {
+  const id = path.resolve(str)
+  ids[id] = true
+  return ids
+}, {})
+for (const filename of files) {
+  if (excludeIds[path.resolve(path.join('./src/', filename))]) {
+    console.info(`${filename} has excluded`)
+    continue
+  }
+
   const matches = filename.match(/(^.+?)(\.js)$/)
   if (matches) {
     const [name, suffix] = matches.splice(1)
@@ -54,6 +65,33 @@ files.forEach((filename) => {
         )
       }
     }
+
+    const plugins = [
+      // transform `module.exports`
+      {
+        /**
+         * @param {string} code
+         */
+        transform (code) {
+          return code.replace(/module.exports\s* =/g, 'export default')
+        }
+      },
+      // transform `importModule('utils')`
+      {
+        /**
+         * @param {string} code
+         */
+        transform (code) {
+          return code.replace(
+            /((?:let)|(?:const)|(?:var))\s*((?:\w+)|(?:\{.*\}))\s*=\s*importModule\('(.*?)'\)/g,
+            (str, declaration, imported, moduleName) => {
+              return `import ${imported} from "./${moduleName}"`
+            }
+          )
+        }
+      }
+    ]
+
     modules.push({
       input: `./src/${filename}`,
       output: {
@@ -67,11 +105,12 @@ files.forEach((filename) => {
       plugins:
         process.env.NODE_ENV === 'development'
           ? [
+              ...plugins,
               serve(config.dest)
             ]
-          : []
+          : [...plugins]
     })
   }
-})
+}
 
 export default modules

@@ -1,6 +1,6 @@
 {
   "name": "scriptable-scripts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Development template and some scripts used for the iOS app [Scriptable](https://scriptable.app/).",
   "main": "src",
   "scripts": {
