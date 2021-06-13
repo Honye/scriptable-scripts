@@ -8,7 +8,7 @@
 
 统一说明：
 
-本仓库组件配置项多个参数统一使用 `,` 分隔填入 Parameter 输入框
+本仓库组件配置项多个参数统一使用 `,` 分隔填入 Parameter 输入框
 
 ## 安装器（快捷指令版本）
 
@@ -25,7 +25,7 @@
 功能：
 
 1. 在线访问 JS 文件时，可通过分享菜单快速安装该 JS 文件
-2. 通过 URL Scheme 可实现脚本分享并快速安装。`scriptable:///run/installer?url=<encoded url>` 或 `https://open.scriptable.app/run/installer?url=<encoded url>`
+2. 通过 URL Scheme 可实现脚本分享并快速安装。`scriptable:///run/installer?url=<encoded url>` 或 `https://open.scriptable.app/run/installer?url=<encoded url>`
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
 
@@ -64,7 +64,7 @@
 - 可自定义样式。支持 `system`（默认）, `light` 和 `dark`
 - 可自定义使用什么客户端查看详情. 支持 [微博国际版](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) 和 [网页应用](https://m.weibo.cn/)
 
-将配置填写在组件的 Parameter 输入框，不同配置间使用 `,` 分隔。例如 `2,dark`
+将配置填写在组件的 Parameter 输入框，不同配置间使用 `,` 分隔。例如 `2,dark`
 
 | 配置项 | 说明                                                        |
 | ------ | ----------------------------------------------------------- |
@@ -115,3 +115,32 @@
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Photos.js)
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FPhotos.js)（需先安装 [Installer](#Installer)）
+
+## 掘金
+
+### 参数
+
+| 配置项 | 说明        |
+| ------ | ----------- |
+| cateID | 文章分类 ID |
+
+#### cateID
+
+| 属性值    | 说明     |
+| --------- | -------- |
+| `be`      | 后端     |
+| `fe`      | 前端     |
+| `android` | Android  |
+| `ios`     | iOS      |
+| `ai`      | 人工智能 |
+| `tools`   | 开发工具 |
+| `coding`  | 代码人生 |
+| `reading` | 阅读     |
+
+| Light Mode                                                   | Dark Mode                                                    |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| <img src="./docs/assets/IMG_1712.JPG" alt="light mode" zoom="30%" /> | <img src="./docs/assets/IMG_1713.JPG" alt="light mode" zoom="30%" /> |
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Juejin.js)
+
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js)（需先安装 [Installer](#Installer)）

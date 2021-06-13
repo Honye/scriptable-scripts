@@ -55,7 +55,7 @@ Daily movie
 
 Weibo hotsearch without ads
 
-- Customizable appearance. Support `system`, `light` and `dark`
+- Customizable appearance. Support `system`, `light` and `dark`
 - Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
 
 Fill your prefer `client` and `theme` in the widget Parameter, separated by commas. Like `2,dark`
@@ -103,3 +103,32 @@ Randomly display the pictures in the album.
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Photos.js)
 
 [Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FPhotos.js) (must have [Installer](#Installer) installed)
+
+## Juejin
+
+### Parameters
+
+| Parameter | Description |
+| --------- | ----------- |
+| cateID    | Category ID |
+
+#### cateID
+
+| cateID    | Description   |
+| --------- | ------------- |
+| `be`      | Back-End      |
+| `fe`      | Front-End     |
+| `android` | Android       |
+| `ios`     | iOS           |
+| `ai`      | AI            |
+| `tools`   | Develop Tools |
+| `coding`  | Code life     |
+| `reading` | Reading       |
+
+| Light Mode                                                   | Dark Mode                                                    |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| <img src="./docs/assets/IMG_1712.JPG" alt="light mode" zoom="30%" /> | <img src="./docs/assets/IMG_1713.JPG" alt="light mode" zoom="30%" /> |
+
+[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Juejin.js)
+
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js) (must have [Installer](#Installer) installed)
