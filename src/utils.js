@@ -6,7 +6,7 @@
  * @param {boolean} [options.showCancel = true]
  * @param {string} [options.cancelText = 'Cancel']
  */
-async function presentSheet (options) {
+module.exports.presentSheet = async function (options) {
   options = {
     showCancel: true,
     cancelText: 'Cancel',
@@ -38,7 +38,7 @@ async function presentSheet (options) {
 /**
  * @param {number} [height] The screen height measured in pixels
  */
-const phoneSize = (height) => {
+module.exports.phoneSize = (height) => {
   const phones = {
     /** 12 Pro Max */
     2778: {
@@ -190,7 +190,7 @@ const phoneSize = (height) => {
  * @param {object} options
  * @param {string} options.fileURL
  */
-const updateCode = async (options) => {
+module.exports.updateCode = async (options) => {
   const { fileURL } = options
   let fm = FileManager.local()
   if (fm.isFileStoredIniCloud(module.filename)) {
@@ -212,7 +212,7 @@ const updateCode = async (options) => {
 /**
  * @param {{[language: string]: string} | string[]} langs
  */
-const i18n = (langs) => {
+module.exports.i18n = (langs) => {
   const language = Device.language()
   if (Array.isArray(langs)) {
     langs = {
@@ -229,7 +229,7 @@ const i18n = (langs) => {
 /**
  * @param {string} hex
  */
-const hexToRGBA = (hex) => {
+module.exports.hexToRGBA = (hex) => {
   const red = Number.parseInt(hex.substr(-6, 2), 16)
   const green = Number.parseInt(hex.substr(-4, 2), 16)
   const blue = Number.parseInt(hex.substr(-2, 2), 16)
@@ -245,7 +245,7 @@ const hexToRGBA = (hex) => {
   return { red, green, blue, alpha }
 }
 
-const RGBToHex = (r, g, b) => {
+const _RGBToHex = (r, g, b) => {
   r = r.toString(16)
   g = g.toString(16)
   b = b.toString(16)
@@ -256,8 +256,9 @@ const RGBToHex = (r, g, b) => {
 
   return '#' + r + g + b
 }
+module.exports.RGBToHex = _RGBToHex
 
-const RGBToHSL = (r, g, b) => {
+module.exports.RGBToHSL = (r, g, b) => {
   r /= 255
   g /= 255
   b /= 255
@@ -290,7 +291,7 @@ const RGBToHSL = (r, g, b) => {
   return { h, s, l }
 }
 
-const HSLToRGB = (h, s, l) => {
+const _HSLToRGB = (h, s, l) => {
 // Must be fractions of 1
   s /= 100
   l /= 100
@@ -319,21 +320,10 @@ const HSLToRGB = (h, s, l) => {
   b = Math.round((b + m) * 255)
   return { r, g, b }
 }
+module.exports.HSLToRGB = _HSLToRGB
 
-const lightenDarkenColor = (hsl, amount) => {
-  const rgb = HSLToRGB(hsl.h, hsl.s, hsl.l + amount)
-  const hex = RGBToHex(rgb.r, rgb.g, rgb.b)
+module.exports.lightenDarkenColor = (hsl, amount) => {
+  const rgb = _HSLToRGB(hsl.h, hsl.s, hsl.l + amount)
+  const hex = _RGBToHex(rgb.r, rgb.g, rgb.b)
   return hex
-}
-
-module.exports = {
-  i18n,
-  phoneSize,
-  presentSheet,
-  updateCode,
-  hexToRGBA,
-  RGBToHex,
-  RGBToHSL,
-  HSLToRGB,
-  lightenDarkenColor
 }

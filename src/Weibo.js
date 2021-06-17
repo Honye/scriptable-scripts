@@ -124,7 +124,8 @@ const createWidget = async (data) => {
     ? Color.dynamic(themes.light.background, themes.dark.background)
     : themes[conf.theme].background
   widget.url = Pages.hotSearch()
-  widget.setPadding(paddingVertical, 12, paddingVertical, 14)
+  const paddingY = paddingVertical - (gap / 2)
+  widget.setPadding(paddingY, 12, paddingY, 14)
   const max = conf.count
   const logoLines = Math.ceil((logoSize + gap) / (fontSize + gap))
   for (let i = 0; i < max; ++i) {
@@ -137,18 +138,15 @@ const createWidget = async (data) => {
       textTime.font = Font.systemFont(10)
       textTime.textColor = new Color('#666666')
     } else if (i < max - logoLines) {
-      widget.addSpacer(gap)
       await addItem(widget, item)
     } else {
       if (!widgetBottom) {
-        widget.addSpacer(gap)
         stackBottom = widget.addStack()
         stackBottom.bottomAlignContent()
         widgetBottom = stackBottom.addStack()
         widgetBottom.layoutVertically()
         addItem(widgetBottom, item)
       } else {
-        widgetBottom.addSpacer(gap)
         await addItem(widgetBottom, item)
       }
       widgetBottom.length = (widgetBottom.length || 0) + 1
@@ -172,8 +170,7 @@ const addItem = async (widget, item) => {
   })
   stack.url = Pages.search(query.keyword)
   stack.centerAlignContent()
-  const lineHeight = 1
-  stack.size = new Size(-1, fontSize * lineHeight)
+  stack.size = new Size(-1, fontSize + gap)
   const stackIndex = stack.addStack()
   stackIndex.size = new Size(fontSize * 1.4, -1)
   const textIndex = stackIndex.addText(String(item.pic_id))
