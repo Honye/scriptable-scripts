@@ -74,6 +74,9 @@ for (const filename of files) {
          */
         transform (code) {
           return code.replace(/module.exports\s* =/g, 'export default')
+            .replace(/module\.exports\.(\w+)\s*=/g, (str, name) => {
+              return `export const ${name} =`
+            })
         }
       },
       // transform `importModule('utils')`

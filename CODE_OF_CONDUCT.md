@@ -1,0 +1,34 @@
+# 规范
+
+- 使用 2 个空格进行缩进
+- 字符串统一使用单引号
+- 函数声明时括号与函数名间加空格
+
+```javascript
+function hello (arg) {...}
+call(function () {...})
+```
+
+- 函数调用时标识符与括号间不留间隔
+
+```javascript
+hello('world')
+```
+
+- `module.exports.name`
+
+因打包脚本缺陷问题，当脚本中存在 `module.exports.name` 时会生成量 `name`（`const name`），编写脚本时不允许重复声明变量 `name`
+
+```javascript
+// ❌
+const name = 'Jackie'
+
+module.exports.name = name
+```
+
+```javascript
+// ✅
+const _name = 'Jackie'
+
+module.exports.name = _name
+```
