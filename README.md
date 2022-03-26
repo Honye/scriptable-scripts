@@ -57,6 +57,7 @@ Weibo hotsearch without ads
 
 - Customizable appearance. Support `system`, `light` and `dark`
 - Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
+- Displays the result of the last successful request when a network exception occurs
 
 Fill your prefer `client` and `theme` in the widget Parameter, separated by commas. Like `2,dark`
 

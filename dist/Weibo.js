@@ -1,12 +1,49 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-glyph: fire; icon-color: pink;
+// icon-color: pink; icon-glyph: fire;
 /**
  * Top trending searches on Weibo
  *
- * @version 1.0.3
+ * @version 1.1.0
  * @author Honye
  */
+
+/**
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.message]
+ * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {boolean} [options.showCancel = true]
+ * @param {string} [options.cancelText = 'Cancel']
+ */
+const presentSheet = async function (options) {
+  options = {
+    showCancel: true,
+    cancelText: 'Cancel',
+    ...options
+  };
+  const alert = new Alert();
+  if (options.title) {
+    alert.title = options.title;
+  }
+  if (options.message) {
+    alert.message = options.message;
+  }
+  if (!options.options) {
+    throw new Error('The "options" property of the parameter cannot be empty')
+  }
+  for (const option of options.options) {
+    alert.addAction(option.title);
+  }
+  if (options.showCancel) {
+    alert.addCancelAction(options.cancelText);
+  }
+  const value = await alert.presentSheet();
+  return {
+    value,
+    option: options.options[value]
+  }
+};
 
 /**
  * @param {number} [height] The screen height measured in pixels
@@ -186,39 +223,6 @@ const KeyStorage = {
   }
 };
 
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {string} [options.cancelText = 'Cancel']
- */
-const presentSheet = async (options) => {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return { value, option: options.options[value] }
-};
-
 /** 微博国际版页面 */
 const InternationalScheme = {
   hotSearch: () => 'weibointernational://hotsearch',
@@ -261,21 +265,29 @@ const Pages = (() => {
   }
 })();
 
-const dateFormat = new DateFormatter();
-dateFormat.dateFormat = 'HH:mm';
-const timeString = dateFormat.string(new Date());
-
-const main = async () => {
+const fetchData = async () => {
   const url = 'https://weibointl.api.weibo.cn/portal.php?ct=feed&a=search_topic';
   const request = new Request(url);
-  const data = await request.loadJSON();
-  const widget = await createWidget(data);
-  return widget
+  try {
+    const res = await request.loadJSON();
+    const df = new DateFormatter();
+    df.dateFormat = 'HH:mm';
+    const timeString = df.string(new Date());
+    const data = {
+      data: res,
+      updatedAt: timeString
+    };
+    KeyStorage.set('cache', data);
+    return data
+  } catch (e) {
+    const data = KeyStorage.get('cache');
+    return data
+  }
 };
 
 let stackBottom;
 let widgetBottom;
-const createWidget = async (data) => {
+const createWidget = async ({ data, updatedAt }) => {
   const widget = new ListWidget();
   widget.backgroundColor = conf.theme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
@@ -291,7 +303,7 @@ const createWidget = async (data) => {
       const stack = widget.addStack();
       await addItem(stack, item);
       stack.addSpacer();
-      const textTime = stack.addText(`更新于 ${timeString}`);
+      const textTime = stack.addText(`更新于 ${updatedAt}`);
       textTime.font = Font.systemFont(10);
       textTime.textColor = new Color('#666666');
     } else if (i < max - logoLines) {
@@ -393,31 +405,34 @@ const settings = async () => {
   conf.client = client;
 };
 
-if (config.runsInApp) {
-  const res = await presentSheet({
-    message: 'Preview the widget or update the script. Update will override the whole script.',
-    options: [
-      { title: 'Preview', value: 'Preview' },
-      { title: 'Settings', value: 'Settings' },
-      { title: 'Update', value: 'Update' }
-    ]
-  });
-  const value = res.option?.value;
-  switch (value) {
-    case 'Preview':
-      break
-    case 'Settings':
-      await settings();
-      break
-    case 'Update':
-      update();
-      break
+const main = async () => {
+  const data = await fetchData();
+  const widget = await createWidget(data);
+  if (config.runsInApp) {
+    const res = await presentSheet({
+      message: 'Preview the widget or update the script. Update will override the whole script.',
+      options: [
+        { title: 'Preview', value: 'Preview' },
+        { title: 'Settings', value: 'Settings' },
+        { title: 'Update', value: 'Update' }
+      ]
+    });
+    const value = res.option?.value;
+    switch (value) {
+      case 'Preview':
+        widget.presentMedium();
+        break
+      case 'Settings':
+        await settings();
+        break
+      case 'Update':
+        update();
+        break
+    }
   }
-}
 
-const widget = await main();
-if (config.runsInApp) {
-  widget.presentMedium();
-}
-Script.setWidget(widget);
-Script.complete();
+  Script.setWidget(widget);
+  Script.complete();
+};
+
+main();
