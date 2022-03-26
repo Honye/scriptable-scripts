@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs'
+import glob from 'glob'
 import serve from 'rollup-plugin-serve'
 import { version } from './package.json'
 
@@ -7,30 +7,21 @@ console.info(`Scriptable Template v${version}\r\n`)
 
 const config = {
   author: 'Honye',
-  input: './src',
-  exclude: ['./src/utils.js'],
+  input: 'src/*.js',
+  exclude: ['src/*.module.js'],
   dest: 'dist'
 }
 
-const files = fs.readdirSync(config.input)
+const files = glob.sync(config.input, { ignore: config.exclude || [] })
 const modules = []
-const excludeIds = config.exclude.reduce((ids, str) => {
-  const id = path.resolve(str)
-  ids[id] = true
-  return ids
-}, {})
-for (const filename of files) {
-  if (excludeIds[path.resolve(path.join('./src/', filename))]) {
-    console.info(`${filename} has excluded`)
-    continue
-  }
 
+for (const filename of files) {
   const matches = filename.match(/(^.+?)(\.js)$/)
   if (matches) {
-    const [name, suffix] = matches.splice(1)
+    const [, suffix] = matches.splice(1)
     let conf = {}
     try {
-      conf = require(`./src/${name}.json`)
+      conf = require(path.resolve(filename.replace(new RegExp(`${suffix}$`), '.json')))
     } catch (e) {}
     const annotations = []
     if (conf.description) {
@@ -73,7 +64,7 @@ for (const filename of files) {
          * @param {string} code
          */
         transform (code) {
-          return code.replace(/module.exports\s* =/g, 'export default')
+          return code.replace(/module.exports\s* =/g, 'export default ')
             .replace(/module\.exports\.(\w+)\s*=/g, (str, name) => {
               return `export const ${name} =`
             })
@@ -96,12 +87,12 @@ for (const filename of files) {
     ]
 
     modules.push({
-      input: `./src/${filename}`,
+      input: filename,
       output: {
         banner: banners.join('\n'),
         file: path.join(
           config.dest,
-          conf.name ? (conf.name + suffix) : filename
+          conf.name ? (conf.name + suffix) : path.relative('src', filename)
         ),
         format: 'es'
       },

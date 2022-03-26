@@ -28,12 +28,14 @@
     "@babel/core": "^7.14.0",
     "@babel/eslint-parser": "^7.13.14",
     "@babel/plugin-syntax-top-level-await": "^7.12.13",
+    "@types/node": "^17.0.23",
     "@types/scriptable-ios": "^1.6.1",
     "eslint": "^7.26.0",
     "eslint-config-standard": "^16.0.2",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.3.1",
+    "glob": "^7.2.0",
     "rollup": "^2.45.2",
     "rollup-plugin-serve": "^1.1.0"
   }
