@@ -226,5 +226,8 @@ module.exports.i18n = (langs) => {
   return langs[language] || langs.others
 }
 
+module.exports.getImage = async (url) => {
+  const request = new Request(url)
   const image = await request.loadImage()
+  return image
 }
