@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: braille; icon-color: deep-gray;
 /**
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -268,10 +268,13 @@ widget.backgroundColor = theme === 'system'
 const req = new Request(url);
 const resp = await req.loadJSON();
 
-const avatar = resp.avatar;
+const { avatar, contributions } = resp;
 const name = resp.name || user;
 const countText = `${resp.contributions_count} contributions`;
-const colorsData = resp.contributions.slice(-(columns * 7 - 7 + new Date().getDay() + 1)).map((item) => item.level);
+const latestDate = new Date(contributions.slice(-1)[0].date.replace(/-/g, '/'));
+const sliceCount = columns * 7 - 7 + latestDate.getDay() + 1;
+const colorsData = contributions
+  .slice(-sliceCount).map((item) => item.level);
 
 const head = widget.addStack();
 head.layoutHorizontally();
