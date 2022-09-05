@@ -32,7 +32,7 @@ const render = async () => {
   const url = `https://frodo.douban.com/api/v2/calendar/today?apikey=0ab215a8b1977939201640fa14c66bab&date=${date}&alt=json&_sig=tuOyn%2B2uZDBFGAFBLklc2GkuQk4%3D&_ts=1610703479`
   const request = new Request(url)
   request.headers = {
-    'User-Agent': 'api-client/0.1.3 com.douban.frodo/6.50.0'
+    'User-Agent': 'api-client/0.1.3 com.douban.frodo/8.0.0'
   }
   const data = await request.loadJSON()
   // console.log(data)
@@ -136,7 +136,7 @@ const update = async () => {
   if (fm.isFileStoredIniCloud(module.filename)) {
     fm = FileManager.iCloud()
   }
-  const url = 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/douban/Douban.js'
+  const url = 'https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts@master/dist/Douban.js'
   const request = new Request(url)
   try {
     const code = await request.loadString()
