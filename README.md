@@ -12,7 +12,7 @@ Quick install Scriptable script via the share menu, clipboard or scan QRCode.
 
 Quick install the [Installer](#Installer) script.
 
-[Link](https://www.icloud.com/shortcuts/947cf9b80e4540a286f3c5beb19b791f)
+[Link](https://www.icloud.com/shortcuts/768a7435136749959554568ca7b498bd)
 
 ## Installer
 
