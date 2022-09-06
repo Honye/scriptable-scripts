@@ -144,6 +144,12 @@ async function installByURL (url, options) {
     override: false,
     ...options
   };
+
+  const blobRegxp = /^https:\/\/github\.com\/(.+)\/blob\/(.+\.js$)/;
+  if (blobRegxp.test(url)) {
+    url = url.replace(blobRegxp, 'https://raw.githubusercontent.com/$1/$2');
+  }
+
   const request = new Request(url);
   const text = await request.loadString()
     .catch(async (e) => {
