@@ -1,13 +1,18 @@
+const { getImage, updateCode } = importModule('utils.module')
+
 const files = FileManager.local()
 /**
- * 修改为你的 cookie，cookie 获取方法，需安装 Stream 在联通客户端中进行抓包
+ * 修改为你的 cookie，cookie 获取方法，需在联通客户端中进行抓包
  *
  * 为方便多手机号使用多个组件优先采用本文件配置，其次使用 Config.js 配置
  */
 let conf = {
-  phone: '', // 联通手机号
-  clientCookie: '', // m.client.10010.com API cookie
-  actionCookie: '' // act.10010.com API cookie
+  /** 手机号 */
+  phone: '',
+  /** m.client.10010.com API cookie */
+  clientCookie: '',
+  /** act.10010.com API cookie  */
+  actionCookie: ''
 }
 if (!conf.phone) {
   try {
@@ -38,12 +43,12 @@ const canvas = new DrawContext()
 const canvWidth = 18
 const canvRadius = 80
 const widget = new ListWidget()
-widget.url = 'chinaunicom://' // 打开联通客户端
-widget.setPadding(16, 16, 16, 16) // widget边距（上，下，左，右）
+widget.url = 'chinaunicom://'
+widget.setPadding(16, 16, 16, 16)
 
 const main = async () => {
   if (config.runsInWidget) {
-    render()
+    await render()
     return
   }
 
@@ -60,7 +65,9 @@ const main = async () => {
       render()
       break
     case 'Update':
-      update()
+      updateCode({
+        fileURL: 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/10010.js'
+      })
       break
     default:
   }
@@ -129,7 +136,6 @@ async function rmBgImg () {
   if (files.fileExists(bgPath)) {
     try {
       files.remove(bgPath)
-      log('背景图片清理成功')
     } catch (e) {
       log(e.message)
     }
@@ -152,10 +158,10 @@ const renderLogo = async (status) => {
     failed: Color.red()
   }
   iconStatus.tintColor = colors[status]
-  const cuIconUrl = 'https://vkceyugu.cdn.bspapp.com/VKCEYUGU-imgbed/f77d3cdc-b757-4acd-9766-a64421bf0c6d.png'
+  const cuIconUrl = 'https://jun.fly.dev/imgs/chinaunicom.png'
   const headerStack = widget.addStack()
   headerStack.addSpacer()
-  const logo = headerStack.addImage(await getImg(cuIconUrl))
+  const logo = headerStack.addImage(await getImage(cuIconUrl))
   logo.imageSize = new Size(393 * 0.25, 118 * 0.25)
   headerStack.addSpacer()
   widget.addSpacer()
@@ -216,12 +222,6 @@ const renderArcs = async (flowData, voiceData) => {
     voiceData.number,
     voiceData.unit
   )
-}
-
-async function getImg (url) {
-  const req = new Request(url)
-  const img = await req.loadImage()
-  return img
 }
 
 function sinDeg (deg) {
@@ -285,13 +285,14 @@ const getData = async () => {
     'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0'
   }
 
-  const url = 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@8.0102&desmobiel=' + Tel + '&showType=0'
+  const url = 'https://m.client.10010.com/mobileserviceimportant/home/queryUserInfoSeven?version=iphone_c@9.0500&desmobiel=' + Tel + '&showType=0'
   const req = new Request(url)
   req.headers = {
     ...headers,
     cookie: clientCookie
   }
   try {
+    // FIXME 联通已限制 IP 访问次数
     const data = await req.loadJSON()
     console.log('余额信息请求成功 => ')
     // console.log(data)
@@ -335,24 +336,4 @@ const getData = async () => {
   }
 }
 
-/** 更新脚本 */
-const update = async () => {
-  let fm = FileManager.local()
-  if (fm.isFileStoredIniCloud(module.filename)) {
-    fm = FileManager.iCloud()
-  }
-  const url = 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js'
-  const request = new Request(url)
-  try {
-    const code = await request.loadString()
-    fm.writeString(module.filename, code)
-    const alert = new Alert()
-    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
-    alert.addAction('OK')
-    alert.presentAlert()
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-main()
+await main()
