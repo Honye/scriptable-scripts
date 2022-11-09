@@ -35,10 +35,18 @@
 
 - `module.exports =`
 
-  因打包脚本缺陷问题，不允许使用 `module.exports = { name }` 的形式，此形式不能很好的压缩代码
+  因打包脚本缺陷问题，不允许使用 `module.exports = { name: 'Jackie' }` 的形式，此形式会发生异常
 
   ```javascript
   // ❌
+  module.exports = {
+    name: 'Jackie',
+    age: 18
+  };
+  ```
+
+  ```javascript
+  // ✅ 可以使用缩写形式
   const name = 'Jackie'
   const age = 18
 
@@ -47,8 +55,8 @@
 
   ```javascript
   // ✅
-  module.exports.name = 'Jackie'
-  module.exports.age = 18
+  exports.name = 'Jackie'
+  exports.age = 18
   ```
 
 - 工具模块统一使用 `.module.js` 为后缀，打包工具会忽略 `.module.js` 后缀的文件
