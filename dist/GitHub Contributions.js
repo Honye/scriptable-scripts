@@ -6,6 +6,8 @@
  * @author Honye
  */
 
+// Utils module
+
 /**
  * @param {number} [height] The screen height measured in pixels
  */
@@ -134,12 +136,12 @@ const phoneSize = (height) => {
   height = height || Device.screenResolution().height;
   const scale = Device.screenScale();
 
-  if (config.runsInWidget) {
-    const phone = phones[height];
-    if (phone) {
-      return phone
-    }
+  const phone = phones[height];
+  if (phone) {
+    return phone
+  }
 
+  if (config.runsInWidget) {
     const pc = {
       small: 164 * scale,
       medium: 344 * scale,

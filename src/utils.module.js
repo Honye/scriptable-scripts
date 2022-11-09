@@ -6,7 +6,7 @@
  * @param {boolean} [options.showCancel = true]
  * @param {string} [options.cancelText = 'Cancel']
  */
-module.exports.presentSheet = async (options) => {
+const presentSheet = async (options) => {
   options = {
     showCancel: true,
     cancelText: 'Cancel',
@@ -38,7 +38,7 @@ module.exports.presentSheet = async (options) => {
 /**
  * @param {number} [height] The screen height measured in pixels
  */
-module.exports.phoneSize = (height) => {
+const phoneSize = (height) => {
   const phones = {
     /** 12 Pro Max */
     2778: {
@@ -163,12 +163,12 @@ module.exports.phoneSize = (height) => {
   height = height || Device.screenResolution().height
   const scale = Device.screenScale()
 
-  if (config.runsInWidget) {
-    const phone = phones[height]
-    if (phone) {
-      return phone
-    }
+  const phone = phones[height]
+  if (phone) {
+    return phone
+  }
 
+  if (config.runsInWidget) {
     const pc = {
       small: 164 * scale,
       medium: 344 * scale,
@@ -190,7 +190,7 @@ module.exports.phoneSize = (height) => {
  * @param {object} options
  * @param {string} options.fileURL
  */
-module.exports.updateCode = async (options) => {
+const updateCode = async (options) => {
   const { fileURL } = options
   let fm = FileManager.local()
   if (fm.isFileStoredIniCloud(module.filename)) {
@@ -212,7 +212,7 @@ module.exports.updateCode = async (options) => {
 /**
  * @param {{[language: string]: string} | string[]} langs
  */
-module.exports.i18n = (langs) => {
+const i18n = (langs) => {
   const language = Device.language()
   if (Array.isArray(langs)) {
     langs = {
@@ -226,8 +226,60 @@ module.exports.i18n = (langs) => {
   return langs[language] || langs.others
 }
 
-module.exports.getImage = async (url) => {
+const getImage = async (url) => {
   const request = new Request(url)
   const image = await request.loadImage()
   return image
+}
+
+/** 是否同一天 */
+const isSameDay = (a, b) => {
+  const leftDate = new Date(a)
+  leftDate.setHours(0)
+  const rightDate = new Date(b)
+  rightDate.setHours(0)
+  return Math.abs(leftDate - rightDate) < 3600000
+}
+
+const isToday = (date) => isSameDay(new Date(), date)
+
+const tintedImage = async (image, color) => {
+  const html =
+    `<img id="image" src="data:image/png;base64,${Data.fromPNG(image).toBase64String()}" />
+    <canvas id="canvas"></canvas>`
+  const js =
+    `let img = document.getElementById("image");
+     let canvas = document.getElementById("canvas");
+     let color = 0x${color.hex};
+
+     canvas.width = img.width;
+     canvas.height = img.height;
+     let ctx = canvas.getContext("2d");
+     ctx.drawImage(img, 0, 0);
+     let imgData = ctx.getImageData(0, 0, img.width, img.height);
+     // ordered in RGBA format
+     let data = imgData.data;
+     for (let i = 0; i < data.length; i++) {
+       // skip alpha channel
+       if (i % 4 === 3) continue;
+       // bit shift the color value to get the correct channel
+       data[i] = (color >> (2 - i % 4) * 8) & 0xFF
+     }
+     ctx.putImageData(imgData, 0, 0);
+     canvas.toDataURL("image/png").replace(/^data:image\\/png;base64,/, "");`
+  const wv = new WebView()
+  await wv.loadHTML(html)
+  const base64 = await wv.evaluateJavaScript(js)
+  return Image.fromData(Data.fromBase64String(base64))
+}
+
+module.exports = {
+  i18n,
+  phoneSize,
+  presentSheet,
+  updateCode,
+  getImage,
+  isSameDay,
+  isToday,
+  tintedImage
 }

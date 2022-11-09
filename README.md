@@ -1,135 +1,169 @@
 # Scriptable Scripts
 
-English | [中文](./README.zh.md)
+中文｜[English](./README.en.md)
 
-Some scripts used in the iOS app [Scriptable](https://scriptable.app/). 
+[iOS Scriptable](https://scriptable.app/) | [TestFlight](https://testflight.apple.com/join/uN1vTqxk) | [macOS Scriptable](https://scriptable.app/mac-beta/)
 
-[iOS Scriptable](https://scriptable.app/) | [macOS Scriptable](https://scriptable.app/mac-beta/)
+- Scriptable 脚本打包器，多合一方便分享传播
+- 常用组件化和 API
+- 几个自己在用的脚本
 
-## Installer Shortcut
+统一说明：
 
-Quick install Scriptable script via the share menu, clipboard or scan QRCode.
+本仓库组件配置项多个参数统一使用 `,` 分隔填入 Parameter 输入框
 
-Quick install the [Installer](#Installer) script.
+## 安装器（快捷指令版本）
 
-[Link](https://www.icloud.com/shortcuts/768a7435136749959554568ca7b498bd)
+通过扫 JS 文件链接二维码、剪贴板的文件链接或链接分享菜单快速安装脚本
+
+也可快速安装 [Scriptable 安装器](#Installer)
+
+[点击安装](https://www.icloud.com/shortcuts/768a7435136749959554568ca7b498bd)
 
 ## Installer
 
-Quick install Scriptable script via the share menu.
+通过文件链接分享菜单快速安装脚本
 
-Features:
+功能：
 
-1. When accessing the JS file online, it can be installed directly through the share menu.
-2. Support to install JS files through URL Scheme. `scriptable:///run/installer?url=<encoded url>` or `https://open.scriptable.app/run/installer?url=<encoded url>`
+1. 在线访问 JS 文件时，可通过分享菜单快速安装该 JS 文件
+2. 通过 URL Scheme 可实现脚本分享并快速安装。`scriptable:///run/installer?url=<encoded url>` 或 `https://open.scriptable.app/run/installer?url=<encoded url>`
+3. PC 开发时支持通过局域网同步脚本
 
-[Source Code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
+
+## Calendar
+
+- 中国农历日期显示
+- 指定日历显示。可作为打卡日历
+
+| 配置项      | 说明                   |
+| -------------- | ----------------------------- |
+| 日历标题 | 系统日历标题 |
+| symbol         | 符号作为事件日期的背景 |
+| theme          | `light`, `dark` |
+
+| 预览 |
+| ---------- |
+| ![calendar screenshot](./docs/assets/calendar.jpeg) |
+
+[源码](https://github.com/Honye/scriptable-scripts/blob/master/dist/Calendar.js)
+
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fgithub.com%2FHonye%2Fscriptable-scripts%2Fblob%2Fmaster%2Fdist%2FCalendar.js) (需先安装 [Installer](#Installer))
 
 ## 10010
 
-- Show the balance, remaining flow, signin state, etc.
-- Support dark mode
-- Support update
+中国联通信息展示
+
+- 展示话费余额、流量套餐余额、语音套餐余额和签到状态
+- 支持暗黑模式
+- 可检测并更新脚本
 
 |                       Light                       |                      Dark                       |
 | :-----------------------------------------------: | :---------------------------------------------: |
 | ![Light mode](./docs/assets/10010_small_light.jpg) | ![Dark mode](./docs/assets/10010_small_dark.jpg) |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/10010.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2F10010%2F10010.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2F10010.js) (需先安装 [Installer](#Installer))
 
 ## Douban
 
-Daily movie
+豆瓣每日电影卡片
 
 |                     Small                      |                     Medium                      |    Large    |
 | :--------------------------------------------: | :---------------------------------------------: | :---------: |
 | ![Small widget](./docs/assets/douban_small.jpg) | ![Small widget](./docs/assets/douban_medium.jpg) | Not support |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (需先安装 [Installer](#Installer))
 
 ## Weibo
 
-Weibo hotsearch without ads
+微博热搜，无广告。点击单元项进入微博并搜索，点击 Logo 进入热搜列表
 
-- Customizable appearance. Support `system`, `light` and `dark`
-- Customizable using client. Suport [Weibo intl.](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) and [H5](https://m.weibo.cn/)
-- Displays the result of the last successful request when a network exception occurs
+- 可自定义样式。支持 `system`（默认）, `light` 和 `dark`
+- 可自定义使用什么客户端查看详情. 支持 [微博国际版](https://apps.apple.com/cn/app/weibo-intl/id1215210046?l=en) 和 [网页应用](https://m.weibo.cn/)
+- 支持缓存。当请求失败（网络异常）时显示上次成功请求的结果
 
-Fill your prefer `client` and `theme` in the widget Parameter, separated by commas. Like `2,dark`
+将配置填写在组件的 Parameter 输入框，不同配置间使用 `,` 分隔。例如 `2,dark`
 
-| Parameter | Description                   |
-| --------- | ----------------------------- |
-| client    | `1` (H5) or `2` (Weibo intl.) |
-| theme     | `system`, `light` or `dark`   |
+| 配置项 | 说明                                                        |
+| ------ | ----------------------------------------------------------- |
+| client | 使用什么客户端查看详情，`1`（网页应用）or `2`（微博国际版） |
+| theme  | 自定义样式，`system`, `light` 或 `dark`                     |
 
 | Medium & Light                                     | Medium & Dark                                    |
 | :------------------------------------------------- | ------------------------------------------------ |
 | ![light mode](./docs/assets/weibo_medium_light.jpg) | ![dark mode](./docs/assets/weibo_medium_dark.jpg) |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js)（需先安装 [Installer](#Installer)）
 
 ## GitHub Contributions
 
-Fill your username and theme in the widget Parameter, separated by commas. 
+- 支持暗黑模式
+- 点击组件打开用户 GitHub 主页
 
-- Theme support `system` (default), `light` and `dark`
-- Tap the widget open the user GitHub page
+| 配置项   | 说明                                               |
+| -------- | -------------------------------------------------- |
+| username | GitHub 用户名，默认是作者本人                      |
+| theme    | 样式，可选`system`、`light`、`dark`。默认 `system` |
 
 | Small & Light                                                | Medium & Dark                                                |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | ![small widget](./docs/assets/github_small_light.jpg) | ![medium widget](./docs/assets/github_medium_dark.jpg) |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/GitHub%20Contributions.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/GitHub%20Contributions.js)
 
-[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FGitHub%2520Contributions.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FGitHub%2520Contributions.js) （需先安装 [Installer](#Installer)）
 
 ## Photos
 
-Randomly display the pictures in the album.
+随机展示照片
 
-| Parameter | Description           |
-| --------- | --------------------- |
-| album     | The name of the album |
+- 支持中英文
+- 支持多相册多组件不同展示
+
+| 配置项 | 说明         |
+| ------ | ------------ |
+| album  | 创建的相册名 |
 
 | Albums (In APP)                                              | Photos (In APP)                                              | Widget                                                       |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | <img src="./docs/assets/IMG_1568.PNG" alt="Albums" style="zoom:30%;" /> | <img src="./docs/assets/IMG_1569.PNG" alt="Photos" style="zoom:30%;" /> | <img src="./docs/assets/IMG_1570.PNG" alt="Widget" style="zoom:30%;" /> |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Photos.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Photos.js)
 
-[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FPhotos.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FPhotos.js)（需先安装 [Installer](#Installer)）
 
-## Juejin
+## 掘金
 
-### Parameters
+### 参数
 
-| Parameter | Description |
-| --------- | ----------- |
-| cateID    | Category ID |
+| 配置项 | 说明        |
+| ------ | ----------- |
+| cateID | 文章分类 ID |
 
 #### cateID
 
-| cateID    | Description   |
-| --------- | ------------- |
-| `be`      | Back-End      |
-| `fe`      | Front-End     |
-| `android` | Android       |
-| `ios`     | iOS           |
-| `ai`      | AI            |
-| `tools`   | Develop Tools |
-| `coding`  | Code life     |
-| `reading` | Reading       |
+| 属性值    | 说明     |
+| --------- | -------- |
+| `be`      | 后端     |
+| `fe`      | 前端     |
+| `android` | Android  |
+| `ios`     | iOS      |
+| `ai`      | 人工智能 |
+| `tools`   | 开发工具 |
+| `coding`  | 代码人生 |
+| `reading` | 阅读     |
 
 | Light Mode                                                   | Dark Mode                                                    |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | <img src="./docs/assets/IMG_1712.JPG" alt="light mode" zoom="30%" /> | <img src="./docs/assets/IMG_1713.JPG" alt="light mode" zoom="30%" /> |
 
-[Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Juejin.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Juejin.js)
 
-[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js) (must have [Installer](#Installer) installed)
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js)（需先安装 [Installer](#Installer)）
