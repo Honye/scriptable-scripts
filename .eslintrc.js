@@ -16,6 +16,7 @@ module.exports = {
   },
   ignorePatterns: ['dist/'],
   globals: {
+    Data: 'readonly',
     importModule: 'writable',
     log: 'writable',
     args: 'readonly',
@@ -43,7 +44,8 @@ module.exports = {
     Alert: 'readonly',
     ListWidget: 'readonly',
     UITable: 'readonly',
-    UITableRow: 'readonly'
+    UITableRow: 'readonly',
+    WebView: 'readonly'
   },
   rules: {
   }

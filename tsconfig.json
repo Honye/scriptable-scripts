@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "module": "commonjs",
+    "target": "ESNext",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*",
+    "types/**/*"
+  ]
+}
