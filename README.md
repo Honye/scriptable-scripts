@@ -32,6 +32,22 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
 
+## CoinGecko 加密货币实时价
+
+[JSBox 版本](https://github.com/wuzeyou/PriceWidgets)
+
+| 配置项目 | 说明 |
+| ------ | ---- |
+| symbol | [CoinGecko](https://www.coingecko.com/) 货币符号，如：`BTC` |
+
+| 预览 |
+| ---- |
+| ![CoinGecko 效果图](./docs/assets/coingecko.JPG) |
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/CoinGecko.js)
+
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCoinGecko.js) (需先安装 [Installer](#Installer))
+
 ## Calendar
 
 - 中国农历日期显示
@@ -47,9 +63,9 @@
 | ---------- |
 | ![calendar screenshot](./docs/assets/calendar.jpeg) |
 
-[源码](https://github.com/Honye/scriptable-scripts/blob/master/dist/Calendar.js)
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Calendar.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fgithub.com%2FHonye%2Fscriptable-scripts%2Fblob%2Fmaster%2Fdist%2FCalendar.js) (需先安装 [Installer](#Installer))
+[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCalendar.js) (需先安装 [Installer](#Installer))
 
 ## 10010
 
