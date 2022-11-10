@@ -21,7 +21,7 @@ Quick install Scriptable script via the share menu.
 Features:
 
 1. When accessing the JS file online, it can be installed directly through the share menu.
-2. Support to install JS files through URL Scheme. `scriptable:///run/installer?url=<encoded url>` or `https://open.scriptable.app/run/installer?url=<encoded url>`
+2. Support to install JS files through URL Scheme. `scriptable:///run/Installer?url=<encoded url>` or `https://open.scriptable.app/run/Installer?url=<encoded url>`
 
 [Source Code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
 
@@ -42,7 +42,7 @@ Features:
 
 [Source code](https://github.com/Honye/scriptable-scripts/blob/master/dist/Calendar.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fgithub.com%2FHonye%2Fscriptable-scripts%2Fblob%2Fmaster%2Fdist%2FCalendar.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fgithub.com%2FHonye%2Fscriptable-scripts%2Fblob%2Fmaster%2Fdist%2FCalendar.js) (must have [Installer](#Installer) installed)
 
 ## 10010
 
@@ -56,7 +56,7 @@ Features:
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/10010/10010.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2F10010%2F10010.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2F10010%2F10010.js) (must have [Installer](#Installer) installed)
 
 ## Douban
 
@@ -68,7 +68,7 @@ Daily movie
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (must have [Installer](#Installer) installed)
 
 ## Weibo
 
@@ -91,7 +91,7 @@ Fill your prefer `client` and `theme` in the widget Parameter, separated by comm
 
 [Source code](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
-[Quick install](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js) (must have [Installer](#Installer) installed)
+[Quick install](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js) (must have [Installer](#Installer) installed)
 
 ## GitHub Contributions
 

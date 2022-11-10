@@ -27,7 +27,7 @@
 功能：
 
 1. 在线访问 JS 文件时，可通过分享菜单快速安装该 JS 文件
-2. 通过 URL Scheme 可实现脚本分享并快速安装。`scriptable:///run/installer?url=<encoded url>` 或 `https://open.scriptable.app/run/installer?url=<encoded url>`
+2. 通过 URL Scheme 可实现脚本分享并快速安装。`scriptable:///run/Installer?url=<encoded url>` 或 `https://open.scriptable.app/run/Installer?url=<encoded url>`
 3. PC 开发时支持通过局域网同步脚本
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Installer.js)
@@ -46,7 +46,7 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/CoinGecko.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCoinGecko.js) (需先安装 [Installer](#Installer))
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCoinGecko.js) (需先安装 [Installer](#Installer))
 
 ## Calendar
 
@@ -65,7 +65,7 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Calendar.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCalendar.js) (需先安装 [Installer](#Installer))
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCalendar.js) (需先安装 [Installer](#Installer))
 
 ## 10010
 
@@ -81,7 +81,7 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/10010.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2F10010.js) (需先安装 [Installer](#Installer))
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2F10010.js) (需先安装 [Installer](#Installer))
 
 ## Douban
 
@@ -93,7 +93,7 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Douban.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (需先安装 [Installer](#Installer))
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDouban.js) (需先安装 [Installer](#Installer))
 
 ## Weibo
 
@@ -116,7 +116,7 @@
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
-[快速安装](https://open.scriptable.app/run/installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js)（需先安装 [Installer](#Installer)）
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FWeibo.js)（需先安装 [Installer](#Installer)）
 
 ## GitHub Contributions
 
