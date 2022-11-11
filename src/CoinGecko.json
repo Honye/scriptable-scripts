@@ -1,5 +1,10 @@
 {
-  "description": "",
+  "version": "1.1.0",
+  "description": [
+    "在 App 内运行时会请求最新的货币列表并缓存",
+    "",
+    "其他情况优先使用缓存中货币 ID 去请求数据"
+  ],
   "setting": {
     "icon-glyph": "frog",
     "icon-color": "green"

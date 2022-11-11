@@ -1,3 +1,5 @@
+export const name = 'Utils'
+
 /**
  * @param {object} options
  * @param {string} [options.title]
@@ -273,6 +275,39 @@ const tintedImage = async (image, color) => {
   return Image.fromData(Data.fromBase64String(base64))
 }
 
+const useCache = () => {
+  const fm = FileManager.local()
+  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`)
+
+  const writeString = (filePath, content) => {
+    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
+    const i = safePath.lastIndexOf('/')
+    const directory = safePath.substring(0, i)
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true)
+    }
+    fm.writeString(safePath, content)
+  }
+
+  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData))
+
+  const readString = (filePath) => {
+    return fm.readString(
+      fm.joinPath(cacheDirectory, filePath)
+    )
+  }
+
+  const readJSON = (filePath) => JSON.parse(readString(filePath))
+
+  return {
+    cacheDirectory,
+    writeString,
+    writeJSON,
+    readString,
+    readJSON
+  }
+}
+
 module.exports = {
   i18n,
   phoneSize,
@@ -281,5 +316,6 @@ module.exports = {
   getImage,
   isSameDay,
   isToday,
-  tintedImage
+  tintedImage,
+  useCache
 }
