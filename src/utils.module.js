@@ -1,4 +1,4 @@
-export const name = 'Utils'
+const name = 'Utils'
 
 /**
  * @param {object} options
@@ -308,7 +308,17 @@ const useCache = () => {
   }
 }
 
+/**
+ * @param {string} filename
+ */
+const isRunSelf = (filename) => {
+  const matches = filename.match(/[^/]+$/)
+  const name = matches ? matches[0].replace('.js', '') : ''
+  return Script.name() === name
+}
+
 module.exports = {
+  name,
   i18n,
   phoneSize,
   presentSheet,
@@ -317,5 +327,6 @@ module.exports = {
   isSameDay,
   isToday,
   tintedImage,
-  useCache
+  useCache,
+  isRunSelf
 }

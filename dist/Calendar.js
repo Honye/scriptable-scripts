@@ -7,15 +7,6 @@
  */
 
 /**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-
-/**
  * @param {number} [height] The screen height measured in pixels
  */
 const phoneSize = (height) => {

@@ -4,48 +4,9 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 1.1.0
+ * @version 2.0.0
  * @author Honye
  */
-
-// Utils module
-
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-const presentSheet = async (options) => {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return {
-    value,
-    option: options.options[value]
-  }
-};
 
 /**
  * @param {number} [height] The screen height measured in pixels
@@ -197,19 +158,458 @@ const phoneSize = (height) => {
   }
 };
 
-const fontSize = 14;
+// import { isRunSelf } from "./utils.module"
+
+const useCache = (useICloud) => {
+  const fm = FileManager[useICloud ? 'iCloud' : 'local']();
+  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name());
+
+  const writeString = (filePath, content) => {
+    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '');
+    const i = safePath.lastIndexOf('/');
+    const directory = safePath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+    fm.writeString(safePath, content);
+  };
+
+  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
+
+  const readString = (filePath) => {
+    return fm.readString(
+      fm.joinPath(cacheDirectory, filePath)
+    )
+  };
+
+  const readJSON = (filePath) => JSON.parse(readString(filePath));
+
+  return {
+    cacheDirectory,
+    writeString,
+    writeJSON,
+    readString,
+    readJSON
+  }
+};
+
+const readSettings = async () => {
+  const localFM = useCache();
+  let settings = localFM.readJSON('settings.json');
+  if (settings) {
+    console.log('[info] use local settings');
+    return settings
+  }
+
+  const iCloudFM = useCache(true);
+  settings = iCloudFM.readJSON('settings.json');
+  if (settings) {
+    console.log('[info] use iCloud settings');
+  }
+  return settings
+};
+
+const writeSettings = async (data, { useICloud }) => {
+  const fm = useCache(useICloud);
+  fm.writeJSON('settings.json', data);
+};
+
+const removeSettings = async (settings) => {
+  const cache = useCache(settings.useICloud);
+  FileManager.local().remove(
+    FileManager.local().joinPath(
+      cache.cacheDirectory,
+      'settings.json'
+    )
+  );
+};
+
+const moveSettings = (useICloud, data) => {
+  const localFM = useCache();
+  const iCloudFM = useCache(true);
+  const [i, l] = [
+    FileManager.local().joinPath(
+      iCloudFM.cacheDirectory,
+      'settings.json'
+    ),
+    FileManager.local().joinPath(
+      localFM.cacheDirectory,
+      'settings.json'
+    )
+  ];
+  try {
+    writeSettings(data, { useICloud });
+    if (useICloud) {
+      FileManager.local().remove(l);
+    } else {
+      FileManager.iCloud().remove(i);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+/**
+ * @param {object} options
+ * @param {{
+ *  name: string;
+ *  label: string;
+ *  type: string;
+ *  default: unknow;
+ * }[]} options.formItems
+ * @param {(data: {
+ *  settings: Record<string, string>;
+ *  family: string;
+ * }) => Promise<ListWidget>} options.render
+ * @param {string} [options.homePage]
+ */
+const withSettings = async (options = {}) => {
+  const {
+    formItems = [],
+    render,
+    homePage = 'https://www.imarkr.com'
+  } = options;
+
+  let settings = await readSettings() || {};
+  console.log(settings);
+
+  if (config.runsInWidget) {
+    const widget = await render({ settings });
+    return widget
+  }
+
+  // ====== web start =======
+  const style =
+`:root {
+  --color-primary: #007aff;
+  --divider-color: rgba(60,60,67,0.36);
+  --card-background: #fff;
+  --card-radius: 10px;
+  --list-header-color: rgba(60,60,67,0.6);
+}
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+body {
+  margin: 10px 0;
+  -webkit-font-smoothing: antialiased;
+  font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
+  accent-color: var(--color-primary);
+}
+input {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+body {
+  background: #f2f2f7;
+}
+button {
+  font-size: 16px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 8px;
+  border: none;
+  padding: 0.24em 0.5em;
+}
+button .iconfont {
+  margin-right: 6px;
+}
+.list {
+  margin: 15px;
+}
+.list__header {
+  margin: 0 20px;
+  color: var(--list-header-color);
+  font-size: 13px;
+}
+.list__body {
+  margin-top: 10px;
+  background: var(--card-background);
+  border-radius: var(--card-radius);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.form-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 16px;
+  min-height: 2em;
+  padding: 0.5em 20px;
+  position: relative;
+}
+.form-item--link .icon-arrow_right {
+  color: #86868b;
+}
+.form-item + .form-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20px;
+  right: 0;
+  border-top: 0.5px solid var(--divider-color);
+}
+.form-item .iconfont {
+  margin-right: 4px;
+}
+.form-item input {
+  font-size: 14px;
+  text-align: right;
+}
+.form-item input[type="checkbox"] {
+  width: 1.25em;
+  height: 1.25em;
+}
+input[type="number"] {
+  width: 4em;
+}
+input[type='checkbox'][role='switch'] {
+  position: relative;
+  display: inline-block;
+  appearance: none;
+  width: 40px;
+  height: 24px;
+  border-radius: 24px;
+  background: #ccc;
+  transition: 0.3s ease-in-out;
+}
+input[type='checkbox'][role='switch']::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: 0.3s ease-in-out;
+}
+input[type='checkbox'][role='switch']:checked {
+  background: var(--color-primary);
+}
+input[type='checkbox'][role='switch']:checked::before {
+  transform: translateX(16px);
+}
+.actions {
+  margin: 15px;
+}
+.copyright {
+  margin: 15px;
+  font-size: 12px;
+  color: #86868b;
+}
+.copyright a {
+  color: #515154;
+  text-decoration: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --divider-color: rgba(84,84,88,0.65);
+    --card-background: #1c1c1e;
+    --list-header-color: rgba(235,235,245,0.6);
+  }
+  body {
+    background: #000;
+    color: #fff;
+  }
+}`;
+
+  const js =
+`(() => {
+  const settings = JSON.parse('${JSON.stringify(settings)}')
+  const formItems = JSON.parse('${JSON.stringify(formItems)}')
+  
+  window.invoke = (code, data) => {
+    window.dispatchEvent(
+      new CustomEvent(
+        'JBridge',
+        { detail: { code, data } }
+      )
+    )
+  }
+  
+  const iCloudInput = document.querySelector('input[name="useICloud"]')
+  iCloudInput.checked = settings.useICloud
+  iCloudInput
+    .addEventListener('change', (e) => {
+      invoke('moveSettings', e.target.checked)
+    })
+  
+  const formData = {};
+
+  const fragment = document.createDocumentFragment()
+  for (const item of formItems) {
+    const value = settings[item.name] ?? item.default ?? null
+    formData[item.name] = value;
+    const label = document.createElement("label");
+    label.className = "form-item";
+    const div = document.createElement("div");
+    div.innerText = item.label;
+    label.appendChild(div);
+    const input = document.createElement("input");
+    input.name = item.name
+    input.type = item.type || "text";
+    input.value = value
+    // Switch
+    if (item.type === 'switch') {
+      input.type = 'checkbox'
+      input.role = 'switch'
+      input.checked = value
+    }
+    if (item.type === 'number') {
+      input.inputMode = 'decimal'
+    }
+    input.addEventListener("change", (e) => {
+      formData[item.name] =
+        item.type === 'switch'
+        ? e.target.checked
+        : e.target.value;
+      invoke('changeSettings', formData)
+    });
+    label.appendChild(input);
+    fragment.appendChild(label);
+  }
+  document.getElementById('form').appendChild(fragment)
+
+  for (const btn of document.querySelectorAll('.preview')) {
+    btn.addEventListener('click', (e) => {
+      invoke('preview', e.currentTarget.dataset.size)
+    })
+  }
+
+  document.querySelector('a').addEventListener('click', (e) => {
+    //invoke('safari', e.currentTarget.dataset.href)
+  })
+
+  const reset = () => {
+    for (const item of formItems) {
+      const el = document.querySelector(\`input[name="\${item.name}"]\`)
+      formData[item.name] = item.default
+      if (item.type === 'switch') {
+        el.checked = item.default
+      } else {
+        el.value = item.default
+      }
+    }
+    invoke('removeSettings', formData)
+  }
+  document.getElementById('reset').addEventListener('click', () => reset())
+})()`;
+
+  const html =
+`<html>
+  <head>
+    <meta name='viewport' content='width=device-width, user-scalable=no'>
+    <link rel="stylesheet" href="//at.alicdn.com/t/c/font_3772663_e72j1agpj6.css" type="text/css">
+    <style>${style}</style>
+  </head>
+  <body>
+  <div class="list">
+    <div class="list__header">Common</div>
+    <form class="list__body">
+      <label class="form-item">
+        <div>Sync with iCloud</div>
+        <input name="useICloud" type="checkbox" role="switch">
+      </label>
+      <label id='reset' class="form-item form-item--link">
+        <div>Reset</div>
+        <i class="iconfont icon-arrow_right"></i>
+      </label>
+    </form>
+  </div>
+  <div class="list">
+    <div class="list__header">Settings</div>
+    <form id="form" class="list__body"></form>
+  </div>
+  <div class="actions">
+    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
+    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>Medium</button>
+    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
+  </div>
+  <footer>
+    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');" data-href='https://www.imarkr.com'>iMarkr</a> All rights reserved.</div>
+  </footer>
+    <script>${js}</script>
+  </body>
+</html>`;
+
+  const webView = new WebView();
+  await webView.loadHTML(html, homePage);
+
+  const injectListener = async () => {
+    const event = await webView.evaluateJavaScript(
+    `(() => {
+      const controller = new AbortController()
+      const listener = (e) => {
+        completion(e.detail)
+        controller.abort()
+      }
+      window.addEventListener(
+        'JBridge', 
+        listener,
+        { signal: controller.signal }
+      )
+    })()`,
+    true
+    ).catch((err) => {
+      console.error(err);
+      throw err
+    });
+    const { code, data } = event;
+    switch (code) {
+      case 'preview': {
+        const widget = await render({ settings, family: data });
+        widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
+        break
+      }
+      case 'log':
+        log(data);
+        break
+      case 'formChange':
+        log(data);
+        break
+      case 'safari':
+        Safari.openInApp(data, true);
+        break
+      case 'changeSettings':
+        settings = { ...settings, ...data };
+        writeSettings(data, { useICloud: settings.useICloud });
+        break
+      case 'moveSettings':
+        settings.useICloud = data;
+        moveSettings(data, settings);
+        break
+      case 'removeSettings':
+        settings = { ...settings, ...data };
+        removeSettings(settings);
+        break
+    }
+    injectListener();
+  };
+
+  injectListener();
+  webView.present();
+  // ======= web end =========
+};
+
+let fontSize = 14;
 const gap = 8;
 const logoSize = 30;
 const paddingVertical = 10;
 const themes = {
   light: {
-    background: new Color('#ffffff'),
-    color: Color.black()
+    background: new Color('#ffffff')
   },
   dark: {
-    background: new Color('#242426', 1),
-    color: Color.white()
+    background: new Color('#242426', 1)
   }
+};
+const preference = {
+  useShadow: false,
+  lightColor: new Color('#333'),
+  darkColor: Color.white(),
+  timeColor: new Color('#666')
 };
 
 /** Scoped Keychain */
@@ -244,15 +644,13 @@ const conf = {
 const screen = Device.screenResolution();
 const scale = Device.screenScale();
 const phone = phoneSize(screen.height);
-let widgetFamily = 'medium';
+
 if (config.runsInWidget) {
-  widgetFamily = config.widgetFamily;
   const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim());
   conf.client = client === '2' ? 'international' : conf.client;
   conf.theme = theme || conf.theme;
 }
-const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale;
-conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap));
+
 const storedClient = KeyStorage.get('client');
 if (storedClient) {
   conf.client = storedClient;
@@ -287,10 +685,14 @@ const fetchData = async () => {
   }
 };
 
-let stackBottom;
-let widgetBottom;
 const createWidget = async ({ data, updatedAt }) => {
+  const { timeColor } = preference;
+  let stackBottom;
+  let widgetBottom;
   const widget = new ListWidget();
+  const { widgetFamily } = config;
+  const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale;
+  conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap));
   widget.backgroundColor = conf.theme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
     : themes[conf.theme].background;
@@ -306,8 +708,8 @@ const createWidget = async ({ data, updatedAt }) => {
       await addItem(stack, item);
       stack.addSpacer();
       const textTime = stack.addText(`更新于 ${updatedAt}`);
-      textTime.font = Font.systemFont(10);
-      textTime.textColor = new Color('#666666');
+      textTime.font = Font.systemFont(fontSize * 0.7);
+      textTime.textColor = timeColor;
     } else if (i < max - logoLines) {
       await addItem(widget, item);
     } else {
@@ -332,6 +734,7 @@ const createWidget = async ({ data, updatedAt }) => {
 };
 
 const addItem = async (widget, item) => {
+  const { useShadow, lightColor, darkColor } = preference;
   const stack = widget.addStack();
   const [, queryString] = item.scheme.split('?');
   const query = {};
@@ -352,12 +755,16 @@ const addItem = async (widget, item) => {
   const textTitle = stack.addText(item.title);
   textTitle.font = Font.systemFont(fontSize);
   textTitle.textColor = conf.theme === 'system'
-    ? Color.dynamic(themes.light.color, themes.dark.color)
-    : themes[conf.theme].color;
+    ? Color.dynamic(lightColor, darkColor)
+    : conf.theme === 'light'
+      ? lightColor
+      : darkColor;
   textTitle.lineLimit = 1;
-  textTitle.shadowColor = new Color('#000000', 0.2);
-  textTitle.shadowOffset = new Point(1, 1);
-  textTitle.shadowRadius = 0.5;
+  if (useShadow) {
+    textTitle.shadowColor = new Color('#000000', 0.2);
+    textTitle.shadowOffset = new Point(1, 1);
+    textTitle.shadowRadius = 0.5;
+  }
   if (item.icon) {
     stack.addSpacer(4);
     const imageIcon = stack.addImage(await getImage(item.icon));
@@ -372,68 +779,84 @@ const getImage = async (url) => {
   return image
 };
 
-/** 更新脚本 */
-const update = async () => {
-  let fm = FileManager.local();
-  if (fm.isFileStoredIniCloud(module.filename)) {
-    fm = FileManager.iCloud();
-  }
-  const url = 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js';
-  const request = new Request(url);
-  try {
-    const code = await request.loadString();
-    fm.writeString(module.filename, code);
-    const alert = new Alert();
-    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.';
-    alert.addAction('OK');
-    alert.presentAlert();
-  } catch (e) {
-    console.error(e);
-  }
-};
-
-/** Settings */
-const settings = async () => {
-  const res = await presentSheet({
-    title: 'Settings',
-    message: 'Which client to use to view details?',
-    options: [
-      { title: 'Weibo intl. (微博国际版)', value: 'international' },
-      { title: 'Browser (H5)', value: 'h5' }
-    ]
-  });
-  const client = res.option?.value || conf.client;
-  KeyStorage.set('client', client);
-  conf.client = client;
-};
-
 const main = async () => {
   const data = await fetchData();
-  const widget = await createWidget(data);
-  if (config.runsInApp) {
-    const res = await presentSheet({
-      message: 'Preview the widget or update the script. Update will override the whole script.',
-      options: [
-        { title: 'Preview', value: 'Preview' },
-        { title: 'Settings', value: 'Settings' },
-        { title: 'Update', value: 'Update' }
-      ]
-    });
-    const value = res.option?.value;
-    switch (value) {
-      case 'Preview':
-        widget.presentMedium();
-        break
-      case 'Settings':
-        await settings();
-        break
-      case 'Update':
-        update();
-        break
-    }
-  }
 
-  Script.setWidget(widget);
+  const widget = await withSettings({
+    homePage: 'https://github.com/Honye/scriptable-scripts',
+    formItems: [
+      {
+        name: 'lightColor',
+        label: 'Text color (light)',
+        type: 'color',
+        default: '#333333'
+      },
+      {
+        name: 'darkColor',
+        label: 'Text color (dark)',
+        type: 'color',
+        default: '#ffffff'
+      },
+      {
+        name: 'useShadow',
+        label: 'Text shadow',
+        type: 'switch',
+        default: preference.useShadow
+      },
+      {
+        name: 'fontSize',
+        label: 'Font size',
+        type: 'number',
+        default: fontSize
+      },
+      {
+        name: 'timeColor',
+        label: 'Time color',
+        type: 'color',
+        default: preference.timeColor.hex
+      }
+    ],
+    render: async ({ family, settings }) => {
+      family && (config.widgetFamily = family);
+      console.log(`[Weibo.js] ${JSON.stringify(settings)}`);
+      Object.assign(preference, {
+        ...settings,
+        fontSize: Number(settings.fontSize) || preference.fontSize,
+        lightColor: settings.lightColor ? new Color(settings.lightColor) : preference.lightColor,
+        darkColor: settings.lightColor ? new Color(settings.darkColor) : preference.darkColor,
+        timeColor: settings.timeColor ? new Color(settings.timeColor) : preference.timeColor
+      });
+      fontSize = Number(settings.fontSize) || fontSize;
+      try {
+        return await createWidget(data)
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  });
+  if (config.runsInWidget) {
+    Script.setWidget(widget);
+  }
+  // if (config.runsInApp) {
+  //   const res = await presentSheet({
+  //     message: 'Preview the widget or update the script. Update will override the whole script.',
+  //     options: [
+  //       { title: 'Preview', value: 'Preview' },
+  //       { title: 'Settings', value: 'Settings' },
+  //       { title: 'Update', value: 'Update' }
+  //     ]
+  //   })
+  //   const value = res.option?.value
+  //   switch (value) {
+  //     case 'Preview':
+  //       widget.presentMedium()
+  //       break
+  //     case 'Update':
+  //       update()
+  //       break
+  //   }
+  // }
+
   Script.complete();
 };
 

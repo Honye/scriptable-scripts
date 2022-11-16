@@ -33,6 +33,7 @@ module.exports = {
     Point: 'readonly',
     QuickLook: 'readonly',
     Rect: 'readonly',
+    Safari: 'readonly',
     Request: 'readonly',
     Script: 'readonly',
     Size: 'readonly',

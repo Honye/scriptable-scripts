@@ -6,8 +6,6 @@
  * @author Honye
  */
 
-// Utils module
-
 /**
  * @param {number} [height] The screen height measured in pixels
  */

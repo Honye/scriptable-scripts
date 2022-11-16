@@ -1,18 +1,23 @@
-const { phoneSize, presentSheet } = importModule('./utils.module')
+const { phoneSize } = importModule('utils.module')
+const { withSettings } = importModule('withSettings.module')
 
-const fontSize = 14
+let fontSize = 14
 const gap = 8
 const logoSize = 30
 const paddingVertical = 10
 const themes = {
   light: {
-    background: new Color('#ffffff'),
-    color: Color.black()
+    background: new Color('#ffffff')
   },
   dark: {
-    background: new Color('#242426', 1),
-    color: Color.white()
+    background: new Color('#242426', 1)
   }
+}
+const preference = {
+  useShadow: false,
+  lightColor: new Color('#333'),
+  darkColor: Color.white(),
+  timeColor: new Color('#666')
 }
 
 /** Scoped Keychain */
@@ -47,15 +52,13 @@ const conf = {
 const screen = Device.screenResolution()
 const scale = Device.screenScale()
 const phone = phoneSize(screen.height)
-let widgetFamily = 'medium'
+
 if (config.runsInWidget) {
-  widgetFamily = config.widgetFamily
   const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim())
   conf.client = client === '2' ? 'international' : conf.client
   conf.theme = theme || conf.theme
 }
-const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale
-conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
+
 const storedClient = KeyStorage.get('client')
 if (storedClient) {
   conf.client = storedClient
@@ -90,10 +93,14 @@ const fetchData = async () => {
   }
 }
 
-let stackBottom
-let widgetBottom
 const createWidget = async ({ data, updatedAt }) => {
+  const { timeColor } = preference
+  let stackBottom
+  let widgetBottom
   const widget = new ListWidget()
+  const { widgetFamily } = config
+  const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale
+  conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
   widget.backgroundColor = conf.theme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
     : themes[conf.theme].background
@@ -109,8 +116,8 @@ const createWidget = async ({ data, updatedAt }) => {
       await addItem(stack, item)
       stack.addSpacer()
       const textTime = stack.addText(`更新于 ${updatedAt}`)
-      textTime.font = Font.systemFont(10)
-      textTime.textColor = new Color('#666666')
+      textTime.font = Font.systemFont(fontSize * 0.7)
+      textTime.textColor = timeColor
     } else if (i < max - logoLines) {
       await addItem(widget, item)
     } else {
@@ -135,6 +142,7 @@ const createWidget = async ({ data, updatedAt }) => {
 }
 
 const addItem = async (widget, item) => {
+  const { useShadow, lightColor, darkColor } = preference
   const stack = widget.addStack()
   const [, queryString] = item.scheme.split('?')
   const query = {}
@@ -155,12 +163,16 @@ const addItem = async (widget, item) => {
   const textTitle = stack.addText(item.title)
   textTitle.font = Font.systemFont(fontSize)
   textTitle.textColor = conf.theme === 'system'
-    ? Color.dynamic(themes.light.color, themes.dark.color)
-    : themes[conf.theme].color
+    ? Color.dynamic(lightColor, darkColor)
+    : conf.theme === 'light'
+      ? lightColor
+      : darkColor
   textTitle.lineLimit = 1
-  textTitle.shadowColor = new Color('#000000', 0.2)
-  textTitle.shadowOffset = new Point(1, 1)
-  textTitle.shadowRadius = 0.5
+  if (useShadow) {
+    textTitle.shadowColor = new Color('#000000', 0.2)
+    textTitle.shadowOffset = new Point(1, 1)
+    textTitle.shadowRadius = 0.5
+  }
   if (item.icon) {
     stack.addSpacer(4)
     const imageIcon = stack.addImage(await getImage(item.icon))
@@ -195,48 +207,84 @@ const update = async () => {
   }
 }
 
-/** Settings */
-const settings = async () => {
-  const res = await presentSheet({
-    title: 'Settings',
-    message: 'Which client to use to view details?',
-    options: [
-      { title: 'Weibo intl. (微博国际版)', value: 'international' },
-      { title: 'Browser (H5)', value: 'h5' }
-    ]
-  })
-  const client = res.option?.value || conf.client
-  KeyStorage.set('client', client)
-  conf.client = client
-}
-
 const main = async () => {
   const data = await fetchData()
-  const widget = await createWidget(data)
-  if (config.runsInApp) {
-    const res = await presentSheet({
-      message: 'Preview the widget or update the script. Update will override the whole script.',
-      options: [
-        { title: 'Preview', value: 'Preview' },
-        { title: 'Settings', value: 'Settings' },
-        { title: 'Update', value: 'Update' }
-      ]
-    })
-    const value = res.option?.value
-    switch (value) {
-      case 'Preview':
-        widget.presentMedium()
-        break
-      case 'Settings':
-        await settings()
-        break
-      case 'Update':
-        update()
-        break
-    }
-  }
 
-  Script.setWidget(widget)
+  const widget = await withSettings({
+    homePage: 'https://github.com/Honye/scriptable-scripts',
+    formItems: [
+      {
+        name: 'lightColor',
+        label: 'Text color (light)',
+        type: 'color',
+        default: '#333333'
+      },
+      {
+        name: 'darkColor',
+        label: 'Text color (dark)',
+        type: 'color',
+        default: '#ffffff'
+      },
+      {
+        name: 'useShadow',
+        label: 'Text shadow',
+        type: 'switch',
+        default: preference.useShadow
+      },
+      {
+        name: 'fontSize',
+        label: 'Font size',
+        type: 'number',
+        default: fontSize
+      },
+      {
+        name: 'timeColor',
+        label: 'Time color',
+        type: 'color',
+        default: preference.timeColor.hex
+      }
+    ],
+    render: async ({ family, settings }) => {
+      family && (config.widgetFamily = family)
+      console.log(`[Weibo.js] ${JSON.stringify(settings)}`)
+      Object.assign(preference, {
+        ...settings,
+        fontSize: Number(settings.fontSize) || preference.fontSize,
+        lightColor: settings.lightColor ? new Color(settings.lightColor) : preference.lightColor,
+        darkColor: settings.lightColor ? new Color(settings.darkColor) : preference.darkColor,
+        timeColor: settings.timeColor ? new Color(settings.timeColor) : preference.timeColor
+      })
+      fontSize = Number(settings.fontSize) || fontSize
+      try {
+        return await createWidget(data)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  })
+  if (config.runsInWidget) {
+    Script.setWidget(widget)
+  }
+  // if (config.runsInApp) {
+  //   const res = await presentSheet({
+  //     message: 'Preview the widget or update the script. Update will override the whole script.',
+  //     options: [
+  //       { title: 'Preview', value: 'Preview' },
+  //       { title: 'Settings', value: 'Settings' },
+  //       { title: 'Update', value: 'Update' }
+  //     ]
+  //   })
+  //   const value = res.option?.value
+  //   switch (value) {
+  //     case 'Preview':
+  //       widget.presentMedium()
+  //       break
+  //     case 'Update':
+  //       update()
+  //       break
+  //   }
+  // }
+
   Script.complete()
 }
 

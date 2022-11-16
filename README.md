@@ -110,9 +110,9 @@
 | client | 使用什么客户端查看详情，`1`（网页应用）or `2`（微博国际版） |
 | theme  | 自定义样式，`system`, `light` 或 `dark`                     |
 
-| Medium & Light                                     | Medium & Dark                                    |
-| :------------------------------------------------- | ------------------------------------------------ |
-| ![light mode](./docs/assets/weibo_medium_light.jpg) | ![dark mode](./docs/assets/weibo_medium_dark.jpg) |
+| Medium & Light | Medium & Dark | UI |
+| :------------ | :----------- | :--- |
+| ![light mode](./docs/assets/weibo_medium_light.jpg) | ![dark mode](./docs/assets/weibo_medium_dark.jpg) | ![UI](./docs/assets/weibo_ui.jpeg) |
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Weibo.js)
 
