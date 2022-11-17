@@ -1,6 +1,13 @@
 const { phoneSize } = importModule('utils.module')
 const { withSettings } = importModule('withSettings.module')
 
+// ====== 清除旧版本无用缓存 =====
+// FIXME 下个版本删除
+try {
+  Keychain.remove(`$${Script.name()}.client`)
+} catch (e) {}
+// ===========================
+
 let fontSize = 14
 const gap = 8
 const logoSize = 30
@@ -14,6 +21,8 @@ const themes = {
   }
 }
 const preference = {
+  /** @type {'h5'|'international'} */
+  client: 'h5',
   useShadow: false,
   lightColor: new Color('#333'),
   darkColor: Color.white(),
@@ -46,7 +55,6 @@ const H5Page = {
 }
 
 const conf = {
-  client: 'h5',
   theme: 'system'
 }
 const screen = Device.screenResolution()
@@ -55,23 +63,18 @@ const phone = phoneSize(screen.height)
 
 if (config.runsInWidget) {
   const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim())
-  conf.client = client === '2' ? 'international' : conf.client
+  preference.client = client === '2' ? 'international' : preference.client
   conf.theme = theme || conf.theme
 }
 
-const storedClient = KeyStorage.get('client')
-if (storedClient) {
-  conf.client = storedClient
-}
-
-const Pages = (() => {
-  switch (conf.client) {
+const Pages = () => {
+  switch (preference.client) {
     case 'international':
       return InternationalScheme
     case 'h5':
       return H5Page
   }
-})()
+}
 
 const fetchData = async () => {
   const url = 'https://weibointl.api.weibo.cn/portal.php?ct=feed&a=search_topic'
@@ -104,7 +107,7 @@ const createWidget = async ({ data, updatedAt }) => {
   widget.backgroundColor = conf.theme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
     : themes[conf.theme].background
-  widget.url = Pages.hotSearch()
+  widget.url = Pages().hotSearch()
   const paddingY = paddingVertical - (gap / 2)
   widget.setPadding(paddingY, 12, paddingY, 14)
   const max = conf.count
@@ -150,7 +153,7 @@ const addItem = async (widget, item) => {
     const [key, value] = item.split('=')
     query[key] = value
   })
-  stack.url = Pages.search(query.keyword)
+  stack.url = Pages().search(query.keyword)
   stack.centerAlignContent()
   stack.size = new Size(-1, fontSize + gap)
   const stackIndex = stack.addStack()
@@ -214,6 +217,16 @@ const main = async () => {
     homePage: 'https://github.com/Honye/scriptable-scripts',
     formItems: [
       {
+        name: 'client',
+        label: 'Client',
+        type: 'select',
+        options: [
+          { label: 'H5 (微博)', value: 'h5' },
+          { label: 'Weibo intl.', value: 'international' }
+        ],
+        default: 'h5'
+      },
+      {
         name: 'lightColor',
         label: 'Text color (light)',
         type: 'color',
@@ -269,16 +282,11 @@ const main = async () => {
   //   const res = await presentSheet({
   //     message: 'Preview the widget or update the script. Update will override the whole script.',
   //     options: [
-  //       { title: 'Preview', value: 'Preview' },
-  //       { title: 'Settings', value: 'Settings' },
   //       { title: 'Update', value: 'Update' }
   //     ]
   //   })
   //   const value = res.option?.value
   //   switch (value) {
-  //     case 'Preview':
-  //       widget.presentMedium()
-  //       break
   //     case 'Update':
   //       update()
   //       break

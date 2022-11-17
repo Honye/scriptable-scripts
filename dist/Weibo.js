@@ -4,7 +4,7 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.0.0
+ * @version 2.1.0
  * @author Honye
  */
 
@@ -158,8 +158,6 @@ const phoneSize = (height) => {
   }
 };
 
-// import { isRunSelf } from "./utils.module"
-
 const useCache = (useICloud) => {
   const fm = FileManager[useICloud ? 'iCloud' : 'local']();
   const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name());
@@ -271,7 +269,6 @@ const withSettings = async (options = {}) => {
   } = options;
 
   let settings = await readSettings() || {};
-  console.log(settings);
 
   if (config.runsInWidget) {
     const widget = await render({ settings });
@@ -353,7 +350,8 @@ button .iconfont {
 .form-item .iconfont {
   margin-right: 4px;
 }
-.form-item input {
+.form-item input,
+.form-item select {
   font-size: 14px;
   text-align: right;
 }
@@ -403,6 +401,21 @@ input[type='checkbox'][role='switch']:checked::before {
   color: #515154;
   text-decoration: none;
 }
+.preview.loading {
+  pointer-events: none;
+}
+.icon-loading {
+  display: inline-block;
+  animation: 1s linear infinite spin;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0);
+  }
+  100% {
+    transform: rotate(1turn);
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -447,33 +460,65 @@ input[type='checkbox'][role='switch']:checked::before {
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
-    const input = document.createElement("input");
-    input.name = item.name
-    input.type = item.type || "text";
-    input.value = value
-    // Switch
-    if (item.type === 'switch') {
-      input.type = 'checkbox'
-      input.role = 'switch'
-      input.checked = value
+    if (item.type === 'select') {
+      const select = document.createElement('select')
+      select.name = item.name
+      select.value = value
+      for (const opt of (item.options || [])) {
+        const option = document.createElement('option')
+        option.value = opt.value
+        option.innerText = opt.label
+        option.selected = value === opt.value
+        select.appendChild(option)
+      }
+      select.addEventListener('change', (e) => {
+        formData[item.name] = e.target.value
+        invoke('changeSettings', formData)
+      })
+      label.appendChild(select)
+    } else {
+      const input = document.createElement("input");
+      input.name = item.name
+      input.type = item.type || "text";
+      input.value = value
+      // Switch
+      if (item.type === 'switch') {
+        input.type = 'checkbox'
+        input.role = 'switch'
+        input.checked = value
+      }
+      if (item.type === 'number') {
+        input.inputMode = 'decimal'
+      }
+      input.addEventListener("change", (e) => {
+        formData[item.name] =
+          item.type === 'switch'
+          ? e.target.checked
+          : e.target.value;
+        invoke('changeSettings', formData)
+      });
+      label.appendChild(input);
     }
-    if (item.type === 'number') {
-      input.inputMode = 'decimal'
-    }
-    input.addEventListener("change", (e) => {
-      formData[item.name] =
-        item.type === 'switch'
-        ? e.target.checked
-        : e.target.value;
-      invoke('changeSettings', formData)
-    });
-    label.appendChild(input);
     fragment.appendChild(label);
   }
   document.getElementById('form').appendChild(fragment)
 
   for (const btn of document.querySelectorAll('.preview')) {
     btn.addEventListener('click', (e) => {
+      const target = e.currentTarget
+      target.classList.add('loading')
+      const icon = e.currentTarget.querySelector('.iconfont')
+      const className = icon.className
+      icon.className = 'iconfont icon-loading'
+      const listener = (event) => {
+        const { code } = event.detail
+        if (code === 'previewStart') {
+          target.classList.remove('loading')
+          icon.className = className
+          window.removeEventListener('JWeb', listener);
+        }
+      }
+      window.addEventListener('JWeb', listener)
       invoke('preview', e.currentTarget.dataset.size)
     })
   }
@@ -501,7 +546,7 @@ input[type='checkbox'][role='switch']:checked::before {
 `<html>
   <head>
     <meta name='viewport' content='width=device-width, user-scalable=no'>
-    <link rel="stylesheet" href="//at.alicdn.com/t/c/font_3772663_e72j1agpj6.css" type="text/css">
+    <link rel="stylesheet" href="//at.alicdn.com/t/c/font_3772663_kmo790s3yfq.css" type="text/css">
     <style>${style}</style>
   </head>
   <body>
@@ -539,19 +584,19 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const injectListener = async () => {
     const event = await webView.evaluateJavaScript(
-    `(() => {
-      const controller = new AbortController()
-      const listener = (e) => {
-        completion(e.detail)
-        controller.abort()
-      }
-      window.addEventListener(
-        'JBridge', 
-        listener,
-        { signal: controller.signal }
-      )
-    })()`,
-    true
+      `(() => {
+        const controller = new AbortController()
+        const listener = (e) => {
+          completion(e.detail)
+          controller.abort()
+        }
+        window.addEventListener(
+          'JBridge',
+          listener,
+          { signal: controller.signal }
+        )
+      })()`,
+      true
     ).catch((err) => {
       console.error(err);
       throw err
@@ -560,15 +605,13 @@ input[type='checkbox'][role='switch']:checked::before {
     switch (code) {
       case 'preview': {
         const widget = await render({ settings, family: data });
+        webView.evaluateJavaScript(
+          'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
+          false
+        );
         widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
         break
       }
-      case 'log':
-        log(data);
-        break
-      case 'formChange':
-        log(data);
-        break
       case 'safari':
         Safari.openInApp(data, true);
         break
@@ -593,6 +636,13 @@ input[type='checkbox'][role='switch']:checked::before {
   // ======= web end =========
 };
 
+// ====== 清除旧版本无用缓存 =====
+// FIXME 下个版本删除
+try {
+  Keychain.remove(`$${Script.name()}.client`);
+} catch (e) {}
+// ===========================
+
 let fontSize = 14;
 const gap = 8;
 const logoSize = 30;
@@ -606,6 +656,8 @@ const themes = {
   }
 };
 const preference = {
+  /** @type {'h5'|'international'} */
+  client: 'h5',
   useShadow: false,
   lightColor: new Color('#333'),
   darkColor: Color.white(),
@@ -638,7 +690,6 @@ const H5Page = {
 };
 
 const conf = {
-  client: 'h5',
   theme: 'system'
 };
 const screen = Device.screenResolution();
@@ -647,23 +698,18 @@ const phone = phoneSize(screen.height);
 
 if (config.runsInWidget) {
   const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim());
-  conf.client = client === '2' ? 'international' : conf.client;
+  preference.client = client === '2' ? 'international' : preference.client;
   conf.theme = theme || conf.theme;
 }
 
-const storedClient = KeyStorage.get('client');
-if (storedClient) {
-  conf.client = storedClient;
-}
-
-const Pages = (() => {
-  switch (conf.client) {
+const Pages = () => {
+  switch (preference.client) {
     case 'international':
       return InternationalScheme
     case 'h5':
       return H5Page
   }
-})();
+};
 
 const fetchData = async () => {
   const url = 'https://weibointl.api.weibo.cn/portal.php?ct=feed&a=search_topic';
@@ -696,7 +742,7 @@ const createWidget = async ({ data, updatedAt }) => {
   widget.backgroundColor = conf.theme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
     : themes[conf.theme].background;
-  widget.url = Pages.hotSearch();
+  widget.url = Pages().hotSearch();
   const paddingY = paddingVertical - (gap / 2);
   widget.setPadding(paddingY, 12, paddingY, 14);
   const max = conf.count;
@@ -742,7 +788,7 @@ const addItem = async (widget, item) => {
     const [key, value] = item.split('=');
     query[key] = value;
   });
-  stack.url = Pages.search(query.keyword);
+  stack.url = Pages().search(query.keyword);
   stack.centerAlignContent();
   stack.size = new Size(-1, fontSize + gap);
   const stackIndex = stack.addStack();
@@ -785,6 +831,16 @@ const main = async () => {
   const widget = await withSettings({
     homePage: 'https://github.com/Honye/scriptable-scripts',
     formItems: [
+      {
+        name: 'client',
+        label: 'Client',
+        type: 'select',
+        options: [
+          { label: 'H5 (微博)', value: 'h5' },
+          { label: 'Weibo intl.', value: 'international' }
+        ],
+        default: 'h5'
+      },
       {
         name: 'lightColor',
         label: 'Text color (light)',
@@ -841,16 +897,11 @@ const main = async () => {
   //   const res = await presentSheet({
   //     message: 'Preview the widget or update the script. Update will override the whole script.',
   //     options: [
-  //       { title: 'Preview', value: 'Preview' },
-  //       { title: 'Settings', value: 'Settings' },
   //       { title: 'Update', value: 'Update' }
   //     ]
   //   })
   //   const value = res.option?.value
   //   switch (value) {
-  //     case 'Preview':
-  //       widget.presentMedium()
-  //       break
   //     case 'Update':
   //       update()
   //       break
