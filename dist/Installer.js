@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: cloud-download-alt; icon-color: deep-gray; share-sheet-inputs: file-url,url,plain-text;
 /**
- * @version 1.0.0
+ * @version 1.1.0
  * @author Honye
  */
 
@@ -115,7 +115,7 @@ const main = async () => {
           Keychain.set('dev-port', port);
           Keychain.set('dev-name', name);
           installByURL(
-            `http://${host}:${port}/${name}.js`,
+            `http://${host}:${port}/${encodeURIComponent(name)}.js`,
             { override: true }
           );
         }
@@ -160,7 +160,7 @@ async function installByURL (url, options) {
       await notification.schedule();
       throw e
     });
-  const fileName = url.substring(url.lastIndexOf('/') + 1);
+  const fileName = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1));
   let filePath = `${appRoot}/${fileName}`;
   if (fs.fileExists(filePath) && !override) {
     const alert = new Alert();
