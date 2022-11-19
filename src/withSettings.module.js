@@ -338,6 +338,8 @@ input[type='checkbox'][role='switch']:checked::before {
         formData[item.name] =
           item.type === 'switch'
           ? e.target.checked
+          : item.type === 'number'
+          ? Number(e.target.value)
           : e.target.value;
         invoke('changeSettings', formData)
       });
