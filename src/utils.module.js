@@ -278,18 +278,41 @@ const tintedImage = async (image, color) => {
 const useCache = () => {
   const fm = FileManager.local()
   const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`)
-
-  const writeString = (filePath, content) => {
-    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
-    const i = safePath.lastIndexOf('/')
-    const directory = safePath.substring(0, i)
+  /**
+   * 删除路径末尾所有的 /
+   * @param {string} filePath
+   */
+  const safePath = (filePath) => {
+    return fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
+  }
+  /**
+   * 如果上级文件夹不存在，则先创建文件夹
+   * @param {string} filePath
+   */
+  const preWrite = (filePath) => {
+    const i = filePath.lastIndexOf('/')
+    const directory = filePath.substring(0, i)
     if (!fm.fileExists(directory)) {
       fm.createDirectory(directory, true)
     }
-    fm.writeString(safePath, content)
+  }
+
+  const writeString = (filePath, content) => {
+    const nextPath = safePath(filePath)
+    preWrite(nextPath)
+    fm.writeString(nextPath, content)
   }
 
   const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData))
+  /**
+   * @param {string} filePath
+   * @param {Image} image
+   */
+  const writeImage = (filePath, image) => {
+    const nextPath = safePath(filePath)
+    preWrite(nextPath)
+    return fm.writeImage(nextPath, image)
+  }
 
   const readString = (filePath) => {
     return fm.readString(
@@ -298,13 +321,21 @@ const useCache = () => {
   }
 
   const readJSON = (filePath) => JSON.parse(readString(filePath))
+  /**
+   * @param {string} filePath
+   */
+  const readImage = (filePath) => {
+    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+  }
 
   return {
     cacheDirectory,
     writeString,
     writeJSON,
+    writeImage,
     readString,
-    readJSON
+    readJSON,
+    readImage
   }
 }
 
