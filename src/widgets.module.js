@@ -3,15 +3,16 @@ const { getImage } = importModule('utils.module')
 /**
  * @param {ListWidget | WidgetStack} stack container widget
  * @param {object} options
- * @param {string} options.src image url
+ * @param {string} [options.src] image url
+ * @param {Image} [options.image]
  * @param {number} options.size
  */
 module.exports.addAvatar = async (stack, options) => {
-  const { src, size } = options
-  const image = stack.addImage(await getImage(src))
-  image.imageSize = new Size(size, size)
-  image.cornerRadius = size
-  return image
+  const { image, src, size } = options
+  const _image = stack.addImage(image || await getImage(src))
+  _image.imageSize = new Size(size, size)
+  _image.cornerRadius = size
+  return _image
 }
 
 /**
