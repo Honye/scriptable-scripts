@@ -1,6 +1,6 @@
 const { addAvatar, useGrid } = importModule('widgets.module')
-const { phoneSize } = importModule('./utils.module')
-const { hexToRGBA, RGBToHSL, lightenDarkenColor } = importModule('./color.module')
+const { phoneSize, useCache, getImage } = importModule('utils.module')
+const { hexToRGBA, RGBToHSL, lightenDarkenColor } = importModule('color.module')
 const { withSettings } = importModule('withSettings.module')
 
 let user = 'Honye'
@@ -33,6 +33,7 @@ const gap = { x: 3, y: 2 }
 const screen = Device.screenResolution()
 const scale = Device.screenScale()
 const size = phoneSize(screen.height)
+const cache = useCache()
 
 /**
  * @param {string} user
@@ -40,8 +41,14 @@ const size = phoneSize(screen.height)
 const fetchData = async (user) => {
   const url = `https://www.imarkr.com/api/github/${user}`
   const req = new Request(url)
-  const resp = await req.loadJSON()
-  return resp
+  let data
+  try {
+    data = await req.loadJSON()
+    cache.writeJSON(`${user}.json`, data)
+  } catch (e) {
+    data = cache.readJSON(`${user}.json`)
+  }
+  return data
 }
 
 const isHalloween = () => {
@@ -89,7 +96,14 @@ const render = async () => {
   head.centerAlignContent()
 
   // avatar
-  await addAvatar(head, { src: avatar, size: 20 })
+  let image
+  try {
+    image = await getImage(avatar)
+    cache.writeImage(`${user}.jpeg`, image)
+  } catch (e) {
+    image = cache.readImage(`${user}.jpeg`)
+  }
+  await addAvatar(head, { image, size: 20 })
   head.addSpacer(3)
 
   // user name

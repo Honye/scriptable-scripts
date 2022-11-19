@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: braille; icon-color: deep-gray;
 /**
- * @version 1.2.1
+ * @version 1.3.0
  * @author Honye
  */
 
@@ -162,18 +162,83 @@ const getImage = async (url) => {
   return image
 };
 
+const useCache$1 = () => {
+  const fm = FileManager.local();
+  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`);
+  /**
+   * 删除路径末尾所有的 /
+   * @param {string} filePath
+   */
+  const safePath = (filePath) => {
+    return fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
+  };
+  /**
+   * 如果上级文件夹不存在，则先创建文件夹
+   * @param {string} filePath
+   */
+  const preWrite = (filePath) => {
+    const i = filePath.lastIndexOf('/');
+    const directory = filePath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+  };
+
+  const writeString = (filePath, content) => {
+    const nextPath = safePath(filePath);
+    preWrite(nextPath);
+    fm.writeString(nextPath, content);
+  };
+
+  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
+  /**
+   * @param {string} filePath
+   * @param {Image} image
+   */
+  const writeImage = (filePath, image) => {
+    const nextPath = safePath(filePath);
+    preWrite(nextPath);
+    return fm.writeImage(nextPath, image)
+  };
+
+  const readString = (filePath) => {
+    return fm.readString(
+      fm.joinPath(cacheDirectory, filePath)
+    )
+  };
+
+  const readJSON = (filePath) => JSON.parse(readString(filePath));
+  /**
+   * @param {string} filePath
+   */
+  const readImage = (filePath) => {
+    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+  };
+
+  return {
+    cacheDirectory,
+    writeString,
+    writeJSON,
+    writeImage,
+    readString,
+    readJSON,
+    readImage
+  }
+};
+
 /**
  * @param {ListWidget | WidgetStack} stack container widget
  * @param {object} options
- * @param {string} options.src image url
+ * @param {string} [options.src] image url
+ * @param {Image} [options.image]
  * @param {number} options.size
  */
 const addAvatar = async (stack, options) => {
-  const { src, size } = options;
-  const image = stack.addImage(await getImage(src));
-  image.imageSize = new Size(size, size);
-  image.cornerRadius = size;
-  return image
+  const { image, src, size } = options;
+  const _image = stack.addImage(image || await getImage(src));
+  _image.imageSize = new Size(size, size);
+  _image.cornerRadius = size;
+  return _image
 };
 
 /**
@@ -837,6 +902,7 @@ const gap = { x: 3, y: 2 };
 const screen = Device.screenResolution();
 const scale = Device.screenScale();
 const size = phoneSize(screen.height);
+const cache = useCache$1();
 
 /**
  * @param {string} user
@@ -844,8 +910,14 @@ const size = phoneSize(screen.height);
 const fetchData = async (user) => {
   const url = `https://www.imarkr.com/api/github/${user}`;
   const req = new Request(url);
-  const resp = await req.loadJSON();
-  return resp
+  let data;
+  try {
+    data = await req.loadJSON();
+    cache.writeJSON(`${user}.json`, data);
+  } catch (e) {
+    data = cache.readJSON(`${user}.json`);
+  }
+  return data
 };
 
 const isHalloween = () => {
@@ -893,7 +965,14 @@ const render = async () => {
   head.centerAlignContent();
 
   // avatar
-  await addAvatar(head, { src: avatar, size: 20 });
+  let image;
+  try {
+    image = await getImage(avatar);
+    cache.writeImage(`${user}.jpeg`, image);
+  } catch (e) {
+    image = cache.readImage(`${user}.jpeg`);
+  }
+  await addAvatar(head, { image, size: 20 });
   head.addSpacer(3);
 
   // user name
