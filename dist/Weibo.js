@@ -480,6 +480,7 @@ input[type='checkbox'][role='switch']:checked::before {
       const input = document.createElement("input");
       input.name = item.name
       input.type = item.type || "text";
+      input.enterKeyHint = 'done'
       input.value = value
       // Switch
       if (item.type === 'switch') {
@@ -489,6 +490,9 @@ input[type='checkbox'][role='switch']:checked::before {
       }
       if (item.type === 'number') {
         input.inputMode = 'decimal'
+      }
+      if (input.type === 'text') {
+        input.size = 12
       }
       input.addEventListener("change", (e) => {
         formData[item.name] =
@@ -552,7 +556,7 @@ input[type='checkbox'][role='switch']:checked::before {
   <body>
   <div class="list">
     <div class="list__header">Common</div>
-    <form class="list__body">
+    <form class="list__body" action="javascript:void(0);">
       <label class="form-item">
         <div>Sync with iCloud</div>
         <input name="useICloud" type="checkbox" role="switch">
@@ -565,7 +569,7 @@ input[type='checkbox'][role='switch']:checked::before {
   </div>
   <div class="list">
     <div class="list__header">Settings</div>
-    <form id="form" class="list__body"></form>
+    <form id="form" class="list__body" action="javascript:void(0);"></form>
   </div>
   <div class="actions">
     <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
