@@ -4,7 +4,7 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.1.0
+ * @version 2.1.1
  * @author Honye
  */
 
@@ -156,6 +156,83 @@ const phoneSize = (height) => {
     medium: 329 * scale,
     large: 345 * scale
   }
+};
+
+const getImage = async (url) => {
+  const request = new Request(url);
+  const image = await request.loadImage();
+  return image
+};
+
+const useCache$1 = () => {
+  const fm = FileManager.local();
+  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`);
+  /**
+   * 删除路径末尾所有的 /
+   * @param {string} filePath
+   */
+  const safePath = (filePath) => {
+    return fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
+  };
+  /**
+   * 如果上级文件夹不存在，则先创建文件夹
+   * @param {string} filePath
+   */
+  const preWrite = (filePath) => {
+    const i = filePath.lastIndexOf('/');
+    const directory = filePath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+  };
+
+  const writeString = (filePath, content) => {
+    const nextPath = safePath(filePath);
+    preWrite(nextPath);
+    fm.writeString(nextPath, content);
+  };
+
+  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
+  /**
+   * @param {string} filePath
+   * @param {Image} image
+   */
+  const writeImage = (filePath, image) => {
+    const nextPath = safePath(filePath);
+    preWrite(nextPath);
+    return fm.writeImage(nextPath, image)
+  };
+
+  const readString = (filePath) => {
+    return fm.readString(
+      fm.joinPath(cacheDirectory, filePath)
+    )
+  };
+
+  const readJSON = (filePath) => JSON.parse(readString(filePath));
+  /**
+   * @param {string} filePath
+   */
+  const readImage = (filePath) => {
+    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+  };
+
+  return {
+    cacheDirectory,
+    writeString,
+    writeJSON,
+    writeImage,
+    readString,
+    readJSON,
+    readImage
+  }
+};
+
+/**
+ * @param {string} data
+ */
+const hashCode = (data) => {
+  return Array.from(data).reduce((accumulator, currentChar) => Math.imul(31, accumulator) + currentChar.charCodeAt(0), 0)
 };
 
 const useCache = (useICloud) => {
@@ -498,6 +575,8 @@ input[type='checkbox'][role='switch']:checked::before {
         formData[item.name] =
           item.type === 'switch'
           ? e.target.checked
+          : item.type === 'number'
+          ? Number(e.target.value)
           : e.target.value;
         invoke('changeSettings', formData)
       });
@@ -640,45 +719,27 @@ input[type='checkbox'][role='switch']:checked::before {
   // ======= web end =========
 };
 
-// ====== 清除旧版本无用缓存 =====
-// FIXME 下个版本删除
-try {
-  Keychain.remove(`$${Script.name()}.client`);
-} catch (e) {}
-// ===========================
-
 let fontSize = 14;
 const gap = 8;
-const logoSize = 30;
 const paddingVertical = 10;
 const themes = {
   light: {
     background: new Color('#ffffff')
   },
   dark: {
-    background: new Color('#242426', 1)
+    background: new Color('#242426')
   }
 };
 const preference = {
+  /** @type {'light'|'dark'|'system'} */
+  colorScheme: 'system',
   /** @type {'h5'|'international'} */
   client: 'h5',
   useShadow: false,
   lightColor: new Color('#333'),
   darkColor: Color.white(),
-  timeColor: new Color('#666')
-};
-
-/** Scoped Keychain */
-const KeyStorage = {
-  set: (key, value) => {
-    return Keychain.set(`$${Script.name()}.${key}`, JSON.stringify(value))
-  },
-  get: (key) => {
-    const _key = `$${Script.name()}.${key}`;
-    if (Keychain.contains(_key)) {
-      return JSON.parse(Keychain.get(_key))
-    }
-  }
+  timeColor: new Color('#666'),
+  logoSize: 30
 };
 
 /** 微博国际版页面 */
@@ -693,17 +754,16 @@ const H5Page = {
   search: (keyword) => `https://m.weibo.cn/search?containerid=${encodeURIComponent('100103type=1&t=10&q=' + keyword)}`
 };
 
-const conf = {
-  theme: 'system'
-};
+const conf = {};
 const screen = Device.screenResolution();
 const scale = Device.screenScale();
 const phone = phoneSize(screen.height);
+const cache = useCache$1();
 
 if (config.runsInWidget) {
-  const [client, theme] = (args.widgetParameter || '').split(',').map(text => text.trim());
+  const [client, colorScheme] = (args.widgetParameter || '').split(',').map(text => text.trim());
   preference.client = client === '2' ? 'international' : preference.client;
-  conf.theme = theme || conf.theme;
+  preference.colorScheme = colorScheme || preference.colorScheme;
 }
 
 const Pages = () => {
@@ -727,30 +787,47 @@ const fetchData = async () => {
       data: res,
       updatedAt: timeString
     };
-    KeyStorage.set('cache', data);
+    cache.writeJSON('trending.json', data);
     return data
   } catch (e) {
-    const data = KeyStorage.get('cache');
+    const data = cache.readJSON('trending.json');
     return data
   }
 };
 
+const getLogoImage = async () => {
+  try {
+    const image = cache.readImage('logo.png');
+    if (!image) {
+      throw new Error('no cache')
+    }
+    return image
+  } catch (e) {
+    const image = await getImage('https://www.sinaimg.cn/blog/developer/wiki/LOGO_64x64.png');
+    cache.writeImage('logo.png', image);
+    return image
+  }
+};
+
 const createWidget = async ({ data, updatedAt }) => {
-  const { timeColor } = preference;
+  const { timeColor, colorScheme, logoSize } = preference;
+  const { widgetFamily } = config;
+  const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily];
+  const height = heightPX / scale;
+  conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap));
+
   let stackBottom;
   let widgetBottom;
   const widget = new ListWidget();
-  const { widgetFamily } = config;
-  const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale;
-  conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap));
-  widget.backgroundColor = conf.theme === 'system'
+  widget.backgroundColor = colorScheme === 'system'
     ? Color.dynamic(themes.light.background, themes.dark.background)
-    : themes[conf.theme].background;
+    : themes[colorScheme].background;
   widget.url = Pages().hotSearch();
   const paddingY = paddingVertical - (gap / 2);
   widget.setPadding(paddingY, 12, paddingY, 14);
+
   const max = conf.count;
-  const logoLines = Math.ceil((logoSize + gap) / (fontSize + gap));
+  const logoLines = logoSize ? Math.ceil((logoSize + gap) / (fontSize + gap)) : 0;
   for (let i = 0; i < max; ++i) {
     const item = data.data[i];
     if (i === 0) {
@@ -775,7 +852,7 @@ const createWidget = async ({ data, updatedAt }) => {
       widgetBottom.length = (widgetBottom.length || 0) + 1;
       if (widgetBottom.length === logoLines) {
         stackBottom.addSpacer();
-        const imageLogo = stackBottom.addImage(await getImage('https://www.sinaimg.cn/blog/developer/wiki/LOGO_64x64.png'));
+        const imageLogo = stackBottom.addImage(await getLogoImage());
         imageLogo.imageSize = new Size(logoSize, logoSize);
       }
     }
@@ -783,8 +860,19 @@ const createWidget = async ({ data, updatedAt }) => {
   return widget
 };
 
+const getIcon = async (src) => {
+  const hash = `${hashCode(src)}`;
+  try {
+    const image = await getImage(src);
+    cache.writeImage(hash, image);
+    return image
+  } catch (e) {
+    return cache.readImage(hash)
+  }
+};
+
 const addItem = async (widget, item) => {
-  const { useShadow, lightColor, darkColor } = preference;
+  const { useShadow, lightColor, darkColor, colorScheme } = preference;
   const stack = widget.addStack();
   const [, queryString] = item.scheme.split('?');
   const query = {};
@@ -804,9 +892,9 @@ const addItem = async (widget, item) => {
   stack.addSpacer(4);
   const textTitle = stack.addText(item.title);
   textTitle.font = Font.systemFont(fontSize);
-  textTitle.textColor = conf.theme === 'system'
+  textTitle.textColor = colorScheme === 'system'
     ? Color.dynamic(lightColor, darkColor)
-    : conf.theme === 'light'
+    : colorScheme === 'light'
       ? lightColor
       : darkColor;
   textTitle.lineLimit = 1;
@@ -817,16 +905,10 @@ const addItem = async (widget, item) => {
   }
   if (item.icon) {
     stack.addSpacer(4);
-    const imageIcon = stack.addImage(await getImage(item.icon));
+    const imageIcon = stack.addImage(await getIcon(item.icon));
     imageIcon.imageSize = new Size(12, 12);
   }
   stack.addSpacer();
-};
-
-const getImage = async (url) => {
-  const request = new Request(url);
-  const image = await request.loadImage();
-  return image
 };
 
 const main = async () => {
@@ -874,14 +956,18 @@ const main = async () => {
         label: 'Time color',
         type: 'color',
         default: preference.timeColor.hex
+      },
+      {
+        name: 'logoSize',
+        label: 'Logo size (0: hidden)',
+        type: 'number',
+        default: preference.logoSize
       }
     ],
     render: async ({ family, settings }) => {
       family && (config.widgetFamily = family);
-      console.log(`[Weibo.js] ${JSON.stringify(settings)}`);
       Object.assign(preference, {
         ...settings,
-        fontSize: Number(settings.fontSize) || preference.fontSize,
         lightColor: settings.lightColor ? new Color(settings.lightColor) : preference.lightColor,
         darkColor: settings.lightColor ? new Color(settings.darkColor) : preference.darkColor,
         timeColor: settings.timeColor ? new Color(settings.timeColor) : preference.timeColor
