@@ -3,7 +3,8 @@
     "allowJs": true,
     "module": "commonjs",
     "target": "ESNext",
-    "outDir": "dist"
+    "outDir": "dist",
+    "lib": ["ESNext"]
   },
   "include": [
     "src/**/*",

@@ -5,7 +5,7 @@ specifiers:
   '@babel/eslint-parser': ^7.13.14
   '@babel/plugin-syntax-top-level-await': ^7.12.13
   '@types/node': ^17.0.23
-  '@types/scriptable-ios': ^1.6.1
+  '@types/scriptable-ios': ^1.7.0
   eslint: ^7.26.0
   eslint-config-standard: ^16.0.2
   eslint-plugin-import: ^2.22.1
@@ -20,7 +20,7 @@ devDependencies:
   '@babel/eslint-parser': 7.18.9_yvyxucxu4syjjccj52qfaafshm
   '@babel/plugin-syntax-top-level-await': 7.14.5_@babel+core@7.18.13
   '@types/node': 17.0.45
-  '@types/scriptable-ios': 1.6.5
+  '@types/scriptable-ios': 1.7.0
   eslint: 7.32.0
   eslint-config-standard: 16.0.3_x4ksp4i5em7khivw5kkmm7swui
   eslint-plugin-import: 2.26.0_eslint@7.32.0
@@ -346,8 +346,8 @@ packages:
     resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
     dev: true
 
-  /@types/scriptable-ios/1.6.5:
-    resolution: {integrity: sha512-8HvyHVIwmCdXt509c7xIvcccVnIstRMJ9DXVU5SEVjF3EJl3T9/BEF4lNjrJ+uyZPLIOacLeJ2nMgohl8NLk8A==}
+  /@types/scriptable-ios/1.7.0:
+    resolution: {integrity: sha512-9jg+Hqo416RhAyRvhVGiezvimBPRLa0Vix7GVTOPD20M2LeOE1p7LR6/URfq29ssWZGMKzLA6axYJo+DYLyFNw==}
     dev: true
 
   /acorn-jsx/5.3.2_acorn@7.4.1:
