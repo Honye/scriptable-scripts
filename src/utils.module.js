@@ -348,6 +348,13 @@ const isRunSelf = (filename) => {
   return Script.name() === name
 }
 
+/**
+ * @param {string} data
+ */
+const hashCode = (data) => {
+  return Array.from(data).reduce((accumulator, currentChar) => Math.imul(31, accumulator) + currentChar.charCodeAt(0), 0)
+}
+
 module.exports = {
   name,
   i18n,
@@ -359,5 +366,6 @@ module.exports = {
   isToday,
   tintedImage,
   useCache,
-  isRunSelf
+  isRunSelf,
+  hashCode
 }
