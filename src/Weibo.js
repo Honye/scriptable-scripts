@@ -1,8 +1,6 @@
 const { phoneSize, getImage, useCache, hashCode } = importModule('utils.module')
 const { withSettings } = importModule('withSettings.module')
 
-let fontSize = 14
-const gap = 8
 const paddingVertical = 10
 const themes = {
   light: {
@@ -17,11 +15,14 @@ const preference = {
   colorScheme: 'system',
   /** @type {'h5'|'international'} */
   client: 'h5',
+  fontSize: 14,
   useShadow: false,
-  lightColor: new Color('#333'),
-  darkColor: Color.white(),
-  timeColor: new Color('#666'),
-  logoSize: 30
+  lightColor: '#333333',
+  darkColor: '#ffffff',
+  timeColor: '#666666',
+  logoSize: 30,
+  padding: [NaN, 12, NaN, 14],
+  gap: 8
 }
 
 /** 微博国际版页面 */
@@ -92,11 +93,21 @@ const getLogoImage = async () => {
 }
 
 const createWidget = async ({ data, updatedAt }) => {
-  const { timeColor, colorScheme, logoSize } = preference
+  const {
+    fontSize,
+    timeColor,
+    colorScheme,
+    logoSize,
+    padding,
+    gap
+  } = preference
   const { widgetFamily } = config
   const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily]
   const height = heightPX / scale
   conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
+  if (widgetFamily === 'small') {
+    padding[1] = padding[3] = 6
+  }
 
   let stackBottom
   let widgetBottom
@@ -106,7 +117,7 @@ const createWidget = async ({ data, updatedAt }) => {
     : themes[colorScheme].background
   widget.url = Pages().hotSearch()
   const paddingY = paddingVertical - (gap / 2)
-  widget.setPadding(paddingY, 12, paddingY, 14)
+  widget.setPadding(paddingY, padding[1], paddingY, padding[3])
 
   const max = conf.count
   const logoLines = logoSize ? Math.ceil((logoSize + gap) / (fontSize + gap)) : 0
@@ -118,7 +129,7 @@ const createWidget = async ({ data, updatedAt }) => {
       stack.addSpacer()
       const textTime = stack.addText(`更新于 ${updatedAt}`)
       textTime.font = Font.systemFont(fontSize * 0.7)
-      textTime.textColor = timeColor
+      textTime.textColor = new Color(timeColor)
     } else if (i < max - logoLines) {
       await addItem(widget, item)
     } else {
@@ -154,7 +165,14 @@ const getIcon = async (src) => {
 }
 
 const addItem = async (widget, item) => {
-  const { useShadow, lightColor, darkColor, colorScheme } = preference
+  const {
+    fontSize,
+    useShadow,
+    lightColor,
+    darkColor,
+    colorScheme,
+    gap
+  } = preference
   const stack = widget.addStack()
   const [, queryString] = item.scheme.split('?')
   const query = {}
@@ -169,19 +187,22 @@ const addItem = async (widget, item) => {
   stackIndex.size = new Size(fontSize * 1.4, -1)
   const textIndex = stackIndex.addText(String(item.pic_id))
   textIndex.rightAlignText()
-  textIndex.textColor = item.pic_id > 3 ? new Color('#f5c94c', 1) : new Color('#fe4f67', 1)
+  textIndex.textColor = item.pic_id > 3 ? new Color('#f5c94c') : new Color('#fe4f67')
   textIndex.font = Font.boldSystemFont(fontSize)
   stack.addSpacer(4)
   const textTitle = stack.addText(item.title)
   textTitle.font = Font.systemFont(fontSize)
   textTitle.textColor = colorScheme === 'system'
-    ? Color.dynamic(lightColor, darkColor)
+    ? Color.dynamic(new Color(lightColor), new Color(darkColor))
     : colorScheme === 'light'
-      ? lightColor
-      : darkColor
+      ? new Color(lightColor)
+      : new Color(darkColor)
   textTitle.lineLimit = 1
   if (useShadow) {
-    textTitle.shadowColor = new Color('#000000', 0.2)
+    textTitle.shadowColor = Color.dynamic(
+      new Color(lightColor, 0.2),
+      new Color(darkColor, 0.2)
+    )
     textTitle.shadowOffset = new Point(1, 1)
     textTitle.shadowRadius = 0.5
   }
@@ -227,19 +248,19 @@ const main = async () => {
           { label: 'H5 (微博)', value: 'h5' },
           { label: 'Weibo intl.', value: 'international' }
         ],
-        default: 'h5'
+        default: preference.client
       },
       {
         name: 'lightColor',
         label: 'Text color (light)',
         type: 'color',
-        default: '#333333'
+        default: preference.lightColor
       },
       {
         name: 'darkColor',
         label: 'Text color (dark)',
         type: 'color',
-        default: '#ffffff'
+        default: preference.darkColor
       },
       {
         name: 'useShadow',
@@ -251,13 +272,13 @@ const main = async () => {
         name: 'fontSize',
         label: 'Font size',
         type: 'number',
-        default: fontSize
+        default: preference.fontSize
       },
       {
         name: 'timeColor',
         label: 'Time color',
         type: 'color',
-        default: preference.timeColor.hex
+        default: preference.timeColor
       },
       {
         name: 'logoSize',
@@ -268,13 +289,7 @@ const main = async () => {
     ],
     render: async ({ family, settings }) => {
       family && (config.widgetFamily = family)
-      Object.assign(preference, {
-        ...settings,
-        lightColor: settings.lightColor ? new Color(settings.lightColor) : preference.lightColor,
-        darkColor: settings.lightColor ? new Color(settings.darkColor) : preference.darkColor,
-        timeColor: settings.timeColor ? new Color(settings.timeColor) : preference.timeColor
-      })
-      fontSize = Number(settings.fontSize) || fontSize
+      Object.assign(preference, settings)
       try {
         return await createWidget(data)
       } catch (e) {

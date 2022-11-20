@@ -1,6 +1,6 @@
 {
   "name": "Weibo",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Top trending searches on Weibo",
   "setting": {
     "icon-color": "pink",

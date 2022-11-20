@@ -694,6 +694,7 @@ input[type='checkbox'][role='switch']:checked::before {
     label.appendChild(div);
     if (item.type === 'select') {
       const select = document.createElement('select')
+      select.className = 'form-item__input'
       select.name = item.name
       select.value = value
       for (const opt of (item.options || [])) {
@@ -709,7 +710,8 @@ input[type='checkbox'][role='switch']:checked::before {
       })
       label.appendChild(select)
     } else {
-      const input = document.createElement("input");
+      const input = document.createElement("input")
+      input.className = 'form-item__input'
       input.name = item.name
       input.type = item.type || "text";
       input.enterKeyHint = 'done'
@@ -761,13 +763,9 @@ input[type='checkbox'][role='switch']:checked::before {
     })
   }
 
-  document.querySelector('a').addEventListener('click', (e) => {
-    //invoke('safari', e.currentTarget.dataset.href)
-  })
-
   const reset = () => {
     for (const item of formItems) {
-      const el = document.querySelector(\`input[name="\${item.name}"]\`)
+      const el = document.querySelector(\`.form-item__input[name="\${item.name}"]\`)
       formData[item.name] = item.default
       if (item.type === 'switch') {
         el.checked = item.default
@@ -811,7 +809,7 @@ input[type='checkbox'][role='switch']:checked::before {
     <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
   </div>
   <footer>
-    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');" data-href='https://www.imarkr.com'>iMarkr</a> All rights reserved.</div>
+    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
   </footer>
     <script>${js}</script>
   </body>
