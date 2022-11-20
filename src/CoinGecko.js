@@ -1,5 +1,13 @@
-const { getImage, useCache } = importModule('utils.module')
+const { getImage, useCache, hashCode } = importModule('utils.module')
+const { withSettings } = importModule('withSettings.module')
 
+/**
+ * 是否缓存请求响应数据
+ *
+ * - `true`：网络异常时显示历史缓存数据
+ * - `false`：当网络异常时组件会显示红色异常信息
+ */
+let cacheData = true
 const API_BASE = 'https://api.coingecko.com/api/v3'
 const cache = useCache()
 
@@ -39,8 +47,37 @@ const fetchMarkets = async (params = {}) => {
      .join('&')
   const url = `${API_BASE}/coins/markets?${query}`
   const request = new Request(url)
-  const json = await request.loadJSON()
-  return json
+  try {
+    const json = await request.loadJSON()
+    if (cacheData) {
+      cache.writeJSON('data.json', json)
+    }
+    return json
+  } catch (e) {
+    if (cacheData) {
+      return cache.readJSON('data.json')
+    }
+    throw e
+  }
+}
+
+/**
+ * @param {string} url
+ * @returns {Image}
+ */
+const getIcon = async (url) => {
+  const hash = `${hashCode(url)}`
+  try {
+    const icon = cache.readImage(hash)
+    if (!icon) {
+      throw new Error('no cached icon')
+    }
+    return icon
+  } catch (e) {
+    const icon = await getImage(url)
+    cache.writeImage(hash, icon)
+    return icon
+  }
 }
 
 const getSmallBg = async (url) => {
@@ -67,7 +104,9 @@ const getSmallBg = async (url) => {
     };
     img.src = '${url}'`
   const uri = await webview.evaluateJavaScript(js, true)
-  return uri
+  const base64str = uri.replace(/^data:image\/\w+;base64,/, '')
+  const image = Image.fromData(Data.fromBase64String(base64str))
+  return image
 }
 
 const addListItem = async (widget, market) => {
@@ -75,7 +114,7 @@ const addListItem = async (widget, market) => {
   item.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`
   const left = item.addStack()
   left.centerAlignContent()
-  const image = left.addImage(await getImage(market.image))
+  const image = left.addImage(await getIcon(market.image))
   image.imageSize = new Size(28, 28)
   left.addSpacer(8)
   const coin = left.addStack()
@@ -136,12 +175,11 @@ const render = async (data) => {
   widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'))
   if (config.widgetFamily === 'small') {
     widget.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`
-    const image = await getImage(market.image)
+    const image = await getIcon(market.image)
     const obase64str = Data.fromPNG(image).toBase64String()
-    const uri = await getSmallBg(`data:image/png;base64,${obase64str}`)
-    const base64str = uri.replace(/^data:image\/\w+;base64,/, '')
     widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'))
-    widget.backgroundImage = Image.fromData(Data.fromBase64String(base64str))
+    const bg = await getSmallBg(`data:image/png;base64,${obase64str}`)
+    widget.backgroundImage = bg
     widget.setPadding(12, 12, 12, 12)
     const coin = widget.addText(market.symbol.toUpperCase())
     coin.font = Font.heavySystemFont(24)
@@ -192,27 +230,26 @@ const main = async () => {
       .join(',')
   }
 
-  const markets = await fetchMarkets({ ids })
+  const widget = await withSettings({
+    formItems: [
+      {
+        name: 'cacheData',
+        type: 'switch',
+        label: 'Cache data',
+        default: true
+      }
+    ],
+    render: async ({ settings, family }) => {
+      config.widgetFamily = family ?? config.widgetFamily
+      cacheData = settings.cacheData ?? cacheData
 
-  //   config.widgetFamily = 'medium'
-  if (config.runsInApp) {
-    config.widgetFamily = config.widgetFamily || 'small'
-  }
-  const widget = await render(markets)
-  Script.setWidget(widget)
-  if (config.runsInApp) {
-    switch (config.widgetFamily) {
-      case 'small':
-        widget.presentSmall()
-        break
-      case 'medium':
-        widget.presentMedium()
-        break
-      case 'large':
-        widget.presentLarge()
-        break
-      default:
+      const markets = await fetchMarkets({ ids })
+      const widget = await render(markets)
+      return widget
     }
+  })
+  if (config.runsInWidget) {
+    Script.setWidget(widget)
   }
 }
 
