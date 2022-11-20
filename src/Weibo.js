@@ -318,4 +318,4 @@ const main = async () => {
   Script.complete()
 }
 
-main()
+await main()

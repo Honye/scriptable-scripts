@@ -194,13 +194,10 @@ const main = async () => {
         })
       return widget
     }
-  }).catch((e) => {
-    console.error(e)
-    throw e
   })
   if (config.runsInWidget) {
     Script.setWidget(widget)
   }
 }
 
-main()
+await main()

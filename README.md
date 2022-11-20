@@ -183,3 +183,15 @@
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Juejin.js)
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js)（需先安装 [Installer](#Installer)）
+
+## 注意事项
+
+- 异步函数异常 Scriptable 未捕获给出提示，不要忘记添加 `await` 或捕获异常给出提示
+
+```js
+// script.js
+const main = async () => throw new Error('async error')
+
+// 不要忘记添加 await
+await main()
+```

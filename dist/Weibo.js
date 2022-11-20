@@ -337,6 +337,7 @@ const moveSettings = (useICloud, data) => {
  *  family: string;
  * }) => Promise<ListWidget>} options.render
  * @param {string} [options.homePage]
+ * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
  */
 const withSettings = async (options = {}) => {
   const {
@@ -712,7 +713,10 @@ input[type='checkbox'][role='switch']:checked::before {
     injectListener();
   };
 
-  injectListener();
+  injectListener().catch((e) => {
+    console.error(e);
+    throw e
+  });
   webView.present();
   // ======= web end =========
 };
@@ -1014,4 +1018,4 @@ const main = async () => {
   Script.complete();
 };
 
-main();
+await main();
