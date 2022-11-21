@@ -1,4 +1,5 @@
 const { i18n } = importModule('utils.module')
+
 const localFM = FileManager.local()
 const iCloudFM = FileManager.iCloud()
 
@@ -12,7 +13,12 @@ const presentList = (dir) => {
     const path = localFM.joinPath(dir, item)
     const isDirectory = localFM.isDirectory(path)
     const row = new UITableRow()
-    const title = row.addText(item, localFM.getUTI(path))
+    row.cellSpacing = 6
+    const sfs = SFSymbol.named(isDirectory ? 'folder' : 'doc')
+    const icon = row.addImage(sfs.image)
+    icon.widthWeight = 2
+    const title = row.addText(item, localFM.modificationDate(path).toLocaleString())
+    title.widthWeight = 18
     title.titleFont = Font.headline()
     title.subtitleFont = Font.footnote()
     title.subtitleColor = Color.gray()
@@ -20,12 +26,30 @@ const presentList = (dir) => {
       title.titleColor = Color.dynamic(Color.blue(), new Color('#8aefef'))
     }
     row.dismissOnSelect = false
-    row.onSelect = () => {
+    row.onSelect = async () => {
       if (localFM.isDirectory(path)) {
         presentList(path)
+      } else {
+        if (!localFM.isFileDownloaded(path)) {
+          await localFM.downloadFileFromiCloud(path)
+        }
+        try {
+          const image = localFM.readImage(path)
+          QuickLook.present(image, false)
+          return
+        } catch (e) {
+          console.warn(e)
+        }
+        try {
+          const text = localFM.readString(path)
+          QuickLook.present(text)
+        } catch (e) {
+          console.warn(e)
+        }
       }
     }
-    const del = row.addButton('Delete')
+    const del = row.addButton(i18n(['Delete', '删除']))
+    del.widthWeight = 4
     del.rightAligned()
     del.onTap = async () => {
       const alert = new Alert()
@@ -47,7 +71,7 @@ const presentList = (dir) => {
 const table = new UITable()
 const addRow = (title, path) => {
   const row = new UITableRow()
-  const name = row.addText(title, localFM.getUTI(path))
+  const name = row.addText(title)
   name.titleFont = Font.headline()
   name.subtitleFont = Font.footnote()
   name.subtitleColor = Color.gray()

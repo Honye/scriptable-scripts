@@ -184,6 +184,17 @@
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FJuejin.js)（需先安装 [Installer](#Installer)）
 
+## Clean Files
+
+可视化文件清理
+
+- 清理日积月累的缓存文件和删除了脚本后遗留的配置和缓存文件
+- 支持中英文
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Clean%20Files.js)
+
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FClean%20Files.js)（需先安装 [Installer](#Installer)）
+
 ## 注意事项
 
 - 异步函数异常 Scriptable 未捕获给出提示，不要忘记添加 `await` 或捕获异常给出提示

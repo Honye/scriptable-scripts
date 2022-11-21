@@ -1,5 +1,6 @@
 {
-  "description": "Clean file",
+  "version": "1.0.1",
+  "description": "Clean files",
   "setting": {
     "icon-glyph": "trash-alt",
     "icon-color": "red"
