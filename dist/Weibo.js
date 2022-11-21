@@ -4,7 +4,7 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.1.2
+ * @version 2.1.3
  * @author Honye
  */
 
@@ -166,7 +166,7 @@ const getImage = async (url) => {
 
 const useCache$1 = () => {
   const fm = FileManager.local();
-  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`);
+  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`);
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath

@@ -277,7 +277,7 @@ const tintedImage = async (image, color) => {
 
 const useCache = () => {
   const fm = FileManager.local()
-  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`)
+  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`)
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath

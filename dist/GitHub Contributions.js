@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: braille; icon-color: deep-gray;
 /**
- * @version 1.3.0
+ * @version 1.3.1
  * @author Honye
  */
 
@@ -164,7 +164,7 @@ const getImage = async (url) => {
 
 const useCache$1 = () => {
   const fm = FileManager.local();
-  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`);
+  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`);
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath

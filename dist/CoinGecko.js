@@ -6,7 +6,7 @@
  * 
  * 其他情况优先使用缓存中货币 ID 去请求数据
  *
- * @version 1.2.0
+ * @version 1.2.1
  * @author Honye
  */
 
@@ -18,7 +18,7 @@ const getImage = async (url) => {
 
 const useCache$1 = () => {
   const fm = FileManager.local();
-  const cacheDirectory = fm.joinPath(fm.cacheDirectory(), `${Script.name()}.Scriptable`);
+  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`);
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath
