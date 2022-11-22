@@ -1,7 +1,15 @@
 const { phoneSize, tintedImage, isSameDay, isToday } = importModule('utils.module')
 const { useGrid } = importModule('widgets.module')
 const { sloarToLunar } = importModule('lunar.module')
+const { withSettings } = importModule('withSettings.module')
 
+const preference = {
+  themeColor: '#ff0000',
+  textColor: '#222222',
+  textColorDark: '#ffffff',
+  weekendColor: '#8e8e93',
+  weekendColorDark: '#8e8e93'
+}
 const today = new Date()
 const firstDay = (() => {
   const date = new Date(today)
@@ -34,6 +42,7 @@ const addCalendar = async (container, options = {}) => {
     addWeek,
     addDay
   } = options
+  const { textColor, textColorDark, weekendColor, weekendColorDark } = preference
   const stack = container.addStack()
   const { add } = await useGrid(stack, {
     column: 7,
@@ -50,10 +59,10 @@ const addCalendar = async (container, options = {}) => {
       textInner.lineLimit = 1
       textInner.minimumScaleFactor = 0.2
       textInner.textColor = theme === 'light'
-        ? Color.black()
+        ? new Color(textColor)
         : theme === 'dark'
-          ? Color.white()
-          : Color.dynamic(Color.black(), Color.white())
+          ? new Color(textColorDark)
+          : Color.dynamic(new Color(textColor), new Color(textColorDark))
       if (color) {
         textInner.textColor = color
       }
@@ -68,7 +77,8 @@ const addCalendar = async (container, options = {}) => {
 
     return _addItem(stack, {
       text: weekFormat(new Date(sunday.getTime() + day * 86400000)),
-      color: (day === 0 || day === 6) && Color.gray()
+      color: (day === 0 || day === 6) &&
+        Color.dynamic(new Color(weekendColor), new Color(weekendColorDark))
     })
   }
   const _addDay = (stack, { date }) => {
@@ -108,11 +118,12 @@ const addCalendar = async (container, options = {}) => {
 }
 
 const addTitle = (widget) => {
+  const { themeColor } = preference
   const head = widget.addStack()
   head.setPadding(0, 4, 0, 4)
   const title = head.addText(new Date().toLocaleString('default', { month: 'short' }).toUpperCase())
   title.font = Font.semiboldSystemFont(11)
-  title.textColor = Color.red()
+  title.textColor = new Color(themeColor)
   head.addSpacer()
   const lunarDate = sloarToLunar(
     today.getFullYear(),
@@ -121,18 +132,19 @@ const addTitle = (widget) => {
   )
   const lunar = head.addText(`${lunarDate.lunarMonth}月${lunarDate.lunarDay}`)
   lunar.font = Font.semiboldSystemFont(11)
-  lunar.textColor = Color.red()
+  lunar.textColor = new Color(themeColor)
 }
 
 const addDay = async (
   stack,
   { date, addItem } = {}
 ) => {
+  const { themeColor, weekendColor, weekendColorDark } = preference
   const text = `${date.getDate()}`
   const i = dates.findIndex((item) => isSameDay(item, date))
   if (isToday(date)) {
     const item = addItem(stack, { text, color: Color.white() })
-    item.backgroundColor = Color.red()
+    item.backgroundColor = new Color(themeColor)
   } else if (i > -1) {
     dates.splice(i, 1)
     const sfs = SFSymbol.named(symbolName || 'flag.fill')
@@ -144,11 +156,18 @@ const addDay = async (
     item.$text.shadowOffset = new Point(0.5, 0.5)
     item.$text.shadowRadius = 0.5
   } else {
-    addItem(stack, { text })
+    addItem(stack, {
+      text,
+      color: (() => {
+        const week = date.getDay()
+        return (week === 0 || week === 6) &&
+          Color.dynamic(new Color(weekendColor), new Color(weekendColorDark))
+      })()
+    })
   }
 }
 
-const render = async () => {
+const createWidget = async () => {
   const phone = phoneSize()
   const scale = Device.screenScale()
   const family = config.widgetFamily
@@ -177,11 +196,55 @@ const render = async () => {
   return widget
 }
 
+const {
+  themeColor,
+  textColor,
+  textColorDark,
+  weekendColor,
+  weekendColorDark
+} = preference
+const widget = await withSettings({
+  formItems: [
+    {
+      name: 'themeColor',
+      type: 'color',
+      label: 'Theme color',
+      default: themeColor
+    },
+    {
+      name: 'textColor',
+      type: 'color',
+      label: 'Text color (light)',
+      default: textColor
+    },
+    {
+      name: 'textColorDark',
+      type: 'color',
+      label: 'Text color (dark)',
+      default: textColorDark
+    },
+    {
+      name: 'weekendColor',
+      type: 'color',
+      label: 'Weekend color (light)',
+      default: weekendColor
+    },
+    {
+      name: 'weekendColorDark',
+      type: 'color',
+      label: 'Weekend color (dark)',
+      default: weekendColorDark
+    }
+  ],
+  render: async ({ family, settings }) => {
+    if (family) {
+      config.widgetFamily = family
+    }
+    Object.assign(preference, settings)
+    const widget = await createWidget()
+    return widget
+  }
+})
 if (config.runsInWidget) {
-  const widget = await render()
   Script.setWidget(widget)
-} else {
-  config.widgetFamily = 'small'
-  const widget = await render()
-  widget.presentSmall()
 }
