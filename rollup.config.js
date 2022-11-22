@@ -80,7 +80,7 @@ for (const filename of files) {
           return code.replace(
             /((?:let)|(?:const)|(?:var))\s*((?:\w+)|(?:\{.*\}))\s*=\s*importModule\('(.*?)'\)/g,
             (str, declaration, imported, moduleName) => {
-              return `import ${imported} from "./${moduleName}"`
+              return `import ${imported.replace(/:/g, ' as ')} from "./${moduleName}"`
             }
           )
         }
