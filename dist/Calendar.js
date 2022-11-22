@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -650,9 +650,16 @@ const withSettings = async (options = {}) => {
 
   /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {};
+  const imgPath = FileManager.local().joinPath(
+    cache.cacheDirectory,
+    'bg.png'
+  );
 
   if (config.runsInWidget) {
     const widget = await render({ settings });
+    if (settings.backgroundImage) {
+      widget.backgroundImage = FileManager.local().readImage(imgPath);
+    }
     return widget
   }
 
@@ -974,10 +981,6 @@ input[type='checkbox'][role='switch']:checked::before {
   const webView = new WebView();
   await webView.loadHTML(html, homePage);
 
-  const imgPath = FileManager.local().joinPath(
-    cache.cacheDirectory,
-    'bg.png'
-  );
   const clearBgImg = () => {
     delete settings.backgroundImage;
     const fm = FileManager.local();
