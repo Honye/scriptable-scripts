@@ -1,3 +1,6 @@
+const { presentSheet, useCache: _useCache } = importModule('utils.module')
+
+const cache = _useCache()
 const useCache = (useICloud) => {
   const fm = FileManager[useICloud ? 'iCloud' : 'local']()
   const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name())
@@ -47,6 +50,10 @@ const readSettings = async () => {
   return settings
 }
 
+/**
+ * @param {Record<string, unknown>} data
+ * @param {{ useICloud: boolean; }} options
+ */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useCache(useICloud)
   fm.writeJSON('settings.json', data)
@@ -109,6 +116,7 @@ const withSettings = async (options = {}) => {
     homePage = 'https://www.imarkr.com'
   } = options
 
+  /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {}
 
   if (config.runsInWidget) {
@@ -385,6 +393,9 @@ input[type='checkbox'][role='switch']:checked::before {
     invoke('removeSettings', formData)
   }
   document.getElementById('reset').addEventListener('click', () => reset())
+
+  document.getElementById('chooseBgImg')
+    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`
 
   const html =
@@ -401,6 +412,10 @@ input[type='checkbox'][role='switch']:checked::before {
       <label class="form-item">
         <div>Sync with iCloud</div>
         <input name="useICloud" type="checkbox" role="switch">
+      </label>
+      <label id="chooseBgImg" class="form-item form-item--link">
+        <div>Background image</div>
+        <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
         <div>Reset</div>
@@ -427,6 +442,42 @@ input[type='checkbox'][role='switch']:checked::before {
   const webView = new WebView()
   await webView.loadHTML(html, homePage)
 
+  const imgPath = FileManager.local().joinPath(
+    cache.cacheDirectory,
+    'bg.png'
+  )
+  const clearBgImg = () => {
+    delete settings.backgroundImage
+    const fm = FileManager.local()
+    if (fm.fileExists(imgPath)) {
+      fm.remove(imgPath)
+    }
+  }
+
+  const chooseBgImg = async () => {
+    const { option } = await presentSheet({
+      options: [
+        { key: 'choose', title: 'Choose photo' },
+        { key: 'clear', title: 'Clear background image' }
+      ]
+    })
+    switch (option?.key) {
+      case 'choose': {
+        try {
+          const image = await Photos.fromLibrary()
+          cache.writeImage('bg.png', image)
+          settings.backgroundImage = imgPath
+          writeSettings(settings, { useICloud: settings.useICloud })
+        } catch (e) {}
+        break
+      }
+      case 'clear':
+        clearBgImg()
+        writeSettings(settings, { useICloud: settings.useICloud })
+        break
+    }
+  }
+
   const injectListener = async () => {
     const event = await webView.evaluateJavaScript(
       `(() => {
@@ -450,6 +501,10 @@ input[type='checkbox'][role='switch']:checked::before {
     switch (code) {
       case 'preview': {
         const widget = await render({ settings, family: data })
+        const { backgroundImage } = settings
+        if (backgroundImage) {
+          widget.backgroundImage = FileManager.local().readImage(backgroundImage)
+        }
         webView.evaluateJavaScript(
           'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
           false
@@ -470,7 +525,11 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'removeSettings':
         settings = { ...settings, ...data }
+        clearBgImg()
         removeSettings(settings)
+        break
+      case 'chooseBgImg':
+        await chooseBgImg()
         break
     }
     injectListener()
