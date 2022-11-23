@@ -1,48 +1,16 @@
-const { presentSheet, useCache: _useCache } = importModule('utils.module')
+const { presentSheet, useCache, useFileManager } = importModule('utils.module')
 
-const cache = _useCache()
-const useCache = (useICloud) => {
-  const fm = FileManager[useICloud ? 'iCloud' : 'local']()
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name())
-
-  const writeString = (filePath, content) => {
-    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '')
-    const i = safePath.lastIndexOf('/')
-    const directory = safePath.substring(0, i)
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true)
-    }
-    fm.writeString(safePath, content)
-  }
-
-  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData))
-
-  const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
-  }
-
-  const readJSON = (filePath) => JSON.parse(readString(filePath))
-
-  return {
-    cacheDirectory,
-    writeString,
-    writeJSON,
-    readString,
-    readJSON
-  }
-}
+const cache = useCache()
 
 const readSettings = async () => {
-  const localFM = useCache()
+  const localFM = useFileManager()
   let settings = localFM.readJSON('settings.json')
   if (settings) {
     console.log('[info] use local settings')
     return settings
   }
 
-  const iCloudFM = useCache(true)
+  const iCloudFM = useFileManager({ useICloud: true })
   settings = iCloudFM.readJSON('settings.json')
   if (settings) {
     console.log('[info] use iCloud settings')
@@ -55,12 +23,12 @@ const readSettings = async () => {
  * @param {{ useICloud: boolean; }} options
  */
 const writeSettings = async (data, { useICloud }) => {
-  const fm = useCache(useICloud)
+  const fm = useFileManager({ useICloud })
   fm.writeJSON('settings.json', data)
 }
 
 const removeSettings = async (settings) => {
-  const cache = useCache(settings.useICloud)
+  const cache = useFileManager({ useICloud: settings.useICloud })
   FileManager.local().remove(
     FileManager.local().joinPath(
       cache.cacheDirectory,
@@ -70,8 +38,8 @@ const removeSettings = async (settings) => {
 }
 
 const moveSettings = (useICloud, data) => {
-  const localFM = useCache()
-  const iCloudFM = useCache(true)
+  const localFM = useFileManager()
+  const iCloudFM = useFileManager({ useICloud: true })
   const [i, l] = [
     FileManager.local().joinPath(
       iCloudFM.cacheDirectory,

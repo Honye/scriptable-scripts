@@ -275,9 +275,30 @@ const tintedImage = async (image, color) => {
   return Image.fromData(Data.fromBase64String(base64))
 }
 
-const useCache = () => {
+/**
+ * @param {...string} paths
+ */
+const joinPath = (...paths) => {
   const fm = FileManager.local()
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`)
+  return paths.reduce((prev, curr) => {
+    return fm.joinPath(prev, curr)
+  }, '')
+}
+
+/**
+ * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
+ * @param {object} options
+ * @param {boolean} [options.useICloud]
+ * @param {string} [options.basePath]
+ */
+const useFileManager = (options = {}) => {
+  const { useICloud, basePath } = options
+  const fm = useICloud ? FileManager.iCloud() : FileManager.local()
+  const paths = [fm.documentsDirectory(), Script.name()]
+  if (basePath) {
+    paths.push(basePath)
+  }
+  const cacheDirectory = joinPath(...paths)
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath
@@ -339,6 +360,8 @@ const useCache = () => {
   }
 }
 
+const useCache = () => useFileManager({ basePath: 'cache' })
+
 /**
  * @param {string} filename
  */
@@ -365,6 +388,7 @@ module.exports = {
   isSameDay,
   isToday,
   tintedImage,
+  useFileManager,
   useCache,
   isRunSelf,
   hashCode
