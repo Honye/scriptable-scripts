@@ -6,9 +6,46 @@
  * 
  * 其他情况优先使用缓存中货币 ID 去请求数据
  *
- * @version 1.2.1
+ * @version 1.2.2
  * @author Honye
  */
+
+/**
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.message]
+ * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {boolean} [options.showCancel = true]
+ * @param {string} [options.cancelText = 'Cancel']
+ */
+const presentSheet = async (options) => {
+  options = {
+    showCancel: true,
+    cancelText: 'Cancel',
+    ...options
+  };
+  const alert = new Alert();
+  if (options.title) {
+    alert.title = options.title;
+  }
+  if (options.message) {
+    alert.message = options.message;
+  }
+  if (!options.options) {
+    throw new Error('The "options" property of the parameter cannot be empty')
+  }
+  for (const option of options.options) {
+    alert.addAction(option.title);
+  }
+  if (options.showCancel) {
+    alert.addCancelAction(options.cancelText);
+  }
+  const value = await alert.presentSheet();
+  return {
+    value,
+    option: options.options[value]
+  }
+};
 
 const getImage = async (url) => {
   const request = new Request(url);
@@ -87,6 +124,7 @@ const hashCode = (data) => {
   return Array.from(data).reduce((accumulator, currentChar) => Math.imul(31, accumulator) + currentChar.charCodeAt(0), 0)
 };
 
+const cache$1 = useCache$1();
 const useCache = (useICloud) => {
   const fm = FileManager[useICloud ? 'iCloud' : 'local']();
   const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name());
@@ -136,6 +174,10 @@ const readSettings = async () => {
   return settings
 };
 
+/**
+ * @param {Record<string, unknown>} data
+ * @param {{ useICloud: boolean; }} options
+ */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useCache(useICloud);
   fm.writeJSON('settings.json', data);
@@ -198,10 +240,18 @@ const withSettings = async (options = {}) => {
     homePage = 'https://www.imarkr.com'
   } = options;
 
+  /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {};
+  const imgPath = FileManager.local().joinPath(
+    cache$1.cacheDirectory,
+    'bg.png'
+  );
 
   if (config.runsInWidget) {
     const widget = await render({ settings });
+    if (settings.backgroundImage) {
+      widget.backgroundImage = FileManager.local().readImage(imgPath);
+    }
     return widget
   }
 
@@ -474,6 +524,9 @@ input[type='checkbox'][role='switch']:checked::before {
     invoke('removeSettings', formData)
   }
   document.getElementById('reset').addEventListener('click', () => reset())
+
+  document.getElementById('chooseBgImg')
+    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`;
 
   const html =
@@ -490,6 +543,10 @@ input[type='checkbox'][role='switch']:checked::before {
       <label class="form-item">
         <div>Sync with iCloud</div>
         <input name="useICloud" type="checkbox" role="switch">
+      </label>
+      <label id="chooseBgImg" class="form-item form-item--link">
+        <div>Background image</div>
+        <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
         <div>Reset</div>
@@ -516,6 +573,38 @@ input[type='checkbox'][role='switch']:checked::before {
   const webView = new WebView();
   await webView.loadHTML(html, homePage);
 
+  const clearBgImg = () => {
+    delete settings.backgroundImage;
+    const fm = FileManager.local();
+    if (fm.fileExists(imgPath)) {
+      fm.remove(imgPath);
+    }
+  };
+
+  const chooseBgImg = async () => {
+    const { option } = await presentSheet({
+      options: [
+        { key: 'choose', title: 'Choose photo' },
+        { key: 'clear', title: 'Clear background image' }
+      ]
+    });
+    switch (option?.key) {
+      case 'choose': {
+        try {
+          const image = await Photos.fromLibrary();
+          cache$1.writeImage('bg.png', image);
+          settings.backgroundImage = imgPath;
+          writeSettings(settings, { useICloud: settings.useICloud });
+        } catch (e) {}
+        break
+      }
+      case 'clear':
+        clearBgImg();
+        writeSettings(settings, { useICloud: settings.useICloud });
+        break
+    }
+  };
+
   const injectListener = async () => {
     const event = await webView.evaluateJavaScript(
       `(() => {
@@ -539,6 +628,10 @@ input[type='checkbox'][role='switch']:checked::before {
     switch (code) {
       case 'preview': {
         const widget = await render({ settings, family: data });
+        const { backgroundImage } = settings;
+        if (backgroundImage) {
+          widget.backgroundImage = FileManager.local().readImage(backgroundImage);
+        }
         webView.evaluateJavaScript(
           'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
           false
@@ -559,7 +652,11 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'removeSettings':
         settings = { ...settings, ...data };
+        clearBgImg();
         removeSettings(settings);
+        break
+      case 'chooseBgImg':
+        await chooseBgImg();
         break
     }
     injectListener();
@@ -582,6 +679,8 @@ input[type='checkbox'][role='switch']:checked::before {
 let cacheData = true;
 const API_BASE = 'https://api.coingecko.com/api/v3';
 const cache = useCache$1();
+/** 只支持中英文 */
+const language = Device.language() === 'zh' ? 'zh' : 'en';
 
 const fetchCoinList = async () => {
   if (!config.runsInApp) {
@@ -652,6 +751,10 @@ const getIcon = async (url) => {
   }
 };
 
+const detailURL = (market) => {
+  return `https://www.coingecko.com/${language}/${language === 'zh' ? encodeURIComponent('数字货币') : 'coins'}/${market.id}`
+};
+
 const getSmallBg = async (url) => {
   const webview = new WebView();
   const js =
@@ -683,7 +786,7 @@ const getSmallBg = async (url) => {
 
 const addListItem = async (widget, market) => {
   const item = widget.addStack();
-  item.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`;
+  item.url = detailURL(market);
   const left = item.addStack();
   left.centerAlignContent();
   const image = left.addImage(await getIcon(market.image));
@@ -727,7 +830,7 @@ const addListItem = async (widget, market) => {
 };
 
 const addList = async (widget, data) => {
-  widget.url = `https://www.coingecko.com/${Device.language()}`;
+  widget.url = `https://www.coingecko.com/${language}`;
   widget.setPadding(5, 15, 5, 15);
   await Promise.all(
     data.map((item) => {
@@ -746,7 +849,7 @@ const render = async (data) => {
   const widget = new ListWidget();
   widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'));
   if (config.widgetFamily === 'small') {
-    widget.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`;
+    widget.url = detailURL(market);
     const image = await getIcon(market.image);
     const obase64str = Data.fromPNG(image).toBase64String();
     widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'));

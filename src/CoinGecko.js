@@ -10,6 +10,8 @@ const { withSettings } = importModule('withSettings.module')
 let cacheData = true
 const API_BASE = 'https://api.coingecko.com/api/v3'
 const cache = useCache()
+/** 只支持中英文 */
+const language = Device.language() === 'zh' ? 'zh' : 'en'
 
 const fetchCoinList = async () => {
   if (!config.runsInApp) {
@@ -80,6 +82,10 @@ const getIcon = async (url) => {
   }
 }
 
+const detailURL = (market) => {
+  return `https://www.coingecko.com/${language}/${language === 'zh' ? encodeURIComponent('数字货币') : 'coins'}/${market.id}`
+}
+
 const getSmallBg = async (url) => {
   const webview = new WebView()
   const js =
@@ -111,7 +117,7 @@ const getSmallBg = async (url) => {
 
 const addListItem = async (widget, market) => {
   const item = widget.addStack()
-  item.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`
+  item.url = detailURL(market)
   const left = item.addStack()
   left.centerAlignContent()
   const image = left.addImage(await getIcon(market.image))
@@ -155,7 +161,7 @@ const addListItem = async (widget, market) => {
 }
 
 const addList = async (widget, data) => {
-  widget.url = `https://www.coingecko.com/${Device.language()}`
+  widget.url = `https://www.coingecko.com/${language}`
   widget.setPadding(5, 15, 5, 15)
   await Promise.all(
     data.map((item) => {
@@ -174,7 +180,7 @@ const render = async (data) => {
   const widget = new ListWidget()
   widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'))
   if (config.widgetFamily === 'small') {
-    widget.url = `https://www.coingecko.com/${Device.language()}/coins/${market.id}`
+    widget.url = detailURL(market)
     const image = await getIcon(market.image)
     const obase64str = Data.fromPNG(image).toBase64String()
     widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'))
