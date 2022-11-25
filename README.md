@@ -190,10 +190,20 @@
 
 - 清理日积月累的缓存文件和删除了脚本后遗留的配置和缓存文件
 - 支持中英文
+- 支持预览
+- 可用于调试脚本存储
 
 [源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Clean%20Files.js)
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FClean%20Files.js)（需先安装 [Installer](#Installer)）
+
+## Clean Files 2
+
+Clean Files 的重构版本，支持多选/全选
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Clean%20Files%202.js)
+
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FClean%2520Files%25202.js)（需先安装 [Installer](#Installer)）
 
 ## 注意事项
 
