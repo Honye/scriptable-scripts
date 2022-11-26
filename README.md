@@ -205,6 +205,14 @@ Clean Files 的重构版本，支持多选/全选
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FClean%2520Files%25202.js)（需先安装 [Installer](#Installer)）
 
+## Countdown
+
+倒计时桌面组件
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Countdown.js)
+
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCountdown.js)（需先安装 [Installer](#Installer)）
+
 ## 注意事项
 
 - 异步函数异常 Scriptable 未捕获给出提示，不要忘记添加 `await` 或捕获异常给出提示
@@ -216,3 +224,5 @@ const main = async () => throw new Error('async error')
 // 不要忘记添加 await
 await main()
 ```
+
+- 从底往上，backgroundColor、backgroundImage、backgroundGradient
