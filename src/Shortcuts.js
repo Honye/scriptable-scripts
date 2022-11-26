@@ -2,9 +2,14 @@
     - 日历
     - 支付宝扫码、收/付款、健康码
     - 微信扫码 */
-
+const { withSettings } = importModule('withSettings.module')
 const { sloarToLunar } = importModule('lunar.module')
 const NoBg = importModule('no-background')
+
+const preference = {
+  lightBgColor: '#ffffff',
+  darkBgColor: '#242426'
+}
 
 /**
  * @param {number} cols
@@ -80,10 +85,15 @@ const addSymbol = (widget, name) => {
 }
 
 const createWidget = async () => {
+  const { lightBgColor, darkBgColor } = preference
+
   const widget = new ListWidget()
   widget.setPadding(8, 0, 8, 8)
-  widget.backgroundColor = Color.dynamic(new Color('#ffffff', 1), new Color('#242426', 1))
-  widget.backgroundImage = await NoBg.transparent(Script.name())
+  widget.backgroundColor = Color.dynamic(new Color(lightBgColor), new Color(darkBgColor))
+  const noBgConfig = await NoBg.loadConfig()
+  if (noBgConfig[Script.name()]) {
+    widget.backgroundImage = await NoBg.transparent(Script.name())
+  }
 
   const container = widget.addStack()
   container.centerAlignContent()
@@ -151,6 +161,43 @@ const createWidget = async () => {
   return widget
 }
 
-const widget = await createWidget()
-Script.setWidget(widget)
-widget.presentMedium()
+await withSettings({
+  formItems: [
+    {
+      name: 'lightBgColor',
+      label: 'Background color (light)',
+      type: 'color',
+      default: preference.lightBgColor
+    },
+    {
+      name: 'darkBgColor',
+      label: 'Background color (dark)',
+      type: 'color',
+      default: preference.darkBgColor
+    },
+    {
+      name: 'transparentBg',
+      label: 'Transparent background',
+      type: 'cell'
+    },
+    {
+      name: 'clearBgTransparent',
+      label: 'Clear transparent background',
+      type: 'cell'
+    }
+  ],
+  onItemClick: (item) => {
+    const { name } = item
+    if (name === 'clearBgTransparent') {
+      NoBg.clean()
+    } else if (name === 'transparentBg') {
+      NoBg.transparent(Script.name())
+    }
+  },
+  render: async ({ family, settings }) => {
+    config.widgetFamily = family ?? config.widgetFamily
+    Object.assign(preference, settings)
+    const widget = await createWidget()
+    return widget
+  }
+})

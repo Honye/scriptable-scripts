@@ -285,7 +285,6 @@ _exports_.getSliceForWidget = async function (
   return image
 }
 //------------------------------------------------
-_exports_.for = _exports_.getSliceForWidget
 _exports_.transparent = _exports_.getSliceForWidget
 //------------------------------------------------
 _exports_.chooseBackgroundSlice = async function (name) {
@@ -319,11 +318,20 @@ _exports_.resetConfig = async function () {
   log('config file cleared')
 }
 
+_exports_.loadConfig = loadConfig
+_exports_.clean = () => {
+  if (fm.fileExists(cachePath)) {
+    fm.remove(cachePath)
+  }
+}
+
 //-- [helpers] -----------------------------------
 //------------------------------------------------
 async function loadConfig() {
   const configPath = fm.joinPath(cachePath, "widget-positions.json")
-  //log(` config exists == ${fm.fileExists(configPath)}`)
+  if (!fm.fileExists(cachePath)) {
+    fm.createDirectory(cachePath)
+  }
   if (!fm.fileExists(configPath)) {
     await fm.writeString(configPath, "{}")
     return {}
@@ -532,29 +540,3 @@ function FileManagerAdaptive() {
 module.exports = _exports_
 
 // -- END OF MODULE CODE --
-
-// if running self run config
-const module_name = module.filename.match(/[^\/]+$/)[0].replace('.js', '')
-if (module_name == Script.name()) {
-  await(async () => {
-    let opts = [
-      'Generate Slices',
-      'Clear Widget Positions Cache',
-      'Cancel'
-    ]
-
-    let resp = await presentAlert(
-      'No Background Configurator', opts, ALERTS_AS_SHEETS)
-    switch (opts[resp]) {
-      case 'Generate Slices':
-        await _exports_.generateSlices({})
-        break;
-      case 'Clear Widget Positions Cache':
-        await _exports_.resetConfig()
-        await presentAlert('Cleared')
-        break;
-      default:
-    }
-  })()
-
-} 
