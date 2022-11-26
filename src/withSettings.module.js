@@ -1,3 +1,15 @@
+/**
+ * 轻松实现桌面组件可视化配置
+ *
+ * - 颜色选择器及更多表单控件
+ * - 快速预览
+ *
+ * GitHub: https://github.com/honye
+ *
+ * @version 1.1.0
+ * @author Honye
+ */
+
 const { presentSheet, useCache, useFileManager } = importModule('utils.module')
 
 const cache = useCache()
@@ -80,6 +92,7 @@ const moveSettings = (useICloud, data) => {
 const withSettings = async (options = {}) => {
   const {
     formItems = [],
+    onItemClick,
     render,
     homePage = 'https://www.imarkr.com'
   } = options
@@ -96,6 +109,7 @@ const withSettings = async (options = {}) => {
     if (settings.backgroundImage) {
       widget.backgroundImage = FileManager.local().readImage(imgPath)
     }
+    Script.setWidget(widget)
     return widget
   }
 
@@ -301,6 +315,14 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
+    } else if (item.type === 'cell') {
+      label.classList.add('form-item--link')
+      const icon = document.createElement('i')
+      icon.className = 'iconfont icon-arrow_right'
+      label.appendChild(icon)
+      label.addEventListener('click', () => {
+        invoke('itemClick', item)
+      })
     } else {
       const input = document.createElement("input")
       input.className = 'form-item__input'
@@ -501,6 +523,9 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'chooseBgImg':
         await chooseBgImg()
+        break
+      case 'itemClick':
+        onItemClick?.(data)
         break
     }
     injectListener()
