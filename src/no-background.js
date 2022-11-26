@@ -1,12 +1,12 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: deep-green; icon-glyph: chess-board;
+// icon-color: purple; icon-glyph: chess-board;
 
 /* -----------------------------------------------
 
 Script      : no-background.js
-Author      : me@supermamon.com
-Version     : 1.7.0
+Author      : dev@supermamon.com
+Version     : 1.8.0
 Description :
   A module to create illusions of transparent
   backgrounds for Scriptable widgets
@@ -15,7 +15,19 @@ Adapted from Max Zeryck's (@mzeryck) amazing
 invisible widget shared on the Automtors discourse
 https://talk.automators.fm/t/widget-examples/7994/135
 
+
 Changelog   :
+v1.8.0
+- (new) BREAKING CHANGE: background assignments
+  are unique per device so that each device can
+  have it's own wallpaper. Run "Regenerate Slices"
+  on each device.
+  But, there's a bug the current Scriptable version 
+  where Device.name() returns the model instead.
+  So, the wallppapers actually can't be unique 
+  yet. Affects stable version 1.6.12 or beta 1.7 
+- (new) support for iPhone 14 Pro/Pro Max. 
+  Thank you @mzeryck & u/Senion-Ad-883
 v1.7.0
 - (new) support for iPhone 12 Mini. Thanks @blacksector
 v1.6.0
@@ -52,6 +64,7 @@ const USES_ICLOUD = usesiCloud()
 const fm = FileManagerAdaptive()
 const CACHE_FOLDER = 'cache/nobg'
 const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_FOLDER);
+const device_id = `${Device.model()}_${Device.name()}`.replace(/[^a-zA-Z0-9\-\_]/, '').toLowerCase()
 
 
 const _exports_ = {}
@@ -96,7 +109,7 @@ _exports_.generateSlices = async function ({ caller = 'none' }) {
       await saveConfig(cfg) // Save the config
       if (resp === 0) {
         suffix = "_mini";
-      }     
+      }
     } else {
       // Config already contains iPhone model, use it from cfg
       if (cfg["phone-model"]) {
@@ -146,7 +159,7 @@ _exports_.generateSlices = async function ({ caller = 'none' }) {
       const crop = crops[c]
       const imgCrop = cropImage(wallpaper, new Rect(crop.x, crop.y, crop.w, crop.h))
 
-      const imgName = `${appearance}-${widgetSize}-${crop.pos}.jpg`
+      const imgName = `${device_id}-${appearance}-${widgetSize}-${crop.pos}.jpg`
       const imgPath = fm.joinPath(cachePath, imgName)
 
       if (fm.fileExists(imgPath)) {
@@ -192,7 +205,7 @@ _exports_.getSlice = async function (name) {
 
   let position = name
   //log(position)
-  const imgPath = fm.joinPath(cachePath, `${appearance}-${position}.jpg`)
+  const imgPath = fm.joinPath(cachePath, `${device_id}-${appearance}-${position}.jpg`)
   if (!fm.fileExists(imgPath)) {
     log('image does not exists. setup required.')
     var setupCompleted = await _exports_.generateSlices({ caller: 'getSliceForWidget' })
@@ -212,7 +225,7 @@ _exports_.getPathForSlice = async function (slice_name) {
     ? 'dark'
     : 'light'
   let imgPath = fm.joinPath(cachePath,
-    `${appearance}-${slice_name}.jpg`)
+    `${device_id}-${appearance}-${slice_name}.jpg`)
 
   let fileExists = fm.fileExists(imgPath)
   if (!fileExists) {
@@ -238,7 +251,7 @@ _exports_.getSliceForWidget = async function (
     log(`Background for "${instance_name}" is not yet set.`)
 
     // check if slices exists
-    const testImage = fm.joinPath(cachePath, `${appearance}-medium-top.jpg`)
+    const testImage = fm.joinPath(cachePath, `${device_id}-${appearance}-medium-top.jpg`)
     let readyToChoose = false
     if (!fm.fileExists(testImage)) {
       // need to generate slices
@@ -260,9 +273,9 @@ _exports_.getSliceForWidget = async function (
     }
 
   }
-  const imgPath = fm.joinPath(cachePath, `${appearance}-${position}.jpg`)
+  const imgPath = fm.joinPath(cachePath, `${device_id}-${appearance}-${position}.jpg`)
   if (!fm.fileExists(imgPath)) {
-    log(`Slice does not exists - ${appearance}-${position}.jpg`)
+    log(`Slice does not exists - ${device_id}-${appearance}-${position}.jpg`)
     return null
   }
 
@@ -360,8 +373,32 @@ const widgetPositions = {
 }
 //------------------------------------------------
 const phoneSizes = {
+  "2796": {
+    "models": ["14 Pro Max"],
+    "small": { "w": 510, "h": 510 },
+    "medium": { "w": 1092, "h": 510 },
+    "large": { "w": 1092, "h": 1146 },
+    "left": 99,
+    "right": 681,
+    "top": 282,
+    "middle": 918,
+    "bottom": 1554
+  },
+
+  "2556": {
+    "models": ["14 Pro"],
+    "small": { "w": 474, "h": 474 },
+    "medium": { "w": 1014, "h": 474 },
+    "large": { "w": 1014, "h": 1062 },
+    "left": 82,
+    "right": 622,
+    "top": 270,
+    "middle": 858,
+    "bottom": 1446
+  },
+
   "2778": {
-    "models": ["12 Pro Max"],
+    "models": ["12 Pro Max", "13 Pro Max", "14 Plus"],
     "small": { "w": 510, "h": 510 },
     "medium": { "w": 1092, "h": 510 },
     "large": { "w": 1092, "h": 1146 },
@@ -373,7 +410,7 @@ const phoneSizes = {
   },
 
   "2532": {
-    "models": ["12", "12 Pro"],
+    "models": ["12", "12 Pro", "13", "14"],
     "small": { "w": 474, "h": 474 },
     "medium": { "w": 1014, "h": 474 },
     "large": { "w": 1014, "h": 1062 },

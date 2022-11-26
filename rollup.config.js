@@ -8,7 +8,10 @@ console.info(`Scriptable Template v${version}\r\n`)
 const config = {
   author: 'Honye',
   input: 'src/*.js',
-  exclude: ['src/*.module.js'],
+  exclude: [
+    'src/*.module.js',
+    'src/no-background.js'
+  ],
   dest: 'dist'
 }
 
