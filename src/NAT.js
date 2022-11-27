@@ -1,20 +1,32 @@
 if (typeof require === 'undefined') require = importModule
 const { withSettings } = require('./withSettings.module')
+const { useCache } = require('./utils.module')
 
 const preference = {
   green: '#00b578',
   yellow: '#ffc300',
   red: '#ea0000',
   /** 有效周期，单位：天 */
-  period: 3
+  period: 3,
+  widgetURL: ''
 }
+const cache = useCache()
 
 /**
  * @returns {Promise<NATData>}
  */
 const getData = async () => {
   const { getNATData } = require/* ignore */('./Config')
-  return await getNATData()
+  if (getNATData) {
+    try {
+      const data = await getNATData()
+      cache.writeJSON('data.json', data)
+      return data
+    } catch (e) {
+      const data = cache.readJSON('data.json')
+      return data
+    }
+  }
   // return {
   //   natResultName: '阳性',
   //   sampleDate: '2022-11-24 17:24:00'
@@ -22,7 +34,7 @@ const getData = async () => {
 }
 
 const createWidget = async () => {
-  const { green, yellow, red, period } = preference
+  const { green, yellow, red, period, widgetURL } = preference
 
   const data = await getData()
   const { natResultName } = data
@@ -32,6 +44,9 @@ const createWidget = async () => {
   const leftTime = period * 24 * 3600000 - diff
 
   const widget = new ListWidget()
+  if (widgetURL) {
+    widget.url = widgetURL
+  }
   widget.backgroundColor = new Color(green)
   if (leftTime < 0) {
     widget.backgroundColor = new Color(yellow)
@@ -106,7 +121,8 @@ const createWidget = async () => {
   return widget
 }
 
-await withSettings({
+const widget = await withSettings({
+  homePage: 'https://github.com/Honye/scriptable-scripts/blob/master/dist/NAT.js',
   formItems: [
     {
       name: 'period',
@@ -122,6 +138,10 @@ await withSettings({
         { label: '7 days', value: '7' }
       ],
       default: `${preference.period}`
+    },
+    {
+      name: 'widgetURL',
+      label: 'Widget URL'
     }
   ],
   render: async ({ family, settings }) => {
@@ -135,6 +155,10 @@ await withSettings({
     return widget
   }
 })
+
+if (config.runsInWidget) {
+  Script.setWidget(widget)
+}
 
 /**
  * @typedef {object} NATData
