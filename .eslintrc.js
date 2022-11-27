@@ -39,6 +39,7 @@ module.exports = {
     Size: 'readonly',
     Color: 'readonly',
     SFSymbol: 'readonly',
+    Timer: 'readonly',
     FileManager: 'readonly',
     Photos: 'readonly',
     DrawContext: 'readonly',
@@ -46,7 +47,8 @@ module.exports = {
     ListWidget: 'readonly',
     UITable: 'readonly',
     UITableRow: 'readonly',
-    WebView: 'readonly'
+    WebView: 'readonly',
+    require: 'writable'
   },
   rules: {
   }

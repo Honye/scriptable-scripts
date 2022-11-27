@@ -10,7 +10,8 @@ const config = {
   input: 'src/*.js',
   exclude: [
     'src/*.module.js',
-    'src/no-background.js'
+    'src/no-background.js',
+    'src/Config.js'
   ],
   dest: 'dist'
 }
@@ -81,7 +82,7 @@ for (const filename of files) {
          */
         transform (code) {
           return code.replace(
-            /((?:let)|(?:const)|(?:var))\s*((?:\w+)|(?:\{.*\}))\s*=\s*importModule\('(.*?)'\)/g,
+            /((?:let)|(?:const)|(?:var))\s*((?:\w+)|(?:\{.*\}))\s*=\s*(?:importModule|require)\('(.*?)'\)/g,
             (str, declaration, imported, moduleName) => {
               return `import ${imported.replace(/:/g, ' as ')} from "./${moduleName}"`
             }
