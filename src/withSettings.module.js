@@ -12,8 +12,9 @@
 
 const { presentSheet, useCache, useFileManager } = importModule('utils.module')
 
-const cache = useCache()
-
+/**
+ * @returns {Promise<Settings>}
+ */
 const readSettings = async () => {
   const localFM = useFileManager()
   let settings = localFM.readJSON('settings.json')
@@ -75,29 +76,38 @@ const moveSettings = (useICloud, data) => {
 }
 
 /**
+ * @typedef {object} FormItem
+ * @property {string} name
+ * @property {string} label
+ * @property {string} [type]
+ * @property {{ label: string; value: unknown }[]} [options]
+ * @property {unknown} [default]
+ */
+/**
+ * @typedef {Record<string, unknown>} Settings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage]
+ */
+/**
  * @param {object} options
- * @param {{
- *  name: string;
- *  label: string;
- *  type: string;
- *  default: unknow;
- * }[]} options.formItems
+ * @param {FormItem[]} [options.formItems]
  * @param {(data: {
- *  settings: Record<string, string>;
- *  family: string;
+ *  settings: Settings;
+ *  family?: 'small'|'medium'|'large';
  * }) => Promise<ListWidget>} options.render
  * @param {string} [options.homePage]
+ * @param {(item: FormItem) => void} [options.onItemClick]
  * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
  */
-const withSettings = async (options = {}) => {
+const withSettings = async (options) => {
   const {
     formItems = [],
     onItemClick,
     render,
     homePage = 'https://www.imarkr.com'
   } = options
+  const cache = useCache()
 
-  /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {}
   const imgPath = FileManager.local().joinPath(
     cache.cacheDirectory,
