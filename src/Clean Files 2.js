@@ -42,6 +42,7 @@ const presentList = async (options) => {
   .header__left,
   .header__right {
     flex: 1;
+    min-width: 6rem;
   }
   .header__left {
     text-align: left;
@@ -52,6 +53,12 @@ const presentList = async (options) => {
   .select-all,
   .select {
     font-size: 0.875rem;
+  }
+  .title {
+    font-size: 1.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .list {
     padding: 0;
@@ -72,6 +79,7 @@ const presentList = async (options) => {
     flex: 1;
     display: flex;
     align-items: center;
+    overflow: hidden;
   }
   .item__selection {
     font-size: 0;
@@ -83,8 +91,10 @@ const presentList = async (options) => {
     color: var(--color-primary);
   }
   .item__name {
-    font-size: 1.125em;
     color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .item[data-is-directory="1"] .item__name {
     color: var(--color-primary);
@@ -229,8 +239,7 @@ const presentList = async (options) => {
         removeItems(JSON.parse(data))
         break;
     }
-  })
-  `
+  })`
 
   const html =
   `<!DOCTYPE html>
@@ -245,7 +254,7 @@ const presentList = async (options) => {
   <body>
     <div class="header">
       <div class="header__left"><button class="select-all" hidden>全选</button></div>
-      <h3>${title}</h3>
+      <h3 class="title">${title}</h3>
       <div class="header__right"><button class="select">选择</button></div>
     </div>
     <ul class="list">
@@ -406,7 +415,7 @@ presentList({
 /**
  * @typedef {object} File
  * @property {string} File.name
- * @property {string} File.info
+ * @property {string} [File.info]
  * @property {string} File.filePath
  * @property {boolean} File.isDirectory
  */

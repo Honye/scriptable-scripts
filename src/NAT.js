@@ -38,7 +38,7 @@ const createWidget = async () => {
 
   const data = await getData()
   const { natResultName } = data
-  const sampleDate = new Date(data.sampleDate)
+  const sampleDate = new Date(data.sampleDate.replace(/-/g, '/'))
   const now = new Date()
   const diff = now.getTime() - (new Date(sampleDate).getTime())
   const leftTime = period * 24 * 3600000 - diff
@@ -83,11 +83,12 @@ const createWidget = async () => {
   textDate.font = Font.systemFont(10)
   textDate.textColor = Color.white()
   textDate.lineLimit = 1
-  textDate.minimumScaleFactor = 0.1
+  textDate.minimumScaleFactor = 0.7
 
   widget.addSpacer(10)
   const textTip = widget.addText(`有效期${period}d剩余`)
   textTip.font = Font.boldSystemFont(16)
+  textTip.minimumScaleFactor = 0.8
   textTip.textColor = Color.white()
 
   const unit = leftTime < 3600000 ? '分钟' : '小时'
