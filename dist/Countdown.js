@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-clock; icon-color: teal;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -142,8 +142,9 @@ const useCache = () => useFileManager({ basePath: 'cache' });
  * @author Honye
  */
 
-const cache = useCache();
-
+/**
+ * @returns {Promise<Settings>}
+ */
 const readSettings = async () => {
   const localFM = useFileManager();
   let settings = localFM.readJSON('settings.json');
@@ -205,29 +206,38 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
+ * @typedef {object} FormItem
+ * @property {string} name
+ * @property {string} label
+ * @property {string} [type]
+ * @property {{ label: string; value: unknown }[]} [options]
+ * @property {unknown} [default]
+ */
+/**
+ * @typedef {Record<string, unknown>} Settings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage]
+ */
+/**
  * @param {object} options
- * @param {{
- *  name: string;
- *  label: string;
- *  type: string;
- *  default: unknow;
- * }[]} options.formItems
+ * @param {FormItem[]} [options.formItems]
  * @param {(data: {
- *  settings: Record<string, string>;
- *  family: string;
+ *  settings: Settings;
+ *  family?: 'small'|'medium'|'large';
  * }) => Promise<ListWidget>} options.render
  * @param {string} [options.homePage]
+ * @param {(item: FormItem) => void} [options.onItemClick]
  * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
  */
-const withSettings = async (options = {}) => {
+const withSettings = async (options) => {
   const {
     formItems = [],
     onItemClick,
     render,
     homePage = 'https://www.imarkr.com'
   } = options;
+  const cache = useCache();
 
-  /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {};
   const imgPath = FileManager.local().joinPath(
     cache.cacheDirectory,
@@ -329,6 +339,9 @@ button .iconfont {
 }
 input[type="number"] {
   width: 4em;
+}
+input[type="date"] {
+  min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
   position: relative;
@@ -727,6 +740,7 @@ const createWidget = () => {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
   const d = Math.ceil((target - now) / (24 * 3600000));
   const num = addText(days, {
     text: `${d}`,

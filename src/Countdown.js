@@ -58,6 +58,7 @@ const createWidget = () => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
   const d = Math.ceil((target - now) / (24 * 3600000))
   const num = addText(days, {
     text: `${d}`,
