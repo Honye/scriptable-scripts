@@ -38,11 +38,35 @@ const presentSheet = async (options) => {
 }
 
 /**
+ * Thanks @mzeryck
+ *
  * @param {number} [height] The screen height measured in pixels
  */
 const phoneSize = (height) => {
   const phones = {
-    /** 12 Pro Max */
+    /** 14 Pro Max */
+    2796: {
+      small: 510,
+      medium: 1092,
+      large: 1146,
+      left: 99,
+      right: 681,
+      top: 282,
+      middle: 918,
+      bottom: 1554
+    },
+    /** 14 Pro */
+    2556: {
+      small: 474,
+      medium: 1014,
+      large: 1062,
+      left: 82,
+      right: 622,
+      top: 270,
+      middle: 858,
+      bottom: 1446
+    },
+    /** 13 Pro Max, 12 Pro Max */
     2778: {
       small: 510,
       medium: 1092,
@@ -53,7 +77,7 @@ const phoneSize = (height) => {
       middle: 882,
       bottom: 1518
     },
-    /** 12 and 12 Pro */
+    /** 13, 13 Pro, 12, 12 Pro */
     2532: {
       small: 474,
       medium: 1014,
@@ -86,7 +110,7 @@ const phoneSize = (height) => {
       middle: 579,
       bottom: 999
     },
-    /** 11 Pro, XS, X, 12 mini */
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
     2436: {
       small: 465,
       medium: 987,

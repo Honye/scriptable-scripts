@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.1.1
+ * @version 1.1.2
  * @author Honye
  */
 
@@ -44,11 +44,35 @@ const presentSheet = async (options) => {
 };
 
 /**
+ * Thanks @mzeryck
+ *
  * @param {number} [height] The screen height measured in pixels
  */
 const phoneSize = (height) => {
   const phones = {
-    /** 12 Pro Max */
+    /** 14 Pro Max */
+    2796: {
+      small: 510,
+      medium: 1092,
+      large: 1146,
+      left: 99,
+      right: 681,
+      top: 282,
+      middle: 918,
+      bottom: 1554
+    },
+    /** 14 Pro */
+    2556: {
+      small: 474,
+      medium: 1014,
+      large: 1062,
+      left: 82,
+      right: 622,
+      top: 270,
+      middle: 858,
+      bottom: 1446
+    },
+    /** 13 Pro Max, 12 Pro Max */
     2778: {
       small: 510,
       medium: 1092,
@@ -59,7 +83,7 @@ const phoneSize = (height) => {
       middle: 882,
       bottom: 1518
     },
-    /** 12 and 12 Pro */
+    /** 13, 13 Pro, 12, 12 Pro */
     2532: {
       small: 474,
       medium: 1014,
@@ -92,7 +116,7 @@ const phoneSize = (height) => {
       middle: 579,
       bottom: 999
     },
-    /** 11 Pro, XS, X, 12 mini */
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
     2436: {
       small: 465,
       medium: 987,
@@ -234,9 +258,30 @@ const tintedImage = async (image, color) => {
   return Image.fromData(Data.fromBase64String(base64))
 };
 
-const useCache$1 = () => {
+/**
+ * @param {...string} paths
+ */
+const joinPath = (...paths) => {
   const fm = FileManager.local();
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`);
+  return paths.reduce((prev, curr) => {
+    return fm.joinPath(prev, curr)
+  }, '')
+};
+
+/**
+ * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
+ * @param {object} options
+ * @param {boolean} [options.useICloud]
+ * @param {string} [options.basePath]
+ */
+const useFileManager = (options = {}) => {
+  const { useICloud, basePath } = options;
+  const fm = useICloud ? FileManager.iCloud() : FileManager.local();
+  const paths = [fm.documentsDirectory(), Script.name()];
+  if (basePath) {
+    paths.push(basePath);
+  }
+  const cacheDirectory = joinPath(...paths);
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath
@@ -297,6 +342,8 @@ const useCache$1 = () => {
     readImage
   }
 };
+
+const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
  * @param {ListWidget | WidgetStack} stack
@@ -532,49 +579,30 @@ function getDiZhi (ly) {
   return diZhi[diZhiKey - 1]
 }
 
-const cache = useCache$1();
-const useCache = (useICloud) => {
-  const fm = FileManager[useICloud ? 'iCloud' : 'local']();
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name());
+/**
+ * 轻松实现桌面组件可视化配置
+ *
+ * - 颜色选择器及更多表单控件
+ * - 快速预览
+ *
+ * GitHub: https://github.com/honye
+ *
+ * @version 1.1.0
+ * @author Honye
+ */
 
-  const writeString = (filePath, content) => {
-    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '');
-    const i = safePath.lastIndexOf('/');
-    const directory = safePath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.writeString(safePath, content);
-  };
-
-  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
-
-  const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
-  };
-
-  const readJSON = (filePath) => JSON.parse(readString(filePath));
-
-  return {
-    cacheDirectory,
-    writeString,
-    writeJSON,
-    readString,
-    readJSON
-  }
-};
-
+/**
+ * @returns {Promise<Settings>}
+ */
 const readSettings = async () => {
-  const localFM = useCache();
+  const localFM = useFileManager();
   let settings = localFM.readJSON('settings.json');
   if (settings) {
     console.log('[info] use local settings');
     return settings
   }
 
-  const iCloudFM = useCache(true);
+  const iCloudFM = useFileManager({ useICloud: true });
   settings = iCloudFM.readJSON('settings.json');
   if (settings) {
     console.log('[info] use iCloud settings');
@@ -587,12 +615,12 @@ const readSettings = async () => {
  * @param {{ useICloud: boolean; }} options
  */
 const writeSettings = async (data, { useICloud }) => {
-  const fm = useCache(useICloud);
+  const fm = useFileManager({ useICloud });
   fm.writeJSON('settings.json', data);
 };
 
 const removeSettings = async (settings) => {
-  const cache = useCache(settings.useICloud);
+  const cache = useFileManager({ useICloud: settings.useICloud });
   FileManager.local().remove(
     FileManager.local().joinPath(
       cache.cacheDirectory,
@@ -602,8 +630,8 @@ const removeSettings = async (settings) => {
 };
 
 const moveSettings = (useICloud, data) => {
-  const localFM = useCache();
-  const iCloudFM = useCache(true);
+  const localFM = useFileManager();
+  const iCloudFM = useFileManager({ useICloud: true });
   const [i, l] = [
     FileManager.local().joinPath(
       iCloudFM.cacheDirectory,
@@ -627,28 +655,38 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
+ * @typedef {object} FormItem
+ * @property {string} name
+ * @property {string} label
+ * @property {string} [type]
+ * @property {{ label: string; value: unknown }[]} [options]
+ * @property {unknown} [default]
+ */
+/**
+ * @typedef {Record<string, unknown>} Settings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage]
+ */
+/**
  * @param {object} options
- * @param {{
- *  name: string;
- *  label: string;
- *  type: string;
- *  default: unknow;
- * }[]} options.formItems
+ * @param {FormItem[]} [options.formItems]
  * @param {(data: {
- *  settings: Record<string, string>;
- *  family: string;
+ *  settings: Settings;
+ *  family?: 'small'|'medium'|'large';
  * }) => Promise<ListWidget>} options.render
  * @param {string} [options.homePage]
+ * @param {(item: FormItem) => void} [options.onItemClick]
  * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
  */
-const withSettings = async (options = {}) => {
+const withSettings = async (options) => {
   const {
     formItems = [],
+    onItemClick,
     render,
     homePage = 'https://www.imarkr.com'
   } = options;
+  const cache = useCache();
 
-  /** @type {{ backgroundImage?: string; [key: string]: unknown }} */
   let settings = await readSettings() || {};
   const imgPath = FileManager.local().joinPath(
     cache.cacheDirectory,
@@ -660,6 +698,7 @@ const withSettings = async (options = {}) => {
     if (settings.backgroundImage) {
       widget.backgroundImage = FileManager.local().readImage(imgPath);
     }
+    Script.setWidget(widget);
     return widget
   }
 
@@ -749,6 +788,9 @@ button .iconfont {
 }
 input[type="number"] {
   width: 4em;
+}
+input[type="date"] {
+  min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
   position: relative;
@@ -865,6 +907,14 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
+    } else if (item.type === 'cell') {
+      label.classList.add('form-item--link')
+      const icon = document.createElement('i')
+      icon.className = 'iconfont icon-arrow_right'
+      label.appendChild(icon)
+      label.addEventListener('click', () => {
+        invoke('itemClick', item)
+      })
     } else {
       const input = document.createElement("input")
       input.className = 'form-item__input'
@@ -1065,6 +1115,9 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'chooseBgImg':
         await chooseBgImg();
+        break
+      case 'itemClick':
+        onItemClick?.(data);
         break
     }
     injectListener();

@@ -2,16 +2,77 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: braille; icon-color: deep-gray;
 /**
- * @version 1.3.1
+ * @version 1.3.2
  * @author Honye
  */
 
 /**
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.message]
+ * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {boolean} [options.showCancel = true]
+ * @param {string} [options.cancelText = 'Cancel']
+ */
+const presentSheet = async (options) => {
+  options = {
+    showCancel: true,
+    cancelText: 'Cancel',
+    ...options
+  };
+  const alert = new Alert();
+  if (options.title) {
+    alert.title = options.title;
+  }
+  if (options.message) {
+    alert.message = options.message;
+  }
+  if (!options.options) {
+    throw new Error('The "options" property of the parameter cannot be empty')
+  }
+  for (const option of options.options) {
+    alert.addAction(option.title);
+  }
+  if (options.showCancel) {
+    alert.addCancelAction(options.cancelText);
+  }
+  const value = await alert.presentSheet();
+  return {
+    value,
+    option: options.options[value]
+  }
+};
+
+/**
+ * Thanks @mzeryck
+ *
  * @param {number} [height] The screen height measured in pixels
  */
 const phoneSize = (height) => {
   const phones = {
-    /** 12 Pro Max */
+    /** 14 Pro Max */
+    2796: {
+      small: 510,
+      medium: 1092,
+      large: 1146,
+      left: 99,
+      right: 681,
+      top: 282,
+      middle: 918,
+      bottom: 1554
+    },
+    /** 14 Pro */
+    2556: {
+      small: 474,
+      medium: 1014,
+      large: 1062,
+      left: 82,
+      right: 622,
+      top: 270,
+      middle: 858,
+      bottom: 1446
+    },
+    /** 13 Pro Max, 12 Pro Max */
     2778: {
       small: 510,
       medium: 1092,
@@ -22,7 +83,7 @@ const phoneSize = (height) => {
       middle: 882,
       bottom: 1518
     },
-    /** 12 and 12 Pro */
+    /** 13, 13 Pro, 12, 12 Pro */
     2532: {
       small: 474,
       medium: 1014,
@@ -55,7 +116,7 @@ const phoneSize = (height) => {
       middle: 579,
       bottom: 999
     },
-    /** 11 Pro, XS, X, 12 mini */
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
     2436: {
       small: 465,
       medium: 987,
@@ -162,9 +223,30 @@ const getImage = async (url) => {
   return image
 };
 
-const useCache$1 = () => {
+/**
+ * @param {...string} paths
+ */
+const joinPath = (...paths) => {
   const fm = FileManager.local();
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/cache`);
+  return paths.reduce((prev, curr) => {
+    return fm.joinPath(prev, curr)
+  }, '')
+};
+
+/**
+ * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
+ * @param {object} options
+ * @param {boolean} [options.useICloud]
+ * @param {string} [options.basePath]
+ */
+const useFileManager = (options = {}) => {
+  const { useICloud, basePath } = options;
+  const fm = useICloud ? FileManager.iCloud() : FileManager.local();
+  const paths = [fm.documentsDirectory(), Script.name()];
+  if (basePath) {
+    paths.push(basePath);
+  }
+  const cacheDirectory = joinPath(...paths);
   /**
    * 删除路径末尾所有的 /
    * @param {string} filePath
@@ -225,6 +307,8 @@ const useCache$1 = () => {
     readImage
   }
 };
+
+const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
  * @param {ListWidget | WidgetStack} stack container widget
@@ -390,48 +474,30 @@ const lightenDarkenColor = (hsl, amount) => {
   return hex
 };
 
-const useCache = (useICloud) => {
-  const fm = FileManager[useICloud ? 'iCloud' : 'local']();
-  const cacheDirectory = fm.joinPath(fm.documentsDirectory(), Script.name());
+/**
+ * 轻松实现桌面组件可视化配置
+ *
+ * - 颜色选择器及更多表单控件
+ * - 快速预览
+ *
+ * GitHub: https://github.com/honye
+ *
+ * @version 1.1.0
+ * @author Honye
+ */
 
-  const writeString = (filePath, content) => {
-    const safePath = fm.joinPath(cacheDirectory, filePath).replace(/\/+$/, '');
-    const i = safePath.lastIndexOf('/');
-    const directory = safePath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.writeString(safePath, content);
-  };
-
-  const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
-
-  const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
-  };
-
-  const readJSON = (filePath) => JSON.parse(readString(filePath));
-
-  return {
-    cacheDirectory,
-    writeString,
-    writeJSON,
-    readString,
-    readJSON
-  }
-};
-
+/**
+ * @returns {Promise<Settings>}
+ */
 const readSettings = async () => {
-  const localFM = useCache();
+  const localFM = useFileManager();
   let settings = localFM.readJSON('settings.json');
   if (settings) {
     console.log('[info] use local settings');
     return settings
   }
 
-  const iCloudFM = useCache(true);
+  const iCloudFM = useFileManager({ useICloud: true });
   settings = iCloudFM.readJSON('settings.json');
   if (settings) {
     console.log('[info] use iCloud settings');
@@ -439,13 +505,17 @@ const readSettings = async () => {
   return settings
 };
 
+/**
+ * @param {Record<string, unknown>} data
+ * @param {{ useICloud: boolean; }} options
+ */
 const writeSettings = async (data, { useICloud }) => {
-  const fm = useCache(useICloud);
+  const fm = useFileManager({ useICloud });
   fm.writeJSON('settings.json', data);
 };
 
 const removeSettings = async (settings) => {
-  const cache = useCache(settings.useICloud);
+  const cache = useFileManager({ useICloud: settings.useICloud });
   FileManager.local().remove(
     FileManager.local().joinPath(
       cache.cacheDirectory,
@@ -455,8 +525,8 @@ const removeSettings = async (settings) => {
 };
 
 const moveSettings = (useICloud, data) => {
-  const localFM = useCache();
-  const iCloudFM = useCache(true);
+  const localFM = useFileManager();
+  const iCloudFM = useFileManager({ useICloud: true });
   const [i, l] = [
     FileManager.local().joinPath(
       iCloudFM.cacheDirectory,
@@ -480,31 +550,50 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
+ * @typedef {object} FormItem
+ * @property {string} name
+ * @property {string} label
+ * @property {string} [type]
+ * @property {{ label: string; value: unknown }[]} [options]
+ * @property {unknown} [default]
+ */
+/**
+ * @typedef {Record<string, unknown>} Settings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage]
+ */
+/**
  * @param {object} options
- * @param {{
- *  name: string;
- *  label: string;
- *  type: string;
- *  default: unknow;
- * }[]} options.formItems
+ * @param {FormItem[]} [options.formItems]
  * @param {(data: {
- *  settings: Record<string, string>;
- *  family: string;
+ *  settings: Settings;
+ *  family?: 'small'|'medium'|'large';
  * }) => Promise<ListWidget>} options.render
  * @param {string} [options.homePage]
+ * @param {(item: FormItem) => void} [options.onItemClick]
  * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
  */
-const withSettings = async (options = {}) => {
+const withSettings = async (options) => {
   const {
     formItems = [],
+    onItemClick,
     render,
     homePage = 'https://www.imarkr.com'
   } = options;
+  const cache = useCache();
 
   let settings = await readSettings() || {};
+  const imgPath = FileManager.local().joinPath(
+    cache.cacheDirectory,
+    'bg.png'
+  );
 
   if (config.runsInWidget) {
     const widget = await render({ settings });
+    if (settings.backgroundImage) {
+      widget.backgroundImage = FileManager.local().readImage(imgPath);
+    }
+    Script.setWidget(widget);
     return widget
   }
 
@@ -594,6 +683,9 @@ button .iconfont {
 }
 input[type="number"] {
   width: 4em;
+}
+input[type="date"] {
+  min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
   position: relative;
@@ -710,6 +802,14 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
+    } else if (item.type === 'cell') {
+      label.classList.add('form-item--link')
+      const icon = document.createElement('i')
+      icon.className = 'iconfont icon-arrow_right'
+      label.appendChild(icon)
+      label.addEventListener('click', () => {
+        invoke('itemClick', item)
+      })
     } else {
       const input = document.createElement("input")
       input.className = 'form-item__input'
@@ -777,6 +877,9 @@ input[type='checkbox'][role='switch']:checked::before {
     invoke('removeSettings', formData)
   }
   document.getElementById('reset').addEventListener('click', () => reset())
+
+  document.getElementById('chooseBgImg')
+    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`;
 
   const html =
@@ -793,6 +896,10 @@ input[type='checkbox'][role='switch']:checked::before {
       <label class="form-item">
         <div>Sync with iCloud</div>
         <input name="useICloud" type="checkbox" role="switch">
+      </label>
+      <label id="chooseBgImg" class="form-item form-item--link">
+        <div>Background image</div>
+        <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
         <div>Reset</div>
@@ -819,6 +926,38 @@ input[type='checkbox'][role='switch']:checked::before {
   const webView = new WebView();
   await webView.loadHTML(html, homePage);
 
+  const clearBgImg = () => {
+    delete settings.backgroundImage;
+    const fm = FileManager.local();
+    if (fm.fileExists(imgPath)) {
+      fm.remove(imgPath);
+    }
+  };
+
+  const chooseBgImg = async () => {
+    const { option } = await presentSheet({
+      options: [
+        { key: 'choose', title: 'Choose photo' },
+        { key: 'clear', title: 'Clear background image' }
+      ]
+    });
+    switch (option?.key) {
+      case 'choose': {
+        try {
+          const image = await Photos.fromLibrary();
+          cache.writeImage('bg.png', image);
+          settings.backgroundImage = imgPath;
+          writeSettings(settings, { useICloud: settings.useICloud });
+        } catch (e) {}
+        break
+      }
+      case 'clear':
+        clearBgImg();
+        writeSettings(settings, { useICloud: settings.useICloud });
+        break
+    }
+  };
+
   const injectListener = async () => {
     const event = await webView.evaluateJavaScript(
       `(() => {
@@ -842,6 +981,10 @@ input[type='checkbox'][role='switch']:checked::before {
     switch (code) {
       case 'preview': {
         const widget = await render({ settings, family: data });
+        const { backgroundImage } = settings;
+        if (backgroundImage) {
+          widget.backgroundImage = FileManager.local().readImage(backgroundImage);
+        }
         webView.evaluateJavaScript(
           'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
           false
@@ -862,7 +1005,14 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'removeSettings':
         settings = { ...settings, ...data };
+        clearBgImg();
         removeSettings(settings);
+        break
+      case 'chooseBgImg':
+        await chooseBgImg();
+        break
+      case 'itemClick':
+        onItemClick?.(data);
         break
     }
     injectListener();
@@ -906,7 +1056,7 @@ const gap = { x: 3, y: 2 };
 const screen = Device.screenResolution();
 const scale = Device.screenScale();
 const size = phoneSize(screen.height);
-const cache = useCache$1();
+const cache = useCache();
 
 /**
  * @param {string} user
@@ -1018,8 +1168,7 @@ const render = async () => {
     rect.backgroundColor = theme === 'system'
       ? (Array.isArray(color)
           ? Color.dynamic(new Color(color[0]), new Color(color[1]))
-          : new Color(color
-          )
+          : new Color(color)
         )
       : new Color(colors[theme][level], 1);
   };

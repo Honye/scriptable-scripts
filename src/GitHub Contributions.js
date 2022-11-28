@@ -145,8 +145,7 @@ const render = async () => {
     rect.backgroundColor = theme === 'system'
       ? (Array.isArray(color)
           ? Color.dynamic(new Color(color[0]), new Color(color[1]))
-          : new Color(color
-          )
+          : new Color(color)
         )
       : new Color(colors[theme][level], 1)
   }
