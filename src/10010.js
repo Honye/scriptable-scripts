@@ -1,6 +1,6 @@
-const { getImage, updateCode } = importModule('utils.module')
+const { withSettings } = importModule('withSettings.module')
+const { getImage, updateCode, useCache } = importModule('utils.module')
 
-const files = FileManager.local()
 /**
  * 修改为你的 cookie，cookie 获取方法，需在联通客户端中进行抓包
  *
@@ -14,13 +14,20 @@ let conf = {
   /** act.10010.com API cookie  */
   actionCookie: ''
 }
+const preference = {
+  textColorLight: '#222222',
+  textColorDark: '#ffffff',
+  /** 签到时间 */
+  checkInAfter: '10:10'
+}
 if (!conf.phone) {
   try {
-    conf = importModule('Config')['10010']()
+    conf = importModule/* ignore */('Config')['10010']()
   } catch (e) {
     console.error(e)
   }
 }
+const cache = useCache()
 const Tel = conf.phone
 const clientCookie = conf.clientCookie
 const Cookie = conf.actionCookie
@@ -29,11 +36,12 @@ const ringTextSize = 14 // 圆环中心文字大小
 const creditTextSize = 21 // 话费文本大小
 const databgColor = new Color('12A6E4', 0.3) // 流量环背景颜色
 const datafgColor = new Color('12A6E4') // 流量环前景颜色
-const dataTextColor = Color.dynamic(Color.black(), Color.white())
+let dataTextColor = Color.dynamic(
+  new Color(preference.textColorLight),
+  new Color(preference.textColorDark)
+)
 const voicebgColor = new Color('F86527', 0.3) // 语音环背景颜色
 const voicefgColor = new Color('F86527') // 语音环前景颜色
-const newBG = 0 // 是否设置或者使用新的背景图片，若要设置背景图片，请勿将下一行值设为true
-const removeBG = 0 // 是否需要清空背景图片，如果设置过背景图片，想再使用纯色背景，需将此设置为true清除背景图片缓存
 
 const dataSfs = SFSymbol.named('antenna.radiowaves.left.and.right')
 dataSfs.applyHeavyWeight()
@@ -42,42 +50,15 @@ const canvSize = 178
 const canvas = new DrawContext()
 const canvWidth = 18
 const canvRadius = 80
-const widget = new ListWidget()
-widget.url = 'chinaunicom://'
-widget.setPadding(16, 16, 16, 16)
 
-const main = async () => {
-  if (config.runsInWidget) {
-    await render()
-    return
-  }
-
-  const actions = ['Preview', 'Update']
-  const alert = new Alert()
-  alert.message = 'Preview the widget or update the script. Update will override the whole script.'
-  for (const action of actions) {
-    alert.addAction(action)
-  }
-  alert.addCancelAction('Cancel')
-  const index = await alert.presentSheet()
-  switch (actions[index]) {
-    case 'Preview':
-      render()
-      break
-    case 'Update':
-      updateCode({
-        fileURL: 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/10010.js'
-      })
-      break
-    default:
-  }
-}
-
-const render = async () => {
+const createWidget = async () => {
   const data = await getData()
   /** [话费, 流量, 语音] */
   const [phoneData, credit, voice] = data.data.dataList
-  await setBackground()
+  const widget = new ListWidget()
+  // widget.url = 'chinaunicom://'
+  widget.setPadding(16, 16, 16, 16)
+  widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'))
 
   const { signinState, _state } = data
   const status = _state === 'expired'
@@ -87,66 +68,17 @@ const render = async () => {
       : signinState === '1'
         ? 'waiting'
         : 'success'
-  await renderLogo(status)
-  await renderBalance(phoneData.number)
-  await renderArcs(credit, voice)
-
-  if (!config.runsInWidget) {
-    await widget.presentSmall()
-  }
-  Script.setWidget(widget)
-  Script.complete()
-}
-
-// ############背景设置############
-const appDir = files.joinPath(files.documentsDirectory(), Script.name())
-const bgPath = files.joinPath(appDir, 'background')
-
-const setBackground = () => {
-  widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'))
-  if (removeBG) {
-    return rmBgImg()
-  }
-  return setBgImg()
-}
-
-/** 设置小组件背景 */
-const setBgImg = async () => {
-  if (newBG && config.runsInApp) {
-    const img = await Photos.fromLibrary()
-    widget.backgroundImage = img
-    if (!files.fileExists(appDir)) {
-      files.createDirectory(appDir, true)
-    }
-    files.writeImage(bgPath, img)
-  } else {
-    if (files.fileExists(bgPath)) {
-      try {
-        widget.backgroundImage = files.readImage(bgPath)
-        log('读取图片成功')
-      } catch (e) {
-        log(e.message)
-      }
-    }
-  }
-}
-
-/** 删除小组件自定义背景图 */
-async function rmBgImg () {
-  if (files.fileExists(bgPath)) {
-    try {
-      files.remove(bgPath)
-    } catch (e) {
-      log(e.message)
-    }
-  }
+  await renderLogo(widget, status)
+  await renderBalance(widget, phoneData.number)
+  await renderArcs(widget, credit, voice)
+  return widget
 }
 
 /**
  * 联通 Logo 显示
  * @param {'waiting'|'success'|'warning'|'failed'} status
  */
-const renderLogo = async (status) => {
+const renderLogo = async (widget, status) => {
   const stackStatus = widget.addStack()
   stackStatus.addSpacer()
   const iconStatus = stackStatus.addImage(SFSymbol.named('circle.fill').image)
@@ -168,7 +100,7 @@ const renderLogo = async (status) => {
 }
 
 /** 余额显示 */
-const renderBalance = async (balance) => {
+const renderBalance = async (widget, balance) => {
   const stack = widget.addStack()
   stack.centerAlignContent()
   stack.addSpacer()
@@ -190,7 +122,7 @@ const renderBalance = async (balance) => {
  * @param {Data} flowData
  * @param {Data} voiceData
  */
-const renderArcs = async (flowData, voiceData) => {
+const renderArcs = async (widget, flowData, voiceData) => {
   const bodyStack = widget.addStack()
   bodyStack.layoutVertically()
 
@@ -279,8 +211,22 @@ function drawArc (deg, fillColor, strokeColor) {
   }
 }
 
+const daySign = async () => {
+  const url = 'https://act.10010.com/SigninApp/signin/daySign'
+  const req = new Request(url)
+  req.headers = {
+    'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0',
+    cookie: Cookie,
+    Host: 'act.10010.com'
+  }
+  const data = await req.loadJSON()
+  if (data.status === '0000' || (data.msg || '').includes('已经签到')) {
+    return data
+  }
+  return Promise.reject(data.msg)
+}
+
 const getData = async () => {
-  const cachePath = files.joinPath(files.documentsDirectory(), 'Chinaunicom-anker')
   const headers = {
     'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0'
   }
@@ -295,40 +241,36 @@ const getData = async () => {
     // FIXME 联通已限制 IP 访问次数
     const data = await req.loadJSON()
     console.log('余额信息请求成功 => ')
-    // console.log(data)
     if (data.code === 'Y') {
       data._state = 'approved' // 正常通过请求
-      files.writeString(cachePath, JSON.stringify(data))
+      cache.writeJSON('data.json', data)
     } else {
       throw data.message
     }
-    if (data.signinState === '1') {
+
+    const { checkInAfter } = preference
+    const checkInDate = new Date()
+    checkInDate.setHours(...(checkInAfter.split(':')))
+    const date = new Date()
+    if (
+      date.getTime() > checkInDate.getTime() &&
+      data.signinState === '1'
+    ) {
       // case '0'：已签到；'1'：未签到
-      const url1 = 'https://act.10010.com/SigninApp/signin/daySign'
-      const req1 = new Request(url1)
-      req1.headers = {
-        ...headers,
-        cookie: Cookie,
-        Host: 'act.10010.com'
-      }
-      try {
-        const data1 = await req1.loadJSON()
-        console.log('签到信息请求成功 => ')
-        // console.log(data1)
-        if (data1.status === '0000' || (data1.msg || '').includes('已经签到')) {
+      await daySign()
+        .then(() => {
+          console.log('签到信息请求成功 => ')
           data.signinState = '0'
-        } else {
-          throw data1.msg
-        }
-      } catch (e) {
-        console.warn('=== 签到失败 ===')
-        console.warn(e)
-        data._state = 'signin_failed' // 签到失败的
-      }
+        })
+        .catch((e) => {
+          console.warn('=== 签到失败 ===')
+          console.warn(e)
+          data._state = 'signin_failed' // 签到失败的
+        })
     }
     return data
   } catch (e) {
-    const data = JSON.parse(files.readString(cachePath))
+    const data = cache.readJSON('data.json')
     data._state = 'expired' // 缓存的数据
     console.warn('=== 数据请求失败，使用缓存数据 ===')
     console.warn(e)
@@ -336,4 +278,58 @@ const getData = async () => {
   }
 }
 
-await main()
+await withSettings({
+  formItems: [
+    {
+      name: 'textColorLight',
+      label: 'Text color (light)',
+      type: 'color',
+      default: preference.textColorLight
+    },
+    {
+      name: 'textColorDark',
+      label: 'Text color (dark)',
+      type: 'color',
+      default: preference.textColorDark
+    },
+    {
+      name: 'checkInAfter',
+      label: 'Check in after time',
+      type: 'time',
+      default: '10:10'
+    },
+    {
+      name: 'updateCode',
+      label: 'Update code',
+      type: 'cell'
+    }
+  ],
+  onItemClick: async (item) => {
+    const { name } = item
+    if (name === 'updateCode') {
+      const alert = new Alert()
+      alert.message = 'Update will override the whole script.'
+      alert.addAction('Update')
+      alert.addCancelAction('Cancel')
+      const index = await alert.presentSheet()
+      switch (index) {
+        case 0:
+          updateCode({
+            fileURL: 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/10010.js'
+          })
+          break
+        default:
+      }
+    }
+  },
+  render: async ({ settings }) => {
+    Object.assign(preference, settings)
+    const { textColorLight, textColorDark } = preference
+    dataTextColor = Color.dynamic(
+      new Color(textColorLight),
+      new Color(textColorDark)
+    )
+    const widget = await createWidget()
+    return widget
+  }
+})
