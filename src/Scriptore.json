@@ -1,0 +1,9 @@
+{
+  "name": "Scriptore",
+  "version": "0.1.0",
+  "description": "Scriptable scripts store",
+  "setting": {
+    "icon-color": "deep-blue",
+    "icon-glyph": "user-secret"
+  }
+}
