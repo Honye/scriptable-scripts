@@ -402,6 +402,40 @@ const hashCode = (data) => {
   return Array.from(data).reduce((accumulator, currentChar) => Math.imul(31, accumulator) + currentChar.charCodeAt(0), 0)
 }
 
+/**
+ * 时差
+ * @param {Date} date
+ * @returns {string} 如：1小时前
+ */
+const timeOffset = (date) => {
+  const now = new Date()
+  let offset = now.getTime() - date.getTime()
+  const type = offset < 0 ? i18n([' later', '后']) : i18n([' ago', '前'])
+  const minute = i18n(['minutes', '分钟'])
+  const hour = i18n(['hours', '小时'])
+  const day = i18n(['days', '天'])
+  if (offset < 0) {
+    offset = Math.abs(offset)
+  }
+  if (offset < 60000) {
+    // 小于一分钟
+    return i18n([`${Math.ceil(offset / 1000)} seconds${type}`, '刚刚'])
+  }
+  if (offset < 3600000) {
+    // 小于一小时
+    const minutes = Math.ceil(offset / 60000)
+    return `${minutes} ${minute}${type}`
+  }
+  if (offset < 24 * 3600000) {
+    // 小于一天
+    const hours = Math.ceil(offset / 3600000)
+    return `${hours} ${hour}${type}`
+  }
+
+  const days = Math.ceil(offset / (24 * 3600000))
+  return `${days} ${day}${type}`
+}
+
 module.exports = {
   name,
   i18n,
@@ -415,5 +449,6 @@ module.exports = {
   useFileManager,
   useCache,
   isRunSelf,
-  hashCode
+  hashCode,
+  timeOffset
 }
