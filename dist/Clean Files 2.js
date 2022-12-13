@@ -4,7 +4,7 @@
 /**
  * Clean files
  *
- * @version 2.0.1
+ * @version 2.0.2
  * @author Honye
  */
 
@@ -35,11 +35,12 @@ const presentList = async (options) => {
     -webkit-font-smoothing: antialiased;
     font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
     accent-color: var(--color-primary);
+    padding-top: env(safe-area-inset-top);
   }
   .header {
     position: sticky;
     z-index: 99;
-    top: 0;
+    top: env(safe-area-inset-top);
     left: 0;
     right: 0;
     height: 3.5rem;
@@ -123,12 +124,18 @@ const presentList = async (options) => {
     margin-right: 0.5rem;
     font-size: 1.5rem;
   }
-  .btn-del {
+  .fixed-bottom {
     position: fixed;
     z-index: 10;
     bottom: 0;
     left: 0;
     right: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: indianred;
+    transform: translateY(100%);
+    transition: all 0.25s;
+  }
+  .btn-del {
     margin: 0;
     display: block;
     width: 100%;
@@ -138,16 +145,15 @@ const presentList = async (options) => {
     color: #fff;
     background: indianred;
     padding: 0;
-    transform: translateY(100%);
-    transition: all 0.25s;
   }
-  .btn-del.show {
+  .fixed-bottom.show {
     transform: translateY(0);
   }
   .bottom-holder {
     margin-top: 2rem;
     box-sizing: content-box;
     height: 2.75rem;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -196,7 +202,7 @@ const presentList = async (options) => {
   
     document.querySelector('.select-all').toggleAttribute('hidden')
     document.querySelector('.list').classList.toggle('list-select')
-    document.querySelector('.btn-del').classList.toggle('show')
+    document.querySelector('.fixed-bottom').classList.toggle('show')
   })
   
   document.querySelectorAll('.item')
@@ -218,7 +224,7 @@ const presentList = async (options) => {
         }
       })
     })
-  
+
   document.querySelector('.select-all').addEventListener('click', (e) => {
     /** @type {HTMLButtonElement} */
     const target = e.currentTarget
@@ -232,8 +238,8 @@ const presentList = async (options) => {
       }
     })
   })
-  
-  document.querySelector('.btn-del').addEventListener('click', () => {
+
+  document.querySelector('.fixed-bottom').addEventListener('click', () => {
     const selectedItems = []
     for (const el of document.querySelectorAll('.icon-gouxuan')) {
       selectedItems.push({ ...el.parentNode.dataset })
@@ -256,7 +262,7 @@ const presentList = async (options) => {
   <html lang="zh-CN">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>${title}</title>
     <link rel="stylesheet" href="//at.alicdn.com/t/c/font_3772663_0lvf7sx0ati.css">
     <style>${css}</style>
