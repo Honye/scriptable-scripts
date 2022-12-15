@@ -3,13 +3,14 @@ const { getImage, i18n, timeOffset, useCache } = require('./utils.module')
 const { withSettings } = require('./withSettings.module')
 
 const preference = {
+  type: 'all',
   mediumCount: 3,
   largeCount: 7
 }
 const cache = useCache()
 
 const requestData = async () => {
-  const url = 'https://api.gofans.cn/v1/m/app_records?page=1&limit=10'
+  const url = 'https://api.gofans.cn/v1/m/app_records?page=1&limit=50'
   const request = new Request(url)
   request.headers = {
     Origin: 'https://m.gofans.cn'
@@ -26,7 +27,7 @@ const requestData = async () => {
 
 const createWidget = async (data) => {
   const family = config.widgetFamily
-  const { mediumCount, largeCount } = preference
+  const { type, mediumCount, largeCount } = preference
   const widget = new ListWidget()
   widget.setPadding(8, 12, 8, 12)
   widget.spacing = 8
@@ -38,7 +39,12 @@ const createWidget = async (data) => {
   }
 
   const num = family === 'large' ? largeCount : mediumCount
-  for (const [index, item] of data.slice(0, num).entries()) {
+  const filter = type === 'ios'
+    ? (item) => item.kind === 2
+    : type === 'mac'
+      ? (item) => item.kind === 1
+      : () => true
+  for (const [index, item] of data.filter(filter).slice(0, num).entries()) {
     if (index > 0) {
       const stack = widget.addStack()
       stack.addSpacer(44)
@@ -111,6 +117,16 @@ if (query.id) {
   const widget = await withSettings({
     formItems: [
       {
+        name: 'type',
+        label: i18n(['Application type', '应用类型']),
+        type: 'select',
+        options: [
+          { label: i18n(['All', '全部']), value: 'all' },
+          { label: 'iPhone', value: 'ios' },
+          { label: 'Mac', value: 'mac' }
+        ]
+      },
+      {
         name: 'mediumCount',
         label: i18n(['Number when medium size', '中号时显示个数']),
         type: 'number',
@@ -118,7 +134,7 @@ if (query.id) {
       },
       {
         name: 'largeCount',
-        label: i18n(['Number when large size', '大号号时显示个数']),
+        label: i18n(['Number when large size', '大号时显示个数']),
         type: 'number',
         default: preference.largeCount
       }
