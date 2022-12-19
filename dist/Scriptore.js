@@ -4,7 +4,7 @@
 /**
  * Scriptable scripts store
  *
- * @version 0.1.0
+ * @version 0.1.1
  * @author Honye
  */
 
@@ -13,7 +13,7 @@ const appRoot = filePath.substring(0, filePath.lastIndexOf('/'));
 const iCloudManager = FileManager.iCloud();
 const fs = iCloudManager.isFileStoredIniCloud(filePath) ? iCloudManager : FileManager.local();
 
-const url = 'https://applets.fly.dev/';
+const url = 'https://scriptore.imarkr.com/';
 
 /**
  * @param {{[language: string]: string} | string[]} langs
