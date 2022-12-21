@@ -1,5 +1,6 @@
+if (typeof require === 'undefined') require = importModule
 const { addAvatar, useGrid } = importModule('widgets.module')
-const { phoneSize, useCache, getImage } = importModule('utils.module')
+const { phoneSize, useCache, getImage, i18n } = require('./utils.module')
 const { hexToRGBA, RGBToHSL, lightenDarkenColor } = importModule('color.module')
 const { withSettings } = importModule('withSettings.module')
 
@@ -83,7 +84,15 @@ const render = async () => {
     )
     : themes[theme].background
 
-  const { avatar, contributions } = resp
+  const {
+    avatar,
+    contributions,
+    contribution_colors: respContributionColors
+  } = resp
+  /** GitHub 接口返回的主题色 */
+  const contributionColors = respContributionColors
+    ? respContributionColors.map((hex, index) => [hex, respContributionColors[respContributionColors.length - 1 - index]])
+    : null
   const name = resp.name || user
   const countText = `${resp.contributions_count} contributions`
   const latestDate = new Date(contributions.slice(-1)[0].date.replace(/-/g, '/'))
@@ -133,7 +142,7 @@ const render = async () => {
   const rgba = hexToRGBA(themeColor)
   const hsl = RGBToHSL(rgba.red, rgba.green, rgba.blue)
   const itemColors = useOfficial
-    ? isHalloween() ? halloweenColors : officialColors
+    ? contributionColors || (isHalloween() ? halloweenColors : officialColors)
     : Array(4).fill({}).map((_, index) => lightenDarkenColor(hsl, -index * 18))
   const colors = [['#ebedf0', '#45454a'], ...itemColors]
 
@@ -162,19 +171,19 @@ const main = async () => {
     formItems: [
       {
         name: 'user',
-        label: 'User name',
+        label: i18n(['User name', '用户名']),
         type: 'text',
         default: user
       },
       {
         name: 'useOfficial',
-        label: 'Official theme',
+        label: i18n(['Official theme', '使用官方主题']),
         type: 'switch',
         default: useOfficial
       },
       {
         name: 'themeColor',
-        label: 'Theme color',
+        label: i18n(['Theme color', '自定义主题色']),
         type: 'color',
         default: themeColor
       }

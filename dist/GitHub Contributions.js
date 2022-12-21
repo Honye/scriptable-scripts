@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: braille; icon-color: deep-gray;
 /**
- * @version 1.3.2
+ * @version 1.4.0
  * @author Honye
  */
 
@@ -215,6 +215,23 @@ const phoneSize = (height) => {
     medium: 329 * scale,
     large: 345 * scale
   }
+};
+
+/**
+ * @param {{[language: string]: string} | string[]} langs
+ */
+const i18n = (langs) => {
+  const language = Device.language();
+  if (Array.isArray(langs)) {
+    langs = {
+      en: langs[0],
+      zh: langs[1],
+      others: langs[0]
+    };
+  } else {
+    langs.others = langs.others || langs.en;
+  }
+  return langs[language] || langs.others
 };
 
 const getImage = async (url) => {
@@ -482,7 +499,7 @@ const lightenDarkenColor = (hsl, amount) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.1.0
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -871,7 +888,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'switch') {
         el.checked = item.default
       } else {
-        el.value = item.default
+        el && (el.value = item.default)
       }
     }
     invoke('removeSettings', formData)
@@ -891,30 +908,30 @@ input[type='checkbox'][role='switch']:checked::before {
   </head>
   <body>
   <div class="list">
-    <div class="list__header">Common</div>
+    <div class="list__header">${i18n(['Common', '通用'])}</div>
     <form class="list__body" action="javascript:void(0);">
       <label class="form-item">
-        <div>Sync with iCloud</div>
+        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
         <input name="useICloud" type="checkbox" role="switch">
       </label>
       <label id="chooseBgImg" class="form-item form-item--link">
-        <div>Background image</div>
+        <div>${i18n(['Background image', '背景图'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
-        <div>Reset</div>
+        <div>${i18n(['Reset', '重置'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
     </form>
   </div>
   <div class="list">
-    <div class="list__header">Settings</div>
+    <div class="list__header">${i18n(['Settings', '设置'])}</div>
     <form id="form" class="list__body" action="javascript:void(0);"></form>
   </div>
   <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>Medium</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
+    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
   </div>
   <footer>
     <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
@@ -937,9 +954,10 @@ input[type='checkbox'][role='switch']:checked::before {
   const chooseBgImg = async () => {
     const { option } = await presentSheet({
       options: [
-        { key: 'choose', title: 'Choose photo' },
-        { key: 'clear', title: 'Clear background image' }
-      ]
+        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
+        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
+      ],
+      cancelText: i18n(['Cancel', '取消'])
     });
     switch (option?.key) {
       case 'choose': {
@@ -1026,6 +1044,8 @@ input[type='checkbox'][role='switch']:checked::before {
   // ======= web end =========
 };
 
+if (typeof require === 'undefined') require = importModule;
+
 let user = 'Honye';
 let theme = 'system';
 let useOfficial = true;
@@ -1106,7 +1126,15 @@ const render = async () => {
     )
     : themes[theme].background;
 
-  const { avatar, contributions } = resp;
+  const {
+    avatar,
+    contributions,
+    contribution_colors: respContributionColors
+  } = resp;
+  /** GitHub 接口返回的主题色 */
+  const contributionColors = respContributionColors
+    ? respContributionColors.map((hex, index) => [hex, respContributionColors[respContributionColors.length - 1 - index]])
+    : null;
   const name = resp.name || user;
   const countText = `${resp.contributions_count} contributions`;
   const latestDate = new Date(contributions.slice(-1)[0].date.replace(/-/g, '/'));
@@ -1156,7 +1184,7 @@ const render = async () => {
   const rgba = hexToRGBA(themeColor);
   const hsl = RGBToHSL(rgba.red, rgba.green, rgba.blue);
   const itemColors = useOfficial
-    ? isHalloween() ? halloweenColors : officialColors
+    ? contributionColors || (isHalloween() ? halloweenColors : officialColors)
     : Array(4).fill({}).map((_, index) => lightenDarkenColor(hsl, -index * 18));
   const colors = [['#ebedf0', '#45454a'], ...itemColors];
 
@@ -1185,19 +1213,19 @@ const main = async () => {
     formItems: [
       {
         name: 'user',
-        label: 'User name',
+        label: i18n(['User name', '用户名']),
         type: 'text',
         default: user
       },
       {
         name: 'useOfficial',
-        label: 'Official theme',
+        label: i18n(['Official theme', '使用官方主题']),
         type: 'switch',
         default: useOfficial
       },
       {
         name: 'themeColor',
-        label: 'Theme color',
+        label: i18n(['Theme color', '自定义主题色']),
         type: 'color',
         default: themeColor
       }
