@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.0
+ * @version 1.2.1
  * @author Honye
  */
 
@@ -209,6 +209,9 @@ button .iconfont {
 }
 input[type="number"] {
   width: 4em;
+}
+input[type="date"] {
+  min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
   position: relative;

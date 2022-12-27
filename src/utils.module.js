@@ -236,7 +236,8 @@ const updateCode = async (options) => {
 }
 
 /**
- * @param {{[language: string]: string} | string[]} langs
+ * 多语言国际化
+ * @param {{[language: string]: string} | [en:string, zh:string]} langs
  */
 const i18n = (langs) => {
   const language = Device.language()
@@ -252,13 +253,21 @@ const i18n = (langs) => {
   return langs[language] || langs.others
 }
 
+/**
+ * 获取网络图片
+ * @param {string} url
+ */
 const getImage = async (url) => {
   const request = new Request(url)
   const image = await request.loadImage()
   return image
 }
 
-/** 是否同一天 */
+/**
+ * 是否同一天
+ * @param {string|number|Date} a
+ * @param {string|number|Date} b
+ */
 const isSameDay = (a, b) => {
   const leftDate = new Date(a)
   leftDate.setHours(0)
@@ -267,8 +276,17 @@ const isSameDay = (a, b) => {
   return Math.abs(leftDate - rightDate) < 3600000
 }
 
+/**
+ * 是否是今天
+ * @param {string|number|Date} date
+ */
 const isToday = (date) => isSameDay(new Date(), date)
 
+/**
+ * 图标换色
+ * @param {Image} image
+ * @param {Color} color
+ */
 const tintedImage = async (image, color) => {
   const html =
     `<img id="image" src="data:image/png;base64,${Data.fromPNG(image).toBase64String()}" />
@@ -310,6 +328,8 @@ const joinPath = (...paths) => {
 }
 
 /**
+ * 规范使用 FileManager。每个脚本使用独立文件夹
+ *
  * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
  * @param {object} options
  * @param {boolean} [options.useICloud]
@@ -348,6 +368,10 @@ const useFileManager = (options = {}) => {
     fm.writeString(nextPath, content)
   }
 
+  /**
+   * @param {string} filePath
+   * @param {*} jsonData
+   */
   const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData))
   /**
    * @param {string} filePath
@@ -359,13 +383,26 @@ const useFileManager = (options = {}) => {
     return fm.writeImage(nextPath, image)
   }
 
+  /**
+   * 文件不存在时返回 null
+   * @param {string} filePath
+   * @returns {string|null}
+   */
   const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
+    const fullPath = fm.joinPath(cacheDirectory, filePath)
+    if (fm.fileExists(fullPath)) {
+      return fm.readString(
+        fm.joinPath(cacheDirectory, filePath)
+      )
+    }
+    return null
   }
 
+  /**
+   * @param {string} filePath
+   */
   const readJSON = (filePath) => JSON.parse(readString(filePath))
+
   /**
    * @param {string} filePath
    */
@@ -384,6 +421,7 @@ const useFileManager = (options = {}) => {
   }
 }
 
+/** 规范使用文件缓存。每个脚本使用独立文件夹 */
 const useCache = () => useFileManager({ basePath: 'cache' })
 
 /**
