@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "description": [
+    "湖北联通信息展示和自动签到"
+  ],
+  "setting": {
+    "icon-glyph": "mobile-alt",
+    "icon-color": "red"
+  }
+}
