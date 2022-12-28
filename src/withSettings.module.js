@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.1
+ * @version 1.2.2
  * @author Honye
  */
 
@@ -281,8 +281,8 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const js =
 `(() => {
-  const settings = JSON.parse('${JSON.stringify(settings)}')
-  const formItems = JSON.parse('${JSON.stringify(formItems)}')
+  const settings = ${JSON.stringify(settings)}
+  const formItems = ${JSON.stringify(formItems)}
   
   window.invoke = (code, data) => {
     window.dispatchEvent(
@@ -524,7 +524,7 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'changeSettings':
         settings = { ...settings, ...data }
-        writeSettings(data, { useICloud: settings.useICloud })
+        writeSettings(settings, { useICloud: settings.useICloud })
         break
       case 'moveSettings':
         settings.useICloud = data
