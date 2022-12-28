@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.1.2
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -217,7 +217,29 @@ const phoneSize = (height) => {
   }
 };
 
-/** 是否同一天 */
+/**
+ * 多语言国际化
+ * @param {{[language: string]: string} | [en:string, zh:string]} langs
+ */
+const i18n = (langs) => {
+  const language = Device.language();
+  if (Array.isArray(langs)) {
+    langs = {
+      en: langs[0],
+      zh: langs[1],
+      others: langs[0]
+    };
+  } else {
+    langs.others = langs.others || langs.en;
+  }
+  return langs[language] || langs.others
+};
+
+/**
+ * 是否同一天
+ * @param {string|number|Date} a
+ * @param {string|number|Date} b
+ */
 const isSameDay = (a, b) => {
   const leftDate = new Date(a);
   leftDate.setHours(0);
@@ -226,8 +248,17 @@ const isSameDay = (a, b) => {
   return Math.abs(leftDate - rightDate) < 3600000
 };
 
+/**
+ * 是否是今天
+ * @param {string|number|Date} date
+ */
 const isToday = (date) => isSameDay(new Date(), date);
 
+/**
+ * 图标换色
+ * @param {Image} image
+ * @param {Color} color
+ */
 const tintedImage = async (image, color) => {
   const html =
     `<img id="image" src="data:image/png;base64,${Data.fromPNG(image).toBase64String()}" />
@@ -269,6 +300,8 @@ const joinPath = (...paths) => {
 };
 
 /**
+ * 规范使用 FileManager。每个脚本使用独立文件夹
+ *
  * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
  * @param {object} options
  * @param {boolean} [options.useICloud]
@@ -307,6 +340,10 @@ const useFileManager = (options = {}) => {
     fm.writeString(nextPath, content);
   };
 
+  /**
+   * @param {string} filePath
+   * @param {*} jsonData
+   */
   const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
   /**
    * @param {string} filePath
@@ -318,13 +355,26 @@ const useFileManager = (options = {}) => {
     return fm.writeImage(nextPath, image)
   };
 
+  /**
+   * 文件不存在时返回 null
+   * @param {string} filePath
+   * @returns {string|null}
+   */
   const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
+    const fullPath = fm.joinPath(cacheDirectory, filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readString(
+        fm.joinPath(cacheDirectory, filePath)
+      )
+    }
+    return null
   };
 
+  /**
+   * @param {string} filePath
+   */
   const readJSON = (filePath) => JSON.parse(readString(filePath));
+
   /**
    * @param {string} filePath
    */
@@ -343,6 +393,7 @@ const useFileManager = (options = {}) => {
   }
 };
 
+/** 规范使用文件缓存。每个脚本使用独立文件夹 */
 const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
@@ -587,7 +638,7 @@ function getDiZhi (ly) {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.1.0
+ * @version 1.2.2
  * @author Honye
  */
 
@@ -860,8 +911,8 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const js =
 `(() => {
-  const settings = JSON.parse('${JSON.stringify(settings)}')
-  const formItems = JSON.parse('${JSON.stringify(formItems)}')
+  const settings = ${JSON.stringify(settings)}
+  const formItems = ${JSON.stringify(formItems)}
   
   window.invoke = (code, data) => {
     window.dispatchEvent(
@@ -976,7 +1027,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'switch') {
         el.checked = item.default
       } else {
-        el.value = item.default
+        el && (el.value = item.default)
       }
     }
     invoke('removeSettings', formData)
@@ -996,30 +1047,30 @@ input[type='checkbox'][role='switch']:checked::before {
   </head>
   <body>
   <div class="list">
-    <div class="list__header">Common</div>
+    <div class="list__header">${i18n(['Common', '通用'])}</div>
     <form class="list__body" action="javascript:void(0);">
       <label class="form-item">
-        <div>Sync with iCloud</div>
+        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
         <input name="useICloud" type="checkbox" role="switch">
       </label>
       <label id="chooseBgImg" class="form-item form-item--link">
-        <div>Background image</div>
+        <div>${i18n(['Background image', '背景图'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
-        <div>Reset</div>
+        <div>${i18n(['Reset', '重置'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
     </form>
   </div>
   <div class="list">
-    <div class="list__header">Settings</div>
+    <div class="list__header">${i18n(['Settings', '设置'])}</div>
     <form id="form" class="list__body" action="javascript:void(0);"></form>
   </div>
   <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>Medium</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
+    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
   </div>
   <footer>
     <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
@@ -1042,9 +1093,10 @@ input[type='checkbox'][role='switch']:checked::before {
   const chooseBgImg = async () => {
     const { option } = await presentSheet({
       options: [
-        { key: 'choose', title: 'Choose photo' },
-        { key: 'clear', title: 'Clear background image' }
-      ]
+        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
+        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
+      ],
+      cancelText: i18n(['Cancel', '取消'])
     });
     switch (option?.key) {
       case 'choose': {
@@ -1102,7 +1154,7 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'changeSettings':
         settings = { ...settings, ...data };
-        writeSettings(data, { useICloud: settings.useICloud });
+        writeSettings(settings, { useICloud: settings.useICloud });
         break
       case 'moveSettings':
         settings.useICloud = data;
@@ -1131,12 +1183,29 @@ input[type='checkbox'][role='switch']:checked::before {
   // ======= web end =========
 };
 
+if (typeof require === 'undefined') require = importModule;
+
 const preference = {
   themeColor: '#ff0000',
   textColor: '#222222',
   textColorDark: '#ffffff',
   weekendColor: '#8e8e93',
-  weekendColorDark: '#8e8e93'
+  weekendColorDark: '#8e8e93',
+  symbolName: 'flag.fill'
+};
+const $12Animals = {
+  子: '鼠',
+  丑: '牛',
+  寅: '虎',
+  卯: '兔',
+  辰: '龙',
+  巳: '蛇',
+  午: '马',
+  未: '羊',
+  申: '猴',
+  酉: '鸡',
+  戌: '狗',
+  亥: '猪'
 };
 const today = new Date();
 const firstDay = (() => {
@@ -1151,7 +1220,7 @@ const lastDay = (() => {
 })();
 let dates = [];
 let calendar;
-const [calendarTitle, symbolName, theme] = (args.widgetParameter || '').split(',').map((text) => text.trim());
+const [calendarTitle, theme] = (args.widgetParameter || '').split(',').map((text) => text.trim());
 if (calendarTitle) {
   calendar = await Calendar.forEventsByTitle(calendarTitle);
   const events = await CalendarEvent.between(firstDay, lastDay, [calendar]);
@@ -1162,6 +1231,18 @@ const titleSize = 12;
 const columnGap = 2;
 const rowGap = 2;
 
+/**
+ * @param {ListWidget|WidgetStack} container
+ * @param {object} options
+ * @param {(
+ *  stack: WidgetStack,
+ *  options: {
+ *    date: Date;
+ *    width: number;
+ *    addItem: (stack: WidgetStack, data: { text: string; color: Color }) => WidgetStack
+ *  }
+ * ) => void} [options.addDay] 自定义添加日期
+ */
 const addCalendar = async (container, options = {}) => {
   const {
     itemWidth = 18,
@@ -1171,18 +1252,27 @@ const addCalendar = async (container, options = {}) => {
     addDay
   } = options;
   const { textColor, textColorDark, weekendColor, weekendColorDark } = preference;
+  const family = config.widgetFamily;
   const stack = container.addStack();
   const { add } = await useGrid(stack, {
     column: 7,
     gap
   });
+  /**
+   * @param {WidgetStack} stack
+   * @param {object} param1
+   * @param {string} param1.text
+   * @param {Color} param1.color
+   */
   const _addItem = (stack, { text, color } = {}) => {
     const item = stack.addStack();
     item.size = new Size(itemWidth, itemWidth);
-    item.cornerRadius = itemWidth / 2;
     item.centerAlignContent();
     if (text) {
-      const textInner = item.addText(text);
+      const content = item.addStack();
+      content.layoutVertically();
+      const textInner = content.addText(text);
+      textInner.rightAlignText();
       textInner.font = Font.semiboldSystemFont(fontSize);
       textInner.lineLimit = 1;
       textInner.minimumScaleFactor = 0.2;
@@ -1194,6 +1284,8 @@ const addCalendar = async (container, options = {}) => {
       if (color) {
         textInner.textColor = color;
       }
+
+      item.$content = content;
       item.$text = textInner;
     }
 
@@ -1201,7 +1293,7 @@ const addCalendar = async (container, options = {}) => {
   };
   const _addWeek = (stack, { day }) => {
     const sunday = new Date('1970/01/04');
-    const weekFormat = new Intl.DateTimeFormat([], { weekday: 'narrow' }).format;
+    const weekFormat = new Intl.DateTimeFormat([], { weekday: family === 'large' ? 'short' : 'narrow' }).format;
 
     return _addItem(stack, {
       text: weekFormat(new Date(sunday.getTime() + day * 86400000)),
@@ -1210,17 +1302,19 @@ const addCalendar = async (container, options = {}) => {
     })
   };
   const _addDay = (stack, { date }) => {
+    const color = (() => {
+      const week = date.getDay();
+      if (isToday(date)) {
+        return Color.white()
+      }
+      return (week === 0 || week === 6) && Color.gray()
+    })();
     const item = _addItem(stack, {
       text: `${date.getDate()}`,
-      color: (() => {
-        const week = date.getDay();
-        if (isToday(date)) {
-          return Color.white()
-        }
-        return (week === 0 || week === 6) && Color.gray()
-      })()
+      color
     });
     if (isToday(date)) {
+      item.cornerRadius = itemWidth / 2;
       item.backgroundColor = Color.red();
     }
 
@@ -1237,7 +1331,11 @@ const addCalendar = async (container, options = {}) => {
     date.setDate(i);
     await add(
       async (stack) => addDay
-        ? await addDay(stack, { date, addItem: _addItem })
+        ? await addDay(stack, {
+          date,
+          width: itemWidth,
+          addItem: _addItem
+        })
         : _addDay(stack, { date })
     );
   }
@@ -1245,11 +1343,19 @@ const addCalendar = async (container, options = {}) => {
   return stack
 };
 
+/**
+ * @param {ListWidget} widget
+ */
 const addTitle = (widget) => {
   const { themeColor } = preference;
+  const family = config.widgetFamily;
   const head = widget.addStack();
   head.setPadding(0, 4, 0, 4);
-  const title = head.addText(new Date().toLocaleString('default', { month: 'short' }).toUpperCase());
+  const title = head.addText(
+    new Date().toLocaleString('default', {
+      month: family !== 'small' ? 'long' : 'short'
+    }).toUpperCase()
+  );
   title.font = Font.semiboldSystemFont(11);
   title.textColor = new Color(themeColor);
   head.addSpacer();
@@ -1258,40 +1364,77 @@ const addTitle = (widget) => {
     today.getMonth() + 1,
     today.getDate()
   );
-  const lunar = head.addText(`${lunarDate.lunarMonth}月${lunarDate.lunarDay}`);
+  let lunarString = `${lunarDate.lunarMonth}月${lunarDate.lunarDay}`;
+  if (family !== 'small') {
+    lunarString = `${lunarDate.lunarYear}${$12Animals[lunarDate.lunarYear[1]]}年${lunarString}`;
+  }
+  const lunar = head.addText(lunarString);
   lunar.font = Font.semiboldSystemFont(11);
   lunar.textColor = new Color(themeColor);
 };
 
+/**
+ * @type {Parameters<typeof addCalendar>[1]['addDay']}
+ */
 const addDay = async (
   stack,
-  { date, addItem } = {}
+  { date, width, addItem } = {}
 ) => {
-  const { themeColor, weekendColor, weekendColorDark } = preference;
+  const { themeColor, textColor, textColorDark, weekendColor, weekendColorDark, symbolName } = preference;
+  const family = config.widgetFamily;
   const text = `${date.getDate()}`;
   const i = dates.findIndex((item) => isSameDay(item, date));
+  const _dateColor = theme === 'light'
+    ? new Color(textColor)
+    : theme === 'dark'
+      ? new Color(textColorDark)
+      : Color.dynamic(new Color(textColor), new Color(textColorDark));
+  const _weekendColor = theme === 'light'
+    ? new Color(weekendColor)
+    : theme === 'dark'
+      ? new Color(weekendColorDark)
+      : Color.dynamic(new Color(weekendColor), new Color(weekendColorDark));
+  let color = (() => {
+    const week = date.getDay();
+    return (week === 0 || week === 6) ? _weekendColor : _dateColor
+  })();
+  if (isToday(date) || i > -1) {
+    color = Color.white();
+  }
+  const item = addItem(stack, { text, color });
+  if (family === 'large') {
+    const lunar = sloarToLunar(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      date.getDate()
+    );
+    const lunarText = item.$content.addText(
+      lunar.lunarDay === '初一' ? `${lunar.lunarMonth}月` : lunar.lunarDay
+    );
+    lunarText.font = Font.systemFont(10);
+    lunarText.textColor = color;
+  }
   if (isToday(date)) {
-    const item = addItem(stack, { text, color: Color.white() });
-    item.backgroundColor = new Color(themeColor);
+    if (family !== 'large') {
+      item.cornerRadius = width / 2;
+      item.backgroundColor = new Color(themeColor);
+    } else {
+      const cw = Math.min(12 * Math.sqrt(2) * 2, width);
+      const cp = cw / 2 - 10;
+      item.$content.size = new Size(cw, cw);
+      item.$content.setPadding(0, cp, 0, 0);
+      item.$content.cornerRadius = cw / 2;
+      item.$content.backgroundColor = new Color(themeColor);
+    }
   } else if (i > -1) {
     dates.splice(i, 1);
-    const sfs = SFSymbol.named(symbolName || 'flag.fill');
+    const sfs = SFSymbol.named(symbolName);
     sfs.applyFont(Font.systemFont(18));
     const image = sfs.image;
-    const item = addItem(stack, { text, color: Color.white() });
     item.backgroundImage = await tintedImage(image, calendar.color);
     item.$text.shadowColor = calendar.color;
     item.$text.shadowOffset = new Point(0.5, 0.5);
     item.$text.shadowRadius = 0.5;
-  } else {
-    addItem(stack, {
-      text,
-      color: (() => {
-        const week = date.getDay();
-        return (week === 0 || week === 6) &&
-          Color.dynamic(new Color(weekendColor), new Color(weekendColorDark))
-      })()
-    });
   }
 };
 
@@ -1307,6 +1450,7 @@ const createWidget = async () => {
   itemWidth = Math.min(itemWidth, w);
 
   const widget = new ListWidget();
+  widget.url = 'calshow://';
   const lightColor = new Color('#fff');
   const darkColor = new Color('#242426');
   widget.backgroundColor = theme === 'light'
@@ -1329,39 +1473,45 @@ const {
   textColor,
   textColorDark,
   weekendColor,
-  weekendColorDark
+  weekendColorDark,
+  symbolName
 } = preference;
 const widget = await withSettings({
   formItems: [
     {
       name: 'themeColor',
       type: 'color',
-      label: 'Theme color',
+      label: i18n(['Theme color', '主题色']),
       default: themeColor
     },
     {
       name: 'textColor',
       type: 'color',
-      label: 'Text color (light)',
+      label: i18n(['Text color (light)', '文字颜色（白天）']),
       default: textColor
     },
     {
       name: 'textColorDark',
       type: 'color',
-      label: 'Text color (dark)',
+      label: i18n(['Text color (dark)', '文字颜色（夜晚）']),
       default: textColorDark
     },
     {
       name: 'weekendColor',
       type: 'color',
-      label: 'Weekend color (light)',
+      label: i18n(['Weekend color (light)', '周末文字颜色（白天）']),
       default: weekendColor
     },
     {
       name: 'weekendColorDark',
       type: 'color',
-      label: 'Weekend color (dark)',
+      label: i18n(['Weekend color (dark)', '周末文字颜色（夜晚）']),
       default: weekendColorDark
+    },
+    {
+      name: 'symbolName',
+      label: i18n(['Calendar SFSymbol icon', '事件 SFSymbol 图标']),
+      default: symbolName
     }
   ],
   render: async ({ family, settings }) => {

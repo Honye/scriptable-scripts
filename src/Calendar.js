@@ -1,6 +1,7 @@
-const { phoneSize, tintedImage, isSameDay, isToday } = importModule('utils.module')
+if (typeof require === 'undefined') require = importModule
+const { i18n, phoneSize, tintedImage, isSameDay, isToday } = importModule('utils.module')
 const { useGrid } = importModule('widgets.module')
-const { sloarToLunar } = importModule('lunar.module')
+const { sloarToLunar } = require('./lunar.module')
 const { withSettings } = importModule('withSettings.module')
 
 const preference = {
@@ -8,7 +9,22 @@ const preference = {
   textColor: '#222222',
   textColorDark: '#ffffff',
   weekendColor: '#8e8e93',
-  weekendColorDark: '#8e8e93'
+  weekendColorDark: '#8e8e93',
+  symbolName: 'flag.fill'
+}
+const $12Animals = {
+  子: '鼠',
+  丑: '牛',
+  寅: '虎',
+  卯: '兔',
+  辰: '龙',
+  巳: '蛇',
+  午: '马',
+  未: '羊',
+  申: '猴',
+  酉: '鸡',
+  戌: '狗',
+  亥: '猪'
 }
 const today = new Date()
 const firstDay = (() => {
@@ -23,7 +39,7 @@ const lastDay = (() => {
 })()
 let dates = []
 let calendar
-const [calendarTitle, symbolName, theme] = (args.widgetParameter || '').split(',').map((text) => text.trim())
+const [calendarTitle, theme] = (args.widgetParameter || '').split(',').map((text) => text.trim())
 if (calendarTitle) {
   calendar = await Calendar.forEventsByTitle(calendarTitle)
   const events = await CalendarEvent.between(firstDay, lastDay, [calendar])
@@ -34,6 +50,18 @@ const titleSize = 12
 const columnGap = 2
 const rowGap = 2
 
+/**
+ * @param {ListWidget|WidgetStack} container
+ * @param {object} options
+ * @param {(
+ *  stack: WidgetStack,
+ *  options: {
+ *    date: Date;
+ *    width: number;
+ *    addItem: (stack: WidgetStack, data: { text: string; color: Color }) => WidgetStack
+ *  }
+ * ) => void} [options.addDay] 自定义添加日期
+ */
 const addCalendar = async (container, options = {}) => {
   const {
     itemWidth = 18,
@@ -43,18 +71,27 @@ const addCalendar = async (container, options = {}) => {
     addDay
   } = options
   const { textColor, textColorDark, weekendColor, weekendColorDark } = preference
+  const family = config.widgetFamily
   const stack = container.addStack()
   const { add } = await useGrid(stack, {
     column: 7,
     gap
   })
+  /**
+   * @param {WidgetStack} stack
+   * @param {object} param1
+   * @param {string} param1.text
+   * @param {Color} param1.color
+   */
   const _addItem = (stack, { text, color } = {}) => {
     const item = stack.addStack()
     item.size = new Size(itemWidth, itemWidth)
-    item.cornerRadius = itemWidth / 2
     item.centerAlignContent()
     if (text) {
-      const textInner = item.addText(text)
+      const content = item.addStack()
+      content.layoutVertically()
+      const textInner = content.addText(text)
+      textInner.rightAlignText()
       textInner.font = Font.semiboldSystemFont(fontSize)
       textInner.lineLimit = 1
       textInner.minimumScaleFactor = 0.2
@@ -66,6 +103,8 @@ const addCalendar = async (container, options = {}) => {
       if (color) {
         textInner.textColor = color
       }
+
+      item.$content = content
       item.$text = textInner
     }
 
@@ -73,7 +112,7 @@ const addCalendar = async (container, options = {}) => {
   }
   const _addWeek = (stack, { day }) => {
     const sunday = new Date('1970/01/04')
-    const weekFormat = new Intl.DateTimeFormat([], { weekday: 'narrow' }).format
+    const weekFormat = new Intl.DateTimeFormat([], { weekday: family === 'large' ? 'short' : 'narrow' }).format
 
     return _addItem(stack, {
       text: weekFormat(new Date(sunday.getTime() + day * 86400000)),
@@ -82,17 +121,19 @@ const addCalendar = async (container, options = {}) => {
     })
   }
   const _addDay = (stack, { date }) => {
+    const color = (() => {
+      const week = date.getDay()
+      if (isToday(date)) {
+        return Color.white()
+      }
+      return (week === 0 || week === 6) && Color.gray()
+    })()
     const item = _addItem(stack, {
       text: `${date.getDate()}`,
-      color: (() => {
-        const week = date.getDay()
-        if (isToday(date)) {
-          return Color.white()
-        }
-        return (week === 0 || week === 6) && Color.gray()
-      })()
+      color
     })
     if (isToday(date)) {
+      item.cornerRadius = itemWidth / 2
       item.backgroundColor = Color.red()
     }
 
@@ -109,7 +150,11 @@ const addCalendar = async (container, options = {}) => {
     date.setDate(i)
     await add(
       async (stack) => addDay
-        ? await addDay(stack, { date, addItem: _addItem })
+        ? await addDay(stack, {
+          date,
+          width: itemWidth,
+          addItem: _addItem
+        })
         : _addDay(stack, { date })
     )
   }
@@ -117,11 +162,19 @@ const addCalendar = async (container, options = {}) => {
   return stack
 }
 
+/**
+ * @param {ListWidget} widget
+ */
 const addTitle = (widget) => {
   const { themeColor } = preference
+  const family = config.widgetFamily
   const head = widget.addStack()
   head.setPadding(0, 4, 0, 4)
-  const title = head.addText(new Date().toLocaleString('default', { month: 'short' }).toUpperCase())
+  const title = head.addText(
+    new Date().toLocaleString('default', {
+      month: family !== 'small' ? 'long' : 'short'
+    }).toUpperCase()
+  )
   title.font = Font.semiboldSystemFont(11)
   title.textColor = new Color(themeColor)
   head.addSpacer()
@@ -130,40 +183,77 @@ const addTitle = (widget) => {
     today.getMonth() + 1,
     today.getDate()
   )
-  const lunar = head.addText(`${lunarDate.lunarMonth}月${lunarDate.lunarDay}`)
+  let lunarString = `${lunarDate.lunarMonth}月${lunarDate.lunarDay}`
+  if (family !== 'small') {
+    lunarString = `${lunarDate.lunarYear}${$12Animals[lunarDate.lunarYear[1]]}年${lunarString}`
+  }
+  const lunar = head.addText(lunarString)
   lunar.font = Font.semiboldSystemFont(11)
   lunar.textColor = new Color(themeColor)
 }
 
+/**
+ * @type {Parameters<typeof addCalendar>[1]['addDay']}
+ */
 const addDay = async (
   stack,
-  { date, addItem } = {}
+  { date, width, addItem } = {}
 ) => {
-  const { themeColor, weekendColor, weekendColorDark } = preference
+  const { themeColor, textColor, textColorDark, weekendColor, weekendColorDark, symbolName } = preference
+  const family = config.widgetFamily
   const text = `${date.getDate()}`
   const i = dates.findIndex((item) => isSameDay(item, date))
+  const _dateColor = theme === 'light'
+    ? new Color(textColor)
+    : theme === 'dark'
+      ? new Color(textColorDark)
+      : Color.dynamic(new Color(textColor), new Color(textColorDark))
+  const _weekendColor = theme === 'light'
+    ? new Color(weekendColor)
+    : theme === 'dark'
+      ? new Color(weekendColorDark)
+      : Color.dynamic(new Color(weekendColor), new Color(weekendColorDark))
+  let color = (() => {
+    const week = date.getDay()
+    return (week === 0 || week === 6) ? _weekendColor : _dateColor
+  })()
+  if (isToday(date) || i > -1) {
+    color = Color.white()
+  }
+  const item = addItem(stack, { text, color })
+  if (family === 'large') {
+    const lunar = sloarToLunar(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      date.getDate()
+    )
+    const lunarText = item.$content.addText(
+      lunar.lunarDay === '初一' ? `${lunar.lunarMonth}月` : lunar.lunarDay
+    )
+    lunarText.font = Font.systemFont(10)
+    lunarText.textColor = color
+  }
   if (isToday(date)) {
-    const item = addItem(stack, { text, color: Color.white() })
-    item.backgroundColor = new Color(themeColor)
+    if (family !== 'large') {
+      item.cornerRadius = width / 2
+      item.backgroundColor = new Color(themeColor)
+    } else {
+      const cw = Math.min(12 * Math.sqrt(2) * 2, width)
+      const cp = cw / 2 - 10
+      item.$content.size = new Size(cw, cw)
+      item.$content.setPadding(0, cp, 0, 0)
+      item.$content.cornerRadius = cw / 2
+      item.$content.backgroundColor = new Color(themeColor)
+    }
   } else if (i > -1) {
     dates.splice(i, 1)
-    const sfs = SFSymbol.named(symbolName || 'flag.fill')
+    const sfs = SFSymbol.named(symbolName)
     sfs.applyFont(Font.systemFont(18))
     const image = sfs.image
-    const item = addItem(stack, { text, color: Color.white() })
     item.backgroundImage = await tintedImage(image, calendar.color)
     item.$text.shadowColor = calendar.color
     item.$text.shadowOffset = new Point(0.5, 0.5)
     item.$text.shadowRadius = 0.5
-  } else {
-    addItem(stack, {
-      text,
-      color: (() => {
-        const week = date.getDay()
-        return (week === 0 || week === 6) &&
-          Color.dynamic(new Color(weekendColor), new Color(weekendColorDark))
-      })()
-    })
   }
 }
 
@@ -179,6 +269,7 @@ const createWidget = async () => {
   itemWidth = Math.min(itemWidth, w)
 
   const widget = new ListWidget()
+  widget.url = 'calshow://'
   const lightColor = new Color('#fff')
   const darkColor = new Color('#242426')
   widget.backgroundColor = theme === 'light'
@@ -201,39 +292,45 @@ const {
   textColor,
   textColorDark,
   weekendColor,
-  weekendColorDark
+  weekendColorDark,
+  symbolName
 } = preference
 const widget = await withSettings({
   formItems: [
     {
       name: 'themeColor',
       type: 'color',
-      label: 'Theme color',
+      label: i18n(['Theme color', '主题色']),
       default: themeColor
     },
     {
       name: 'textColor',
       type: 'color',
-      label: 'Text color (light)',
+      label: i18n(['Text color (light)', '文字颜色（白天）']),
       default: textColor
     },
     {
       name: 'textColorDark',
       type: 'color',
-      label: 'Text color (dark)',
+      label: i18n(['Text color (dark)', '文字颜色（夜晚）']),
       default: textColorDark
     },
     {
       name: 'weekendColor',
       type: 'color',
-      label: 'Weekend color (light)',
+      label: i18n(['Weekend color (light)', '周末文字颜色（白天）']),
       default: weekendColor
     },
     {
       name: 'weekendColorDark',
       type: 'color',
-      label: 'Weekend color (dark)',
+      label: i18n(['Weekend color (dark)', '周末文字颜色（夜晚）']),
       default: weekendColorDark
+    },
+    {
+      name: 'symbolName',
+      label: i18n(['Calendar SFSymbol icon', '事件 SFSymbol 图标']),
+      default: symbolName
     }
   ],
   render: async ({ family, settings }) => {
