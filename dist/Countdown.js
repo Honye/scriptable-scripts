@@ -2,9 +2,202 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-clock; icon-color: teal;
 /**
- * @version 1.0.1
+ * @version 1.1.0
  * @author Honye
  */
+
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: deep-brown; icon-glyph: magic;
+/**
+ * @file API 链式调用无变量命名烦恼
+ * @version 1.0.0
+ * @author Honye
+ */
+
+/**
+ * @example
+ * ```
+ * proxy.call(this)
+ * ```
+ */
+function proxy () {
+  this.ListWidget = new Proxy(ListWidget, {
+    construct (Target, args) {
+      const widget = new Target(...args);
+
+      /**
+       * @template {extends Record<string, any>} T
+       * @param {T} target
+       * @param {string[]} props
+       */
+      const makeSetter = (target, props) => {
+        const properties = props.reduce((res, item) => {
+          res[`set${item[0].toUpperCase()}${item.substring(1)}`] = {
+            value (value) {
+              this[item] = value;
+              return this
+            }
+          };
+          return res
+        }, {});
+        Object.defineProperties(target, properties);
+        Object.defineProperties(target, {
+          next: {
+            value (callback) {
+              const context = this;
+              callback(context);
+              return this
+            }
+          }
+        });
+      };
+
+      /**
+       * 使无返回的函数返回 this 以支持链式调用
+       * @param {string[]} props 函数名列表
+       */
+      const proxyFn = (target, props) => {
+        for (const name of props) {
+          target[name] = new Proxy(target[name], {
+            apply (target, self, args) {
+              target.apply(self, args);
+              return self
+            }
+          });
+        }
+      };
+
+      makeSetter(widget, [
+        'backgroundColor',
+        'backgroundImage',
+        'backgroundGradient',
+        'spacing',
+        'url',
+        'refreshAfterDate'
+      ]);
+      proxyFn(widget, [
+        'setPadding',
+        'useDefaultPadding'
+      ]);
+
+      const addDateHandler = {
+        apply (target, self, args) {
+          const result = target.apply(self, args);
+          makeSetter(result, [
+            'date',
+            'textColor',
+            'font',
+            'textOpacity',
+            'lineLimit',
+            'minimumScaleFactor',
+            'shadowColor',
+            'shadowRadius',
+            'shadowOffset',
+            'url'
+          ]);
+          proxyFn(result, [
+            'leftAlignText',
+            'centerAlignText',
+            'rightAlignText',
+            'applyTimeStyle',
+            'applyDateStyle',
+            'applyRelativeStyle',
+            'applyOffsetStyle',
+            'applyTimerStyle'
+          ]);
+          return result
+        }
+      };
+      /** @type {ProxyHandler<Function>} */
+      const addImageHandler = {
+        apply (target, self, args) {
+          const result = target.apply(self, args);
+          makeSetter(result, [
+            'image',
+            'resizable',
+            'imageSize',
+            'imageOpacity',
+            'cornerRadius',
+            'borderWidth',
+            'borderColor',
+            'containerRelativeShape',
+            'tintColor',
+            'url'
+          ]);
+          proxyFn(result, [
+            'leftAlignImage',
+            'centerAlignImage',
+            'rightAlignImage',
+            'applyFittingContentMode',
+            'applyFillingContentMode'
+          ]);
+          return result
+        }
+      };
+      const addTextHandler = {
+        apply (target, self, args) {
+          const result = target.apply(self, args);
+          makeSetter(result, [
+            'text',
+            'textColor',
+            'font',
+            'textOpacity',
+            'lineLimit',
+            'minimumScaleFactor',
+            'shadowColor',
+            'shadowRadius',
+            'shadowOffset',
+            'url'
+          ]);
+          proxyFn(result, [
+            'leftAlignText',
+            'centerAlignText',
+            'rightAlignText'
+          ]);
+          return result
+        }
+      };
+      const addStackHandler = {
+        apply (target, self, args) {
+          const stack = target.apply(self, args);
+          makeSetter(stack, [
+            'backgroundColor',
+            'backgroundImage',
+            'backgroundGradient',
+            'spacing',
+            'size',
+            'cornerRadius',
+            'borderWidth',
+            'borderColor',
+            'url'
+          ]);
+          proxyFn(stack, [
+            'setPadding',
+            'useDefaultPadding',
+            'topAlignContent',
+            'centerAlignContent',
+            'bottomAlignContent',
+            'layoutHorizontally',
+            'layoutVertically'
+          ]);
+          stack.addDate = new Proxy(stack.addDate, addDateHandler);
+          stack.addImage = new Proxy(stack.addImage, addImageHandler);
+          stack.addStack = new Proxy(stack.addStack, addStackHandler);
+          stack.addText = new Proxy(stack.addText, addTextHandler);
+          return stack
+        }
+      };
+
+      widget.addDate = new Proxy(widget.addDate, addDateHandler);
+      widget.addImage = new Proxy(widget.addImage, addImageHandler);
+      widget.addStack = new Proxy(widget.addStack, addStackHandler);
+      widget.addText = new Proxy(widget.addText, addTextHandler);
+      return widget
+    }
+  });
+  return this
+}
 
 /**
  * @param {object} options
@@ -44,6 +237,24 @@ const presentSheet = async (options) => {
 };
 
 /**
+ * 多语言国际化
+ * @param {{[language: string]: string} | [en:string, zh:string]} langs
+ */
+const i18n = (langs) => {
+  const language = Device.language();
+  if (Array.isArray(langs)) {
+    langs = {
+      en: langs[0],
+      zh: langs[1],
+      others: langs[0]
+    };
+  } else {
+    langs.others = langs.others || langs.en;
+  }
+  return langs[language] || langs.others
+};
+
+/**
  * @param {...string} paths
  */
 const joinPath = (...paths) => {
@@ -54,6 +265,8 @@ const joinPath = (...paths) => {
 };
 
 /**
+ * 规范使用 FileManager。每个脚本使用独立文件夹
+ *
  * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
  * @param {object} options
  * @param {boolean} [options.useICloud]
@@ -92,6 +305,10 @@ const useFileManager = (options = {}) => {
     fm.writeString(nextPath, content);
   };
 
+  /**
+   * @param {string} filePath
+   * @param {*} jsonData
+   */
   const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
   /**
    * @param {string} filePath
@@ -103,13 +320,26 @@ const useFileManager = (options = {}) => {
     return fm.writeImage(nextPath, image)
   };
 
+  /**
+   * 文件不存在时返回 null
+   * @param {string} filePath
+   * @returns {string|null}
+   */
   const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
+    const fullPath = fm.joinPath(cacheDirectory, filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readString(
+        fm.joinPath(cacheDirectory, filePath)
+      )
+    }
+    return null
   };
 
+  /**
+   * @param {string} filePath
+   */
   const readJSON = (filePath) => JSON.parse(readString(filePath));
+
   /**
    * @param {string} filePath
    */
@@ -128,6 +358,7 @@ const useFileManager = (options = {}) => {
   }
 };
 
+/** 规范使用文件缓存。每个脚本使用独立文件夹 */
 const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
@@ -138,7 +369,7 @@ const useCache = () => useFileManager({ basePath: 'cache' });
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.1.0
+ * @version 1.2.2
  * @author Honye
  */
 
@@ -341,7 +572,7 @@ input[type="number"] {
   width: 4em;
 }
 input[type="date"] {
-  min-width: 6.4em;
+  min-width: 8em;
 }
 input[type='checkbox'][role='switch'] {
   position: relative;
@@ -411,8 +642,8 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const js =
 `(() => {
-  const settings = JSON.parse('${JSON.stringify(settings)}')
-  const formItems = JSON.parse('${JSON.stringify(formItems)}')
+  const settings = ${JSON.stringify(settings)}
+  const formItems = ${JSON.stringify(formItems)}
   
   window.invoke = (code, data) => {
     window.dispatchEvent(
@@ -527,7 +758,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'switch') {
         el.checked = item.default
       } else {
-        el.value = item.default
+        el && (el.value = item.default)
       }
     }
     invoke('removeSettings', formData)
@@ -547,30 +778,30 @@ input[type='checkbox'][role='switch']:checked::before {
   </head>
   <body>
   <div class="list">
-    <div class="list__header">Common</div>
+    <div class="list__header">${i18n(['Common', '通用'])}</div>
     <form class="list__body" action="javascript:void(0);">
       <label class="form-item">
-        <div>Sync with iCloud</div>
+        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
         <input name="useICloud" type="checkbox" role="switch">
       </label>
       <label id="chooseBgImg" class="form-item form-item--link">
-        <div>Background image</div>
+        <div>${i18n(['Background image', '背景图'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
-        <div>Reset</div>
+        <div>${i18n(['Reset', '重置'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
     </form>
   </div>
   <div class="list">
-    <div class="list__header">Settings</div>
+    <div class="list__header">${i18n(['Settings', '设置'])}</div>
     <form id="form" class="list__body" action="javascript:void(0);"></form>
   </div>
   <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>Medium</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
+    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
   </div>
   <footer>
     <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
@@ -593,9 +824,10 @@ input[type='checkbox'][role='switch']:checked::before {
   const chooseBgImg = async () => {
     const { option } = await presentSheet({
       options: [
-        { key: 'choose', title: 'Choose photo' },
-        { key: 'clear', title: 'Clear background image' }
-      ]
+        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
+        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
+      ],
+      cancelText: i18n(['Cancel', '取消'])
     });
     switch (option?.key) {
       case 'choose': {
@@ -653,7 +885,7 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'changeSettings':
         settings = { ...settings, ...data };
-        writeSettings(data, { useICloud: settings.useICloud });
+        writeSettings(settings, { useICloud: settings.useICloud });
         break
       case 'moveSettings':
         settings.useICloud = data;
@@ -682,27 +914,49 @@ input[type='checkbox'][role='switch']:checked::before {
   // ======= web end =========
 };
 
+if (typeof require === 'undefined') require = importModule;
+
+proxy.call(undefined);
+
 const preference = {
   title: '🇨🇳 Programmer',
-  date: '2024-10-24'
+  titleBgOpacity: 1,
+  titleColor: '#ffffff',
+  date: '2024-10-24',
+  numColor: '#373655',
+  unitColor: '#6e6e73',
+  dateColor: '#86868b',
+  useTextShadow: false
 };
 
 const addTitle = (widget, { title }) => {
-  const headStack = widget.addStack();
-  headStack.setPadding(12, 12, 12, 12);
+  const { titleBgOpacity, titleColor, useTextShadow } = preference;
   const bg = new LinearGradient();
   bg.colors = [
-    new Color('#9ce4c1'),
-    new Color('#92d8e1')
+    new Color('#9ce4c1', titleBgOpacity),
+    new Color('#92d8e1', titleBgOpacity)
   ];
   bg.locations = [0, 1];
   bg.startPoint = new Point(0, 0);
   bg.endPoint = new Point(1, 0);
-  headStack.backgroundGradient = bg;
-  const titleText = headStack.addText(title);
-  titleText.font = Font.semiboldSystemFont(16);
-  titleText.textColor = Color.white();
-  headStack.addSpacer();
+
+  widget.addStack()
+    .setBackgroundGradient(bg)
+    .setPadding(10, 12, 10, 12)
+    .layoutVertically()
+    .next((stack) => {
+      stack.addText(title)
+        .setFont(Font.semiboldSystemFont(16))
+        .setTextColor(new Color(titleColor))
+        .next((text) => {
+          if (useTextShadow) {
+            text.setShadowColor(new Color(titleColor, 0.25))
+              .setShadowRadius(0.5)
+              .setShadowOffset(new Point(1, 1));
+          }
+        });
+    })
+    .next((stack) => stack.addStack().addSpacer());
 };
 
 const addText = (widget, { text, lineHeight }) => {
@@ -713,57 +967,75 @@ const addText = (widget, { text, lineHeight }) => {
 };
 
 const createWidget = () => {
-  const { title, date } = preference;
+  const { title, date, numColor, unitColor, dateColor, useTextShadow } = preference;
 
-  const widget = new ListWidget();
-  widget.setPadding(0, 0, 0, 0);
-  widget.backgroundColor = Color.white();
-
-  addTitle(widget, { title });
-  const bodyStack = widget.addStack();
-  bodyStack.layoutVertically();
-  bodyStack.setPadding(20, 12, 20, 12);
-  bodyStack.addStack().addSpacer();
-  bodyStack.addSpacer();
-  const bg = new LinearGradient();
-  bg.colors = [
+  const gradient = new LinearGradient();
+  gradient.colors = [
     new Color('#fff', 0),
     new Color('#9ce4c1', 0.3)
   ];
-  bg.locations = [0, 1];
-  bg.startPoint = new Point(0, 0);
-  bg.endPoint = new Point(1, 0);
-  bodyStack.backgroundGradient = bg;
+  gradient.locations = [0, 1];
+  gradient.startPoint = new Point(0, 0);
+  gradient.endPoint = new Point(1, 0);
 
-  const days = bodyStack.addStack();
-  days.bottomAlignContent();
+  const widget = new ListWidget()
+    .setBackgroundColor(Color.white())
+    .setBackgroundGradient(gradient)
+    .setPadding(0, 0, 0, 0)
+    .next((widget) => addTitle(widget, { title }));
+
+  const bodyStack = widget.addStack()
+    .layoutVertically()
+    .setPadding(12, 12, 18, 12)
+    .next((stack) => stack.addSpacer());
+
+  const days = bodyStack.addStack().bottomAlignContent();
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
   const d = Math.ceil((target - now) / (24 * 3600000));
-  const num = addText(days, {
+  addText(days, {
     text: `${d}`,
-    lineHeight: 50
-  });
-  num.font = Font.boldSystemFont(50);
-  num.textColor = new Color('#373655');
-  //   const unit = addText(days,{
-  //     text: 'days',
-  //     lineHeight: 14
-  //   })
+    lineHeight: 48
+  })
+    .setFont(Font.boldSystemFont(48))
+    .setTextColor(new Color(numColor))
+    .next((text) => {
+      if (useTextShadow) {
+        text.setShadowColor(new Color(numColor, 0.25))
+          .setShadowRadius(0.5)
+          .setShadowOffset(new Point(1, 1));
+      }
+    });
   days.addSpacer(4);
-  const unit = days.addText('days');
-  unit.font = Font.systemFont(18);
-  unit.textColor = new Color('#6e6e73');
+  days.addText('days')
+    .setFont(Font.systemFont(18))
+    .setLineLimit(1)
+    .setMinimumScaleFactor(0.2)
+    .setTextColor(new Color(unitColor))
+    .next((text) => {
+      if (useTextShadow) {
+        text.setShadowColor(new Color(unitColor, 0.25))
+          .setShadowRadius(0.5)
+          .setShadowOffset(new Point(1, 1));
+      }
+    });
 
   bodyStack.addSpacer(8);
 
   const df = new DateFormatter();
   df.dateFormat = 'yyyy/MM/dd';
-  const dateText = bodyStack.addText(df.string(target));
-  dateText.font = Font.regularRoundedSystemFont(14);
-  dateText.textColor = new Color('#86868b');
+  bodyStack.addText(df.string(target))
+    .setFont(Font.regularRoundedSystemFont(14))
+    .setTextColor(new Color(dateColor))
+    .next((text) => {
+      if (useTextShadow) {
+        text.setShadowColor(new Color(dateColor, 0.25))
+          .setShadowRadius(0.5)
+          .setShadowOffset(new Point(1, 1));
+      }
+    });
 
   return widget
 };
@@ -772,14 +1044,50 @@ await withSettings({
   formItems: [
     {
       name: 'title',
-      label: 'Text',
+      label: i18n(['Title', '标题']),
       default: preference.title
     },
     {
+      name: 'titleBgOpacity',
+      label: i18n(['Title background opacity', '标题背景透明度']),
+      type: 'number',
+      default: preference.titleBgOpacity
+    },
+    {
+      name: 'titleColor',
+      label: i18n(['Title color', '标题颜色']),
+      type: 'color',
+      default: preference.titleColor
+    },
+    {
       name: 'date',
-      label: 'Date',
+      label: i18n(['Date', '日期']),
       type: 'date',
       default: preference.date
+    },
+    {
+      name: 'numColor',
+      label: i18n(['Number color', '数字颜色']),
+      type: 'color',
+      default: preference.numColor
+    },
+    {
+      name: 'unitColor',
+      label: i18n(['Unit color', '单位颜色']),
+      type: 'color',
+      default: preference.unitColor
+    },
+    {
+      name: 'dateColor',
+      label: i18n(['Date color', '日期颜色']),
+      type: 'color',
+      default: preference.dateColor
+    },
+    {
+      name: 'useTextShadow',
+      label: i18n(['Text shadow', '文字阴影']),
+      type: 'switch',
+      default: preference.useTextShadow
     }
   ],
   render: ({ settings }) => {
