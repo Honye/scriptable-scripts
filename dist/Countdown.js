@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-clock; icon-color: teal;
 /**
- * @version 1.1.0
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -924,13 +924,25 @@ const preference = {
   titleColor: '#ffffff',
   date: '2024-10-24',
   numColor: '#373655',
+  numFontSize: 48,
   unitColor: '#6e6e73',
+  unitFontSize: 18,
   dateColor: '#86868b',
+  dateFontSize: 14,
   useTextShadow: false
 };
 
-const addTitle = (widget, { title }) => {
-  const { titleBgOpacity, titleColor, useTextShadow } = preference;
+/**
+ * @param {WidgetText} widget
+ */
+const setTextShadow = (widget) => {
+  widget.setShadowColor(new Color(Color.gray().hex, 0.25))
+    .setShadowRadius(0.5)
+    .setShadowOffset(new Point(1, 1));
+};
+
+const renderTitle = (widget) => {
+  const { title, titleBgOpacity, titleColor, useTextShadow } = preference;
   const bg = new LinearGradient();
   bg.colors = [
     new Color('#9ce4c1', titleBgOpacity),
@@ -948,11 +960,9 @@ const addTitle = (widget, { title }) => {
       stack.addText(title)
         .setFont(Font.semiboldSystemFont(16))
         .setTextColor(new Color(titleColor))
-        .next((text) => {
+        .next((widget) => {
           if (useTextShadow) {
-            text.setShadowColor(new Color(titleColor, 0.25))
-              .setShadowRadius(0.5)
-              .setShadowOffset(new Point(1, 1));
+            setTextShadow(widget);
           }
         });
     })
@@ -960,14 +970,80 @@ const addTitle = (widget, { title }) => {
 };
 
 const addText = (widget, { text, lineHeight }) => {
-  const stack = widget.addStack();
-  stack.setPadding(0, 0, 0, 0);
-  stack.size = new Size(0, lineHeight);
-  return stack.addText(text)
+  return widget.addStack()
+    .setPadding(0, 0, 0, 0)
+    .setSize(new Size(0, lineHeight))
+    .addText(text)
+};
+
+/**
+ * @param {WidgetStack} container
+ */
+const renderDays = (container) => {
+  const {
+    date,
+    numColor, numFontSize,
+    unitColor, unitFontSize,
+    useTextShadow
+  } = preference;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const days = Math.ceil(Math.abs(target - now) / (24 * 3600000));
+
+  const row = container.addStack().bottomAlignContent();
+  // render number
+  addText(row, {
+    text: `${days}`,
+    lineHeight: numFontSize
+  })
+    .setFont(Font.boldSystemFont(numFontSize))
+    .setTextColor(new Color(numColor))
+    .next((widget) => {
+      if (useTextShadow) {
+        setTextShadow(widget);
+      }
+    });
+
+  row.addSpacer(4);
+  // render unit
+  row.addText(i18n(['days', '天']))
+    .setFont(Font.systemFont(unitFontSize))
+    .setLineLimit(1)
+    .setMinimumScaleFactor(0.2)
+    .setTextColor(new Color(unitColor))
+    .next((widget) => {
+      if (useTextShadow) {
+        setTextShadow(widget);
+      }
+    });
+};
+
+/**
+ * @param {WidgetStack} container
+ */
+const renderDate = (container) => {
+  const { date, dateColor, dateFontSize, useTextShadow } = preference;
+
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const df = new DateFormatter();
+  df.dateFormat = 'yyyy/MM/dd';
+
+  container.addText(df.string(target))
+    .setFont(Font.regularRoundedSystemFont(dateFontSize))
+    .setTextColor(new Color(dateColor))
+    .next((widget) => {
+      if (useTextShadow) {
+        setTextShadow(widget);
+      }
+    });
 };
 
 const createWidget = () => {
-  const { title, date, numColor, unitColor, dateColor, useTextShadow } = preference;
+  const { backgroundImage } = preference;
 
   const gradient = new LinearGradient();
   gradient.colors = [
@@ -980,62 +1056,21 @@ const createWidget = () => {
 
   const widget = new ListWidget()
     .setBackgroundColor(Color.white())
-    .setBackgroundGradient(gradient)
+    .next((widget) => {
+      if (!backgroundImage) {
+        widget.setBackgroundGradient(gradient);
+      }
+    })
     .setPadding(0, 0, 0, 0)
-    .next((widget) => addTitle(widget, { title }));
+    .next(renderTitle);
 
-  const bodyStack = widget.addStack()
+  widget.addStack()
     .layoutVertically()
     .setPadding(12, 12, 18, 12)
-    .next((stack) => stack.addSpacer());
-
-  const days = bodyStack.addStack().bottomAlignContent();
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-  const d = Math.ceil((target - now) / (24 * 3600000));
-  addText(days, {
-    text: `${d}`,
-    lineHeight: 48
-  })
-    .setFont(Font.boldSystemFont(48))
-    .setTextColor(new Color(numColor))
-    .next((text) => {
-      if (useTextShadow) {
-        text.setShadowColor(new Color(numColor, 0.25))
-          .setShadowRadius(0.5)
-          .setShadowOffset(new Point(1, 1));
-      }
-    });
-  days.addSpacer(4);
-  days.addText('days')
-    .setFont(Font.systemFont(18))
-    .setLineLimit(1)
-    .setMinimumScaleFactor(0.2)
-    .setTextColor(new Color(unitColor))
-    .next((text) => {
-      if (useTextShadow) {
-        text.setShadowColor(new Color(unitColor, 0.25))
-          .setShadowRadius(0.5)
-          .setShadowOffset(new Point(1, 1));
-      }
-    });
-
-  bodyStack.addSpacer(8);
-
-  const df = new DateFormatter();
-  df.dateFormat = 'yyyy/MM/dd';
-  bodyStack.addText(df.string(target))
-    .setFont(Font.regularRoundedSystemFont(14))
-    .setTextColor(new Color(dateColor))
-    .next((text) => {
-      if (useTextShadow) {
-        text.setShadowColor(new Color(dateColor, 0.25))
-          .setShadowRadius(0.5)
-          .setShadowOffset(new Point(1, 1));
-      }
-    });
+    .next((stack) => stack.addSpacer())
+    .next(renderDays)
+    .next((stack) => stack.addSpacer(8))
+    .next(renderDate);
 
   return widget
 };
@@ -1072,16 +1107,34 @@ await withSettings({
       default: preference.numColor
     },
     {
+      name: 'numFontSize',
+      label: i18n(['Number font size', '数字字体大小']),
+      type: 'number',
+      default: preference.numFontSize
+    },
+    {
       name: 'unitColor',
       label: i18n(['Unit color', '单位颜色']),
       type: 'color',
       default: preference.unitColor
     },
     {
+      name: 'unitFontSize',
+      label: i18n(['Unit font size', '单位字体大小']),
+      type: 'number',
+      default: preference.unitFontSize
+    },
+    {
       name: 'dateColor',
       label: i18n(['Date color', '日期颜色']),
       type: 'color',
       default: preference.dateColor
+    },
+    {
+      name: 'dateFontSize',
+      label: i18n(['Date font size', '日期字体大小']),
+      type: 'number',
+      default: preference.dateFontSize
     },
     {
       name: 'useTextShadow',
