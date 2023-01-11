@@ -2,42 +2,52 @@
     - 日历
     - 支付宝扫码、收/付款、健康码
     - 微信扫码 */
+if (typeof require === 'undefined') require = importModule
 const { withSettings } = importModule('withSettings.module')
-const { sloarToLunar } = importModule('lunar.module')
-const NoBg = importModule('no-background')
+const { sloarToLunar } = require('lunar.module')
+const { generateSlices, getConfig, hasConfig, removeConfig, transparent } = require('./nobg.module')
+const { i18n, presentSheet } = require('./utils.module')
+const { useGrid } = require('./widgets.module')
 
 const preference = {
-  lightBgColor: '#ffffff',
-  darkBgColor: '#242426'
+  lightBgColor: '#b18cf1',
+  darkBgColor: '#e63b7a'
 }
-
-/**
- * @param {number} cols
- */
-const Grid = (widget, cols) => {
-  const gap = 8
-  const rows = []
-  let cursor = 0
-  const grid = widget
-  grid.layoutVertically()
-
-  const addStack = () => {
-    if (cursor % cols === 0) {
-      if (cursor >= cols) {
-        grid.addSpacer(gap)
-      }
-      rows.push(grid.addStack())
-    }
-    const row = rows[rows.length - 1]
-    if (cursor % cols !== 0) {
-      row.addSpacer(gap)
-    }
-    const stack = row.addStack()
-    cursor++
-    return stack
+const shortcuts = [
+  {
+    symbol: 'qrcode.viewfinder',
+    title: '支付宝',
+    url: 'alipays://platformapi/startapp?saId=10000007'
+  },
+  {
+    symbol: 'barcode.viewfinder',
+    title: '收/付款',
+    url: 'alipay://platformapi/startapp?appId=20000056'
+  },
+  {
+    symbol: 'plus.viewfinder',
+    title: '微信',
+    url: 'weixin://scanqrcode'
+  },
+  {
+    symbol: 'location.viewfinder',
+    title: '健康码',
+    url: 'alipays://platformapi/startapp?appId=20000067&url=https%3A%2F%2F68687564.h5app.alipay.com%2Fwww%2Findex.html'
   }
-
-  return { addStack }
+]
+const $12Animals = {
+  子: '鼠',
+  丑: '牛',
+  寅: '虎',
+  卯: '兔',
+  辰: '龙',
+  巳: '蛇',
+  午: '马',
+  未: '羊',
+  申: '猴',
+  酉: '鸡',
+  戌: '狗',
+  亥: '猪'
 }
 
 const centerH = (widget, callback) => {
@@ -50,7 +60,7 @@ const centerH = (widget, callback) => {
 
 /**
  * @param {ListWidget | WidgetStack} widget
- * @param {{ symbolName: string; title: string; url: string }} options
+ * @param {{ symbol: string; title: string; url: string }} options
  */
 const addSquare = (widget, options) => {
   const stack = widget.addStack()
@@ -62,7 +72,7 @@ const addSquare = (widget, options) => {
   // add symbol
   const imageWrapper = stack.addStack()
   imageWrapper.addSpacer()
-  addSymbol(imageWrapper, options.symbolName)
+  addSymbol(imageWrapper, options.symbol)
   imageWrapper.addSpacer()
   stack.addSpacer(2)
   // add title
@@ -84,31 +94,19 @@ const addSymbol = (widget, name) => {
   image.tintColor = Color.white()
 }
 
-const createWidget = async () => {
-  const { lightBgColor, darkBgColor } = preference
-
-  const widget = new ListWidget()
-  widget.setPadding(8, 0, 8, 8)
-  widget.backgroundColor = Color.dynamic(new Color(lightBgColor), new Color(darkBgColor))
-  const noBgConfig = await NoBg.loadConfig()
-  if (noBgConfig[Script.name()]) {
-    widget.backgroundImage = await NoBg.transparent(Script.name())
-  }
-
-  const container = widget.addStack()
-  container.centerAlignContent()
-  container.addSpacer()
+/** @type {WidgetStack} */
+const addDate = (container) => {
   const stackDate = container.addStack()
   stackDate.url = 'calshow://'
   stackDate.layoutVertically()
   const dateFormatter = new DateFormatter()
-  dateFormatter.dateFormat = 'MMM yyyy, E'
+  dateFormatter.dateFormat = 'yyyy年MM月 E'
   const textDay = centerH(stackDate, (stack) => {
     return stack.addText(
       String(new Date().getDate())
     )
   })
-  textDay.font = Font.systemFont(42)
+  textDay.font = Font.regularRoundedSystemFont(52)
   textDay.textColor = Color.white()
   stackDate.addSpacer(14)
   const textDate = centerH(stackDate, (stack) => {
@@ -119,7 +117,7 @@ const createWidget = async () => {
   textDate.font = Font.systemFont(16)
   textDate.textColor = Color.white()
   const now = new Date()
-  const lunarDate = sloarToLunar(
+  const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(
     now.getFullYear(),
     now.getMonth() + 1,
     now.getDate()
@@ -127,36 +125,43 @@ const createWidget = async () => {
   stackDate.addSpacer(6)
   const textLunar = centerH(stackDate, (stack) => {
     return stack.addText(
-      lunarDate.lunarYear + lunarDate.lunarMonth + lunarDate.lunarDay
+      `${lunarYear}${$12Animals[lunarYear[1]]}年` +
+      `${lunarMonth}月${lunarDay}`
     )
   })
   textLunar.font = Font.systemFont(13)
   textLunar.textColor = Color.white()
+}
+
+/**
+ * @param {WidgetStack} widget
+ */
+const addShortcuts = async (widget) => {
+  const grid = widget.addStack()
+  const { add } = await useGrid(grid, { column: 2, gap: 8 })
+  for (const item of shortcuts) {
+    await add((stack) => addSquare(stack, item))
+  }
+}
+
+const createWidget = async () => {
+  const { lightBgColor, darkBgColor } = preference
+
+  const widget = new ListWidget()
+  widget.setPadding(8, 0, 8, 8)
+  widget.backgroundColor = Color.dynamic(new Color(lightBgColor), new Color(darkBgColor))
+  const noBgConfig = await getConfig(Script.name())
+  if (noBgConfig) {
+    widget.backgroundImage = await transparent(Script.name())
+  }
+
+  const container = widget.addStack()
+  container.centerAlignContent()
+  container.addSpacer()
+  addDate(container)
   container.addSpacer()
   container.addSpacer(8)
-  // shortcuts
-  const grid = container.addStack()
-  const { addStack } = Grid(grid, 2)
-  addSquare(addStack(), {
-    symbolName: 'qrcode.viewfinder',
-    title: '支付宝',
-    url: 'alipays://platformapi/startapp?saId=10000007'
-  })
-  addSquare(addStack(), {
-    symbolName: 'barcode.viewfinder',
-    title: '收/付款',
-    url: 'alipay://platformapi/startapp?appId=20000056'
-  })
-  addSquare(addStack(), {
-    symbolName: 'plus.viewfinder',
-    title: '微信',
-    url: 'weixin://scanqrcode'
-  })
-  addSquare(addStack(), {
-    symbolName: 'location.viewfinder',
-    title: '健康码',
-    url: 'alipays://platformapi/startapp?appId=20000067&url=https%3A%2F%2F68687564.h5app.alipay.com%2Fwww%2Findex.html'
-  })
+  await addShortcuts(container)
 
   return widget
 }
@@ -165,33 +170,60 @@ await withSettings({
   formItems: [
     {
       name: 'lightBgColor',
-      label: 'Background color (light)',
+      label: i18n(['Background color (light)', '背景色（白天）']),
       type: 'color',
       default: preference.lightBgColor
     },
     {
       name: 'darkBgColor',
-      label: 'Background color (dark)',
+      label: i18n(['Background color (dark)', '背景色（夜间）']),
       type: 'color',
       default: preference.darkBgColor
     },
     {
       name: 'transparentBg',
-      label: 'Transparent background',
+      label: i18n(['Transparent background', '透明背景']),
       type: 'cell'
     },
     {
       name: 'clearBgTransparent',
-      label: 'Clear transparent background',
+      label: i18n(['Remove transparent background', '清除透明背景']),
       type: 'cell'
     }
   ],
-  onItemClick: (item) => {
+  onItemClick: async (item) => {
     const { name } = item
     if (name === 'clearBgTransparent') {
-      NoBg.clean()
+      await removeConfig(Script.name())
+      const alert = new Alert()
+      alert.message = i18n(['Removed', '已清除'])
+      alert.addCancelAction(i18n(['OK', '好']))
+      alert.presentAlert()
     } else if (name === 'transparentBg') {
-      NoBg.transparent(Script.name())
+      if (await hasConfig()) {
+        const { option } = await presentSheet({
+          options: [
+            {
+              title: i18n(['Update widget size and position', '修改组件尺寸和位置']),
+              value: 'update'
+            },
+            {
+              title: i18n(['Update wallpaper screenshot', '更新壁纸截图']),
+              value: 'reset'
+            }
+          ],
+          cancelText: i18n(['Cancel', '取消'])
+        })
+        if (option) {
+          if (option.value === 'update') {
+            await transparent(Script.name(), true)
+          } else {
+            await generateSlices({ caller: Script.name() })
+          }
+        }
+      } else {
+        await transparent(Script.name(), true)
+      }
     }
   },
   render: async ({ family, settings }) => {
