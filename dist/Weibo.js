@@ -4,7 +4,7 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.1.4
+ * @version 2.2.0
  * @author Honye
  */
 
@@ -219,6 +219,28 @@ const phoneSize = (height) => {
   }
 };
 
+/**
+ * 多语言国际化
+ * @param {{[language: string]: string} | [en:string, zh:string]} langs
+ */
+const i18n = (langs) => {
+  const language = Device.language();
+  if (Array.isArray(langs)) {
+    langs = {
+      en: langs[0],
+      zh: langs[1],
+      others: langs[0]
+    };
+  } else {
+    langs.others = langs.others || langs.en;
+  }
+  return langs[language] || langs.others
+};
+
+/**
+ * 获取网络图片
+ * @param {string} url
+ */
 const getImage = async (url) => {
   const request = new Request(url);
   const image = await request.loadImage();
@@ -236,6 +258,8 @@ const joinPath = (...paths) => {
 };
 
 /**
+ * 规范使用 FileManager。每个脚本使用独立文件夹
+ *
  * 注意：桌面组件无法写入 cacheDirectory 和 temporaryDirectory
  * @param {object} options
  * @param {boolean} [options.useICloud]
@@ -274,6 +298,10 @@ const useFileManager = (options = {}) => {
     fm.writeString(nextPath, content);
   };
 
+  /**
+   * @param {string} filePath
+   * @param {*} jsonData
+   */
   const writeJSON = (filePath, jsonData) => writeString(filePath, JSON.stringify(jsonData));
   /**
    * @param {string} filePath
@@ -285,13 +313,26 @@ const useFileManager = (options = {}) => {
     return fm.writeImage(nextPath, image)
   };
 
+  /**
+   * 文件不存在时返回 null
+   * @param {string} filePath
+   * @returns {string|null}
+   */
   const readString = (filePath) => {
-    return fm.readString(
-      fm.joinPath(cacheDirectory, filePath)
-    )
+    const fullPath = fm.joinPath(cacheDirectory, filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readString(
+        fm.joinPath(cacheDirectory, filePath)
+      )
+    }
+    return null
   };
 
+  /**
+   * @param {string} filePath
+   */
   const readJSON = (filePath) => JSON.parse(readString(filePath));
+
   /**
    * @param {string} filePath
    */
@@ -310,6 +351,7 @@ const useFileManager = (options = {}) => {
   }
 };
 
+/** 规范使用文件缓存。每个脚本使用独立文件夹 */
 const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
@@ -327,7 +369,7 @@ const hashCode = (data) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.1.0
+ * @version 1.2.2
  * @author Honye
  */
 
@@ -600,8 +642,8 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const js =
 `(() => {
-  const settings = JSON.parse('${JSON.stringify(settings)}')
-  const formItems = JSON.parse('${JSON.stringify(formItems)}')
+  const settings = ${JSON.stringify(settings)}
+  const formItems = ${JSON.stringify(formItems)}
   
   window.invoke = (code, data) => {
     window.dispatchEvent(
@@ -716,7 +758,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'switch') {
         el.checked = item.default
       } else {
-        el.value = item.default
+        el && (el.value = item.default)
       }
     }
     invoke('removeSettings', formData)
@@ -736,30 +778,30 @@ input[type='checkbox'][role='switch']:checked::before {
   </head>
   <body>
   <div class="list">
-    <div class="list__header">Common</div>
+    <div class="list__header">${i18n(['Common', '通用'])}</div>
     <form class="list__body" action="javascript:void(0);">
       <label class="form-item">
-        <div>Sync with iCloud</div>
+        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
         <input name="useICloud" type="checkbox" role="switch">
       </label>
       <label id="chooseBgImg" class="form-item form-item--link">
-        <div>Background image</div>
+        <div>${i18n(['Background image', '背景图'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
       <label id='reset' class="form-item form-item--link">
-        <div>Reset</div>
+        <div>${i18n(['Reset', '重置'])}</div>
         <i class="iconfont icon-arrow_right"></i>
       </label>
     </form>
   </div>
   <div class="list">
-    <div class="list__header">Settings</div>
+    <div class="list__header">${i18n(['Settings', '设置'])}</div>
     <form id="form" class="list__body" action="javascript:void(0);"></form>
   </div>
   <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>Small</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>Medium</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>Large</button>
+    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
   </div>
   <footer>
     <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
@@ -782,9 +824,10 @@ input[type='checkbox'][role='switch']:checked::before {
   const chooseBgImg = async () => {
     const { option } = await presentSheet({
       options: [
-        { key: 'choose', title: 'Choose photo' },
-        { key: 'clear', title: 'Clear background image' }
-      ]
+        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
+        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
+      ],
+      cancelText: i18n(['Cancel', '取消'])
     });
     switch (option?.key) {
       case 'choose': {
@@ -842,7 +885,7 @@ input[type='checkbox'][role='switch']:checked::before {
         break
       case 'changeSettings':
         settings = { ...settings, ...data };
-        writeSettings(data, { useICloud: settings.useICloud });
+        writeSettings(settings, { useICloud: settings.useICloud });
         break
       case 'moveSettings':
         settings.useICloud = data;
@@ -857,7 +900,7 @@ input[type='checkbox'][role='switch']:checked::before {
         await chooseBgImg();
         break
       case 'itemClick':
-        onItemClick?.(data);
+        await onItemClick?.(data);
         break
     }
     injectListener();
@@ -889,6 +932,8 @@ const preference = {
   useShadow: false,
   lightColor: '#333333',
   darkColor: '#ffffff',
+  indexLightColor: '',
+  indexDarkColor: '',
   timeColor: '#666666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
@@ -914,8 +959,7 @@ const phone = phoneSize(screen.height);
 const cache = useCache();
 
 if (config.runsInWidget) {
-  const [client, colorScheme] = (args.widgetParameter || '').split(',').map(text => text.trim());
-  preference.client = client === '2' ? 'international' : preference.client;
+  const [colorScheme] = (args.widgetParameter || '').split(';').map(text => text.trim());
   preference.colorScheme = colorScheme || preference.colorScheme;
 }
 
@@ -948,6 +992,9 @@ const fetchData = async () => {
   }
 };
 
+/**
+ * 优先使用缓存的 Logo，如果不存在缓存则使用线上 Logo 并缓存
+ */
 const getLogoImage = async () => {
   try {
     const image = cache.readImage('logo.png');
@@ -1023,6 +1070,9 @@ const createWidget = async ({ data, updatedAt }) => {
   return widget
 };
 
+/**
+ * 优先使用线上最新 Icon 并缓存，请求失败时使用缓存
+ */
 const getIcon = async (src) => {
   const hash = `${hashCode(src)}`;
   try {
@@ -1040,6 +1090,8 @@ const addItem = async (widget, item) => {
     useShadow,
     lightColor,
     darkColor,
+    indexLightColor,
+    indexDarkColor,
     colorScheme,
     gap
   } = preference;
@@ -1057,7 +1109,17 @@ const addItem = async (widget, item) => {
   stackIndex.size = new Size(fontSize * 1.4, -1);
   const textIndex = stackIndex.addText(String(item.pic_id));
   textIndex.rightAlignText();
-  textIndex.textColor = item.pic_id > 3 ? new Color('#f5c94c') : new Color('#fe4f67');
+  let colors;
+  if (indexLightColor) {
+    colors = [new Color(indexLightColor), new Color(indexLightColor)];
+  }
+  if (indexDarkColor) {
+    colors = colors || [new Color(indexDarkColor)];
+    colors[1] = new Color(indexDarkColor);
+  }
+  textIndex.textColor = colors
+    ? Color.dynamic(...colors)
+    : item.pic_id > 3 ? new Color('#f5c94c') : new Color('#fe4f67');
   textIndex.font = Font.boldSystemFont(fontSize);
   stack.addSpacer(4);
   const textTitle = stack.addText(item.title);
@@ -1087,52 +1149,64 @@ const addItem = async (widget, item) => {
 const main = async () => {
   const data = await fetchData();
 
-  const widget = await withSettings({
+  await withSettings({
     homePage: 'https://github.com/Honye/scriptable-scripts',
     formItems: [
       {
         name: 'client',
-        label: 'Client',
+        label: i18n(['Client', '客户端']),
         type: 'select',
         options: [
           { label: 'H5 (微博)', value: 'h5' },
-          { label: 'Weibo intl.', value: 'international' }
+          { label: i18n(['Weibo intl.', '微博国际版']), value: 'international' }
         ],
         default: preference.client
       },
       {
         name: 'lightColor',
-        label: 'Text color (light)',
+        label: i18n(['Text color (light)', '文字颜色（白天）']),
         type: 'color',
         default: preference.lightColor
       },
       {
         name: 'darkColor',
-        label: 'Text color (dark)',
+        label: i18n(['Text color (dark)', '文字颜色（夜间）']),
         type: 'color',
         default: preference.darkColor
       },
       {
+        name: 'indexLightColor',
+        label: i18n(['Index color (light)', '序号颜色（白天）']),
+        type: 'color',
+        default: preference.indexLightColor
+      },
+      {
+        name: 'indexDarkColor',
+        label: i18n(['Index color (dark)', '序号颜色（夜间）']),
+        type: 'color',
+        default: preference.indexDarkColor
+      },
+      {
         name: 'useShadow',
-        label: 'Text shadow',
+        label: i18n(['Text shadow', '文字阴影']),
         type: 'switch',
         default: preference.useShadow
       },
       {
         name: 'fontSize',
-        label: 'Font size',
+        label: i18n(['Font size', '字体大小']),
         type: 'number',
         default: preference.fontSize
       },
       {
         name: 'timeColor',
-        label: 'Time color',
+        label: i18n(['Time color', '时间颜色']),
         type: 'color',
         default: preference.timeColor
       },
       {
         name: 'logoSize',
-        label: 'Logo size (0: hidden)',
+        label: i18n(['Logo size (0: hidden)', 'Logo 大小（0：隐藏）']),
         type: 'number',
         default: preference.logoSize
       }
@@ -1147,23 +1221,6 @@ const main = async () => {
       }
     }
   });
-  if (config.runsInWidget) {
-    Script.setWidget(widget);
-  }
-  // if (config.runsInApp) {
-  //   const res = await presentSheet({
-  //     message: 'Preview the widget or update the script. Update will override the whole script.',
-  //     options: [
-  //       { title: 'Update', value: 'Update' }
-  //     ]
-  //   })
-  //   const value = res.option?.value
-  //   switch (value) {
-  //     case 'Update':
-  //       update()
-  //       break
-  //   }
-  // }
 
   Script.complete();
 };

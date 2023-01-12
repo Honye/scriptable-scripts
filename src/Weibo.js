@@ -1,4 +1,5 @@
-const { phoneSize, getImage, useCache, hashCode } = importModule('utils.module')
+if (typeof require === 'undefined') require = importModule
+const { phoneSize, getImage, useCache, hashCode, i18n } = require('./utils.module')
 const { withSettings } = importModule('withSettings.module')
 
 const paddingVertical = 10
@@ -19,6 +20,8 @@ const preference = {
   useShadow: false,
   lightColor: '#333333',
   darkColor: '#ffffff',
+  indexLightColor: '',
+  indexDarkColor: '',
   timeColor: '#666666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
@@ -44,8 +47,7 @@ const phone = phoneSize(screen.height)
 const cache = useCache()
 
 if (config.runsInWidget) {
-  const [client, colorScheme] = (args.widgetParameter || '').split(',').map(text => text.trim())
-  preference.client = client === '2' ? 'international' : preference.client
+  const [colorScheme] = (args.widgetParameter || '').split(';').map(text => text.trim())
   preference.colorScheme = colorScheme || preference.colorScheme
 }
 
@@ -78,6 +80,9 @@ const fetchData = async () => {
   }
 }
 
+/**
+ * 优先使用缓存的 Logo，如果不存在缓存则使用线上 Logo 并缓存
+ */
 const getLogoImage = async () => {
   try {
     const image = cache.readImage('logo.png')
@@ -153,6 +158,9 @@ const createWidget = async ({ data, updatedAt }) => {
   return widget
 }
 
+/**
+ * 优先使用线上最新 Icon 并缓存，请求失败时使用缓存
+ */
 const getIcon = async (src) => {
   const hash = `${hashCode(src)}`
   try {
@@ -170,6 +178,8 @@ const addItem = async (widget, item) => {
     useShadow,
     lightColor,
     darkColor,
+    indexLightColor,
+    indexDarkColor,
     colorScheme,
     gap
   } = preference
@@ -187,7 +197,17 @@ const addItem = async (widget, item) => {
   stackIndex.size = new Size(fontSize * 1.4, -1)
   const textIndex = stackIndex.addText(String(item.pic_id))
   textIndex.rightAlignText()
-  textIndex.textColor = item.pic_id > 3 ? new Color('#f5c94c') : new Color('#fe4f67')
+  let colors
+  if (indexLightColor) {
+    colors = [new Color(indexLightColor), new Color(indexLightColor)]
+  }
+  if (indexDarkColor) {
+    colors = colors || [new Color(indexDarkColor)]
+    colors[1] = new Color(indexDarkColor)
+  }
+  textIndex.textColor = colors
+    ? Color.dynamic(...colors)
+    : item.pic_id > 3 ? new Color('#f5c94c') : new Color('#fe4f67')
   textIndex.font = Font.boldSystemFont(fontSize)
   stack.addSpacer(4)
   const textTitle = stack.addText(item.title)
@@ -214,75 +234,67 @@ const addItem = async (widget, item) => {
   stack.addSpacer()
 }
 
-/** 更新脚本 */
-const update = async () => {
-  let fm = FileManager.local()
-  if (fm.isFileStoredIniCloud(module.filename)) {
-    fm = FileManager.iCloud()
-  }
-  const url = 'https://raw.githubusercontent.com/Honye/scriptable-scripts/master/weibo/Weibo.js'
-  const request = new Request(url)
-  try {
-    const code = await request.loadString()
-    fm.writeString(module.filename, code)
-    const alert = new Alert()
-    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
-    alert.addAction('OK')
-    alert.presentAlert()
-  } catch (e) {
-    console.error(e)
-  }
-}
-
 const main = async () => {
   const data = await fetchData()
 
-  const widget = await withSettings({
+  await withSettings({
     homePage: 'https://github.com/Honye/scriptable-scripts',
     formItems: [
       {
         name: 'client',
-        label: 'Client',
+        label: i18n(['Client', '客户端']),
         type: 'select',
         options: [
           { label: 'H5 (微博)', value: 'h5' },
-          { label: 'Weibo intl.', value: 'international' }
+          { label: i18n(['Weibo intl.', '微博国际版']), value: 'international' }
         ],
         default: preference.client
       },
       {
         name: 'lightColor',
-        label: 'Text color (light)',
+        label: i18n(['Text color (light)', '文字颜色（白天）']),
         type: 'color',
         default: preference.lightColor
       },
       {
         name: 'darkColor',
-        label: 'Text color (dark)',
+        label: i18n(['Text color (dark)', '文字颜色（夜间）']),
         type: 'color',
         default: preference.darkColor
       },
       {
+        name: 'indexLightColor',
+        label: i18n(['Index color (light)', '序号颜色（白天）']),
+        type: 'color',
+        default: preference.indexLightColor
+      },
+      {
+        name: 'indexDarkColor',
+        label: i18n(['Index color (dark)', '序号颜色（夜间）']),
+        type: 'color',
+        default: preference.indexDarkColor
+      },
+      {
         name: 'useShadow',
-        label: 'Text shadow',
+        label: i18n(['Text shadow', '文字阴影']),
         type: 'switch',
         default: preference.useShadow
       },
       {
         name: 'fontSize',
-        label: 'Font size',
+        label: i18n(['Font size', '字体大小']),
         type: 'number',
         default: preference.fontSize
       },
       {
         name: 'timeColor',
-        label: 'Time color',
+        label: i18n(['Time color', '时间颜色']),
         type: 'color',
         default: preference.timeColor
       },
       {
         name: 'logoSize',
-        label: 'Logo size (0: hidden)',
+        label: i18n(['Logo size (0: hidden)', 'Logo 大小（0：隐藏）']),
         type: 'number',
         default: preference.logoSize
       }
@@ -297,23 +309,6 @@ const main = async () => {
       }
     }
   })
-  if (config.runsInWidget) {
-    Script.setWidget(widget)
-  }
-  // if (config.runsInApp) {
-  //   const res = await presentSheet({
-  //     message: 'Preview the widget or update the script. Update will override the whole script.',
-  //     options: [
-  //       { title: 'Update', value: 'Update' }
-  //     ]
-  //   })
-  //   const value = res.option?.value
-  //   switch (value) {
-  //     case 'Update':
-  //       update()
-  //       break
-  //   }
-  // }
 
   Script.complete()
 }
