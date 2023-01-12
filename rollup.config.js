@@ -75,7 +75,13 @@ for (const filename of files) {
             })
         }
       },
-      // transform `importModule('utils')`
+      // remove the secondary code
+      {
+        transform (code) {
+          return code.replace("if (typeof require === 'undefined') require = importModule", '')
+        }
+      },
+      // transform `importModule('utils')`/`require('utils')`
       {
         /**
          * @param {string} code
