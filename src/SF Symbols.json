@@ -1,0 +1,8 @@
+{
+  "name": "SF Symbols",
+  "version": "1.0.0",
+  "setting": {
+    "icon-color": "deep-blue",
+    "icon-glyph": "award"
+  }
+}
