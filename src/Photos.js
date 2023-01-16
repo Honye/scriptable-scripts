@@ -1,4 +1,6 @@
-import { presentSheet, i18n } from './utils/utils'
+if (typeof require === 'undefined') require = importModule
+const { presentSheet, i18n } = require('./utils.module')
+const { getConfig, transparent, hasConfig, generateSlices } = require('./nobg.module')
 
 const localFile = FileManager.local()
 const APP_ROOT = localFile.joinPath(localFile.documentsDirectory(), Script.name())
@@ -26,12 +28,16 @@ const main = async () => {
         {
           title: i18n(['Photos', '查看图片']),
           key: 'photos'
+        },
+        {
+          title: i18n(['Transparent background', '透明背景']),
+          key: 'transparentBg'
         }
       ],
       cancelText: i18n(['Cancel', '取消'])
     })
     if (key === 'preview') {
-      const widget = createWidget()
+      const widget = await createWidget()
       widget.presentSmall()
       Script.complete()
       return
@@ -40,10 +46,37 @@ const main = async () => {
       presentAlbums()
       return
     }
+    if (key === 'transparentBg') {
+      if (await hasConfig()) {
+        const { option } = await presentSheet({
+          options: [
+            {
+              title: i18n(['Update widget size and position', '修改组件尺寸和位置']),
+              value: 'update'
+            },
+            {
+              title: i18n(['Update wallpaper screenshot', '更新壁纸截图']),
+              value: 'reset'
+            }
+          ],
+          cancelText: i18n(['Cancel', '取消'])
+        })
+        if (option) {
+          if (option.value === 'update') {
+            await transparent(Script.name(), true)
+          } else {
+            await generateSlices({ caller: Script.name() })
+          }
+        }
+      } else {
+        await transparent(Script.name(), true)
+      }
+      return
+    }
   }
 
   if (config.runsInWidget) {
-    const widget = createWidget()
+    const widget = await createWidget()
     Script.setWidget(widget)
     Script.complete()
   }
@@ -167,7 +200,7 @@ const getPhotos = (album) => {
     })
 }
 
-const createWidget = () => {
+const createWidget = async () => {
   let [album] = (args.widgetParameter || '').split(',').map(str => str.trim())
   const widget = new ListWidget()
   if (!album) {
@@ -182,9 +215,17 @@ const createWidget = () => {
   const photos = getPhotos(album)
   const length = photos.length
   if (length > 0) {
+    if (await getConfig(Script.name())) {
+      widget.backgroundImage = await transparent(Script.name())
+    }
+    widget.setPadding(0, 0, 0, 0)
     const index = Math.floor(Math.random() * length)
     const image = localFile.readImage(photos[index])
-    widget.backgroundImage = image
+    const imageStack = widget.addStack()
+    imageStack.layoutVertically()
+    imageStack.addStack().addSpacer()
+    imageStack.addSpacer()
+    imageStack.backgroundImage = image
   } else {
     widget.addText(i18n([`Album "${album}" is empty`, `相册"${album}"是空的`]))
   }
