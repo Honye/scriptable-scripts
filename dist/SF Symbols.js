@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-blue; icon-glyph: award;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -15,14 +15,16 @@ const showCategories = () => {
   table.showSeparators = true;
 
   const searchbar = new UITableRow();
-  searchbar.dismissOnSelect = true;
+  searchbar.backgroundColor = new Color('#000000', 0.04);
+  searchbar.dismissOnSelect = false;
   searchbar.addText('🔎 Search');
   searchbar.onSelect = () => search();
   table.addRow(searchbar);
 
   for (const item of categories) {
     const row = new UITableRow();
-    row.dismissOnSelect = true;
+    row.backgroundColor = new Color('#000000', 0.04);
+    row.dismissOnSelect = false;
     row.onSelect = () => {
       const { key } = item;
       const list = key === 'all'
@@ -33,12 +35,19 @@ const showCategories = () => {
       showSymbols(list);
     };
     const sfs = SFSymbol.named(item.icon);
-    const icon = row.addImage(sfs?.image);
+    const icon = row.addImage((sfs || SFSymbol.named('xmark.seal'))?.image);
     icon.widthWeight = 2;
     const label = row.addText(item.label);
     label.widthWeight = 10;
     table.addRow(row);
   }
+
+  const tipsRow = new UITableRow();
+  tipsRow.height = 140;
+  const tipsText = tipsRow.addText('提示', '\n因部分图标是纯白色，在白色背景上看不见，又为了彩色图标能正常显示，所以给每行增加了灰色背景，虽降低了美感但更实用\n\nScriptable WidgetImage 不能给彩色图标着色，如果想修改彩色图标色彩需使用其它方法');
+  tipsText.subtitleColor = Color.gray();
+  table.addRow(tipsRow);
+
   table.present();
 };
 
@@ -47,9 +56,10 @@ const showSymbols = (list) => {
   table.showSeparators = true;
 
   const head = new UITableRow();
+  head.backgroundColor = new Color('#000000', 0.04);
   head.dismissOnSelect = true;
   head.addText('<< Back categories');
-  head.onSelect = () => showCategories();
+  head.onSelect = () => {};
   table.addRow(head);
 
   let n = 0;
@@ -58,12 +68,17 @@ const showSymbols = (list) => {
     if (SFSymbol.named(name)) {
       if (n++ % 2 === 0) {
         row = new UITableRow();
+        row.backgroundColor = new Color('#000000', 0.04);
+        table.addRow(row);
         addItem(row, name);
       } else {
         addItem(row, name);
-        table.addRow(row);
       }
     }
+  }
+  // 单数补充一项保证样式对齐
+  if (n % 2 === 1) {
+    addPlaceholder(row);
   }
   head.addText(new Intl.NumberFormat().format(n))
     .titleColor = Color.dynamic(Color.darkGray(), Color.gray());
@@ -74,7 +89,7 @@ const showSymbols = (list) => {
 const addItem = (row, name) => {
   const icon = row.addImage(SFSymbol.named(name)?.image);
   icon.widthWeight = 1;
-  const button = row.addButton(`${name}  `);
+  const button = row.addButton(`${name}`);
   button.widthWeight = 5;
   button.dismissOnTap = false;
   button.onTap = () => {
@@ -86,6 +101,13 @@ const addItem = (row, name) => {
   };
 };
 
+const addPlaceholder = (row) => {
+  const icon = row.addText('');
+  icon.widthWeight = 1;
+  const button = row.addText('');
+  button.widthWeight = 5;
+};
+
 const search = async () => {
   const alert = new Alert();
   alert.title = Script.name();
@@ -94,7 +116,7 @@ const search = async () => {
   alert.addAction('Search');
   const i = await alert.presentAlert();
   if (i === 0) {
-    const keyword = (alert.textFieldValue(0) || '').trim();
+    const keyword = (alert.textFieldValue(0) || '').trim().toLowerCase();
     if (!keyword) return showSymbols(names)
 
     const list = names.filter((item) => item.includes(keyword));
