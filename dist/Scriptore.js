@@ -4,7 +4,7 @@
 /**
  * Scriptable scripts store
  *
- * @version 0.1.1
+ * @version 0.2.0
  * @author Honye
  */
 
@@ -12,6 +12,7 @@ const filePath = module.filename;
 const appRoot = filePath.substring(0, filePath.lastIndexOf('/'));
 const iCloudManager = FileManager.iCloud();
 const fs = iCloudManager.isFileStoredIniCloud(filePath) ? iCloudManager : FileManager.local();
+const modulesRoot = fs.libraryDirectory();
 
 const url = 'https://scriptore.imarkr.com/';
 
@@ -43,11 +44,13 @@ async function genAlert (message) {
  *
  * @param {string} url url of the script
  * @param {object} options
+ * @param {string} [options.name] file name with extension name
  * @param {boolean} [options.override] weather override the existed file
- * @returns {boolean} false: user canceled
+ * @param {string} [options.dir] where directory the file would save
+ * @returns {Promise<boolean>} false: user canceled
  */
 async function installByURL (url, options = {}) {
-  const { override } = {
+  const { override, name, dir } = {
     override: false,
     ...options
   };
@@ -67,8 +70,8 @@ async function installByURL (url, options = {}) {
       await notification.schedule();
       throw e
     });
-  const fileName = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1));
-  let filePath = `${appRoot}/${fileName}`;
+  const fileName = name || decodeURIComponent(url.substring(url.lastIndexOf('/') + 1));
+  let filePath = `${dir || appRoot}/${fileName}`;
   if (fs.fileExists(filePath) && !override) {
     const alert = new Alert();
     alert.message = i18n([
@@ -94,6 +97,47 @@ async function installByURL (url, options = {}) {
   return true
 }
 
+/**
+ * Install the script on Scriptore
+ * @param {object} script
+ * @param {string} script.name
+ * @param {string[]} script.files
+ * @param {Record<string, string>} [script.dependencies]
+ * @param {object} options
+ * @param {boolean} [options.update = false]
+ */
+const installScript = async (script, options = {}) => {
+  const { name, files, dependencies = {} } = script;
+  const { update = false } = options;
+  /** @type {Promise[]} */
+  const promises = [];
+  // install dependencies
+  for (const name in dependencies) {
+    promises.push(
+      installByURL(dependencies[name], {
+        name: `${name}.js`,
+        override: true,
+        dir: modulesRoot
+      })
+    );
+  }
+  for (const url of files) {
+    promises.push(
+      installByURL(url, { override: update })
+        .then((isOK) => isOK || Promise.reject(new Error('canceled')))
+    );
+  }
+  await Promise.all(promises)
+    .then(() => {
+      genAlert(i18n([
+          `${name} installed success`,
+          `${name} 安装成功`
+      ]));
+    })
+    .catch((e) => console.warn(e));
+  notifyWeb('install-success', script);
+};
+
 const webView = new WebView();
 
 const notifyWeb = (code, data) => {
@@ -109,22 +153,7 @@ const notifyWeb = (code, data) => {
 
 const methods = {
   async install (data) {
-    const { name } = data;
-    const files = data.files || [];
-    await Promise.all(
-      files.map((url) =>
-        installByURL(url)
-          .then((isOK) => isOK || Promise.reject(new Error('canceled')))
-      )
-    )
-      .then(() => {
-        genAlert(i18n([
-          `${name} installed success`,
-          `${name} 安装成功`
-        ]));
-      })
-      .catch((e) => console.warn(e));
-    notifyWeb('install-success', data);
+    await installScript(data);
   },
   getInstalled () {
     const contents = fs.listContents(appRoot);
@@ -154,15 +183,7 @@ const methods = {
     return map
   },
   async updateScript (data) {
-    const files = data.files || [];
-    await Promise.all(
-      files.map((url) =>
-        installByURL(url, { override: true })
-          .then((isOK) => isOK || Promise.reject(new Error('canceled')))
-      )
-    )
-      .catch((e) => console.warn(e));
-    notifyWeb('install-success', data);
+    await installScript(data, { update: true });
   },
   safari (url) {
     Safari.openInApp(url, true);
