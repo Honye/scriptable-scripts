@@ -6,11 +6,19 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.2
+ * @version 1.3.0
  * @author Honye
  */
 
-const { i18n, presentSheet, useCache, useFileManager } = importModule('utils.module')
+const { i18n, useCache, useFileManager } = importModule('utils.module')
+const fm = FileManager.local()
+
+const toast = (message) => {
+  const notification = new Notification()
+  notification.title = Script.name()
+  notification.body = message
+  notification.schedule()
+}
 
 /**
  * @returns {Promise<Settings>}
@@ -42,8 +50,8 @@ const writeSettings = async (data, { useICloud }) => {
 
 const removeSettings = async (settings) => {
   const cache = useFileManager({ useICloud: settings.useICloud })
-  FileManager.local().remove(
-    FileManager.local().joinPath(
+  fm.remove(
+    fm.joinPath(
       cache.cacheDirectory,
       'settings.json'
     )
@@ -54,21 +62,15 @@ const moveSettings = (useICloud, data) => {
   const localFM = useFileManager()
   const iCloudFM = useFileManager({ useICloud: true })
   const [i, l] = [
-    FileManager.local().joinPath(
-      iCloudFM.cacheDirectory,
-      'settings.json'
-    ),
-    FileManager.local().joinPath(
-      localFM.cacheDirectory,
-      'settings.json'
-    )
+    fm.joinPath(iCloudFM.cacheDirectory, 'settings.json'),
+    fm.joinPath(localFM.cacheDirectory, 'settings.json')
   ]
   try {
     writeSettings(data, { useICloud })
     if (useICloud) {
-      FileManager.local().remove(l)
+      if (fm.fileExists(l)) fm.remove(l)
     } else {
-      FileManager.iCloud().remove(i)
+      if (fm.fileExists(i)) fm.remove(i)
     }
   } catch (e) {
     console.error(e)
@@ -76,49 +78,103 @@ const moveSettings = (useICloud, data) => {
 }
 
 /**
- * @typedef {object} FormItem
+ * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {string} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ *  - HTML <input> type 属性
+ *  - `'cell'`: 可点击的
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
 /**
- * @typedef {Record<string, unknown>} Settings
- * @property {boolean} useICloud
- * @property {string} [backgroundImage]
+ * @typedef {Pick<NormalFormItem, 'label'|'name'> & { type: 'group', items: FormItem[] }} GroupFormItem
  */
 /**
- * @param {object} options
- * @param {FormItem[]} [options.formItems]
- * @param {(data: {
- *  settings: Settings;
- *  family?: 'small'|'medium'|'large';
- * }) => Promise<ListWidget>} options.render
- * @param {string} [options.homePage]
- * @param {(item: FormItem) => void} [options.onItemClick]
- * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
+ * @typedef {Omit<NormalFormItem, 'type'> & { type: 'page' } & Pick<Options, 'formItems'|'onItemClick'>} PageFormItem 单独的页面
  */
-const withSettings = async (options) => {
+/**
+ * @typedef {NormalFormItem|GroupFormItem|PageFormItem} FormItem
+ */
+/**
+ * @typedef {object} CommonSettings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage] 背景图路径
+ * @property {string} [backgroundColorLight]
+ * @property {string} [backgroundColorDark]
+ */
+/**
+ * @typedef {CommonSettings & Record<string, unknown>} Settings
+ */
+/**
+ * @typedef {object} Options
+ * @property {(data: {
+ *  settings: Settings;
+ *  family?: typeof config.widgetFamily;
+ * }) => ListWidget | Promise<ListWidget>} render
+ * @property {string} [head] 顶部插入 HTML
+ * @property {FormItem[]} [formItems]
+ * @property {(item: FormItem) => void} [onItemClick]
+ * @property {string} [homePage] 右上角分享菜单地址
+ * @property {(data: any) => void} [onWebEvent]
+ */
+/**
+ * @template T
+ * @typedef {T extends infer O ? {[K in keyof O]: O[K]} : never} Expand
+ */
+
+const previewsHTML =
+`<div class="actions">
+  <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+  <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+  <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
+</div>`
+
+const copyrightHTML =
+`<footer>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+</footer>`
+
+/**
+ * @param {Expand<Options>} options
+ * @param {boolean} [isFirstPage]
+ * @param {object} [others]
+ * @param {Settings} [others.settings]
+ * @returns {Promise<ListWidget|undefined>} 仅在 Widget 中运行时返回 ListWidget
+ */
+const present = async (options, isFirstPage, others = {}) => {
   const {
     formItems = [],
     onItemClick,
     render,
-    homePage = 'https://www.imarkr.com'
+    head,
+    homePage = 'https://www.imarkr.com',
+    onWebEvent
   } = options
   const cache = useCache()
 
-  let settings = await readSettings() || {}
-  const imgPath = FileManager.local().joinPath(
-    cache.cacheDirectory,
-    'bg.png'
-  )
+  const settings = others.settings || await readSettings() || {}
+
+  /**
+   * @param {Parameters<Options['render']>[0]} param
+   */
+  const getWidget = async (param) => {
+    const widget = await render(param)
+    const { backgroundImage, backgroundColorLight, backgroundColorDark } = settings
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      widget.backgroundImage = fm.readImage(backgroundImage)
+    }
+    if (!widget.backgroundColor || backgroundColorLight || backgroundColorDark) {
+      widget.backgroundColor = Color.dynamic(
+        new Color(backgroundColorLight || '#ffffff'),
+        new Color(backgroundColorDark || '#242426')
+      )
+    }
+    return widget
+  }
 
   if (config.runsInWidget) {
-    const widget = await render({ settings })
-    if (settings.backgroundImage) {
-      widget.backgroundImage = FileManager.local().readImage(imgPath)
-    }
+    const widget = await getWidget({ settings })
     Script.setWidget(widget)
     return widget
   }
@@ -245,6 +301,7 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .copyright {
   margin: 15px;
+  margin-inline: 18px;
   font-size: 12px;
   color: #86868b;
 }
@@ -277,13 +334,14 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
-}`
+}
+`
 
   const js =
 `(() => {
   const settings = ${JSON.stringify(settings)}
   const formItems = ${JSON.stringify(formItems)}
-  
+
   window.invoke = (code, data) => {
     window.dispatchEvent(
       new CustomEvent(
@@ -292,18 +350,10 @@ input[type='checkbox'][role='switch']:checked::before {
       )
     )
   }
-  
-  const iCloudInput = document.querySelector('input[name="useICloud"]')
-  iCloudInput.checked = settings.useICloud
-  iCloudInput
-    .addEventListener('change', (e) => {
-      invoke('moveSettings', e.target.checked)
-    })
-  
+
   const formData = {};
 
-  const fragment = document.createDocumentFragment()
-  for (const item of formItems) {
+  const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
@@ -328,13 +378,29 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
-    } else if (item.type === 'cell') {
+    } else if (
+      item.type === 'cell' ||
+      item.type === 'page'
+    ) {
       label.classList.add('form-item--link')
       const icon = document.createElement('i')
       icon.className = 'iconfont icon-arrow_right'
       label.appendChild(icon)
       label.addEventListener('click', () => {
-        invoke('itemClick', item)
+        const { name } = item
+        switch (name) {
+          case 'backgroundImage':
+            invoke('chooseBgImg')
+            break
+          case 'clearBackgroundImage':
+            invoke('clearBgImg')
+            break
+          case 'reset':
+            reset()
+            break
+          default:
+            invoke('itemClick', item)
+        }
       })
     } else {
       const input = document.createElement("input")
@@ -348,6 +414,11 @@ input[type='checkbox'][role='switch']:checked::before {
         input.type = 'checkbox'
         input.role = 'switch'
         input.checked = value
+        if (item.name === 'useICloud') {
+          input.addEventListener('change', (e) => {
+            invoke('moveSettings', e.target.checked)
+          })
+        }
       }
       if (item.type === 'number') {
         input.inputMode = 'decimal'
@@ -366,9 +437,38 @@ input[type='checkbox'][role='switch']:checked::before {
       });
       label.appendChild(input);
     }
-    fragment.appendChild(label);
+    return label
   }
-  document.getElementById('form').appendChild(fragment)
+
+  const createList = (list, title) => {
+    const fragment = document.createDocumentFragment()
+
+    let elBody;
+    for (const item of list) {
+      if (item.type === 'group') {
+        const grouped = createList(item.items, item.label)
+        fragment.appendChild(grouped)
+      } else {
+        if (!elBody) {
+          const groupDiv = fragment.appendChild(document.createElement('div'))
+          groupDiv.className = 'list'
+          if (title) {
+            const elTitle = groupDiv.appendChild(document.createElement('div'))
+            elTitle.className = 'list__header'
+            elTitle.textContent = title
+          }
+          elBody = groupDiv.appendChild(document.createElement('div'))
+          elBody.className = 'list__body'
+        }
+        const label = createFormItem(item)
+        elBody.appendChild(label)
+      }
+    }
+    return fragment
+  }
+
+  const fragment = createList(formItems)
+  document.getElementById('settings').appendChild(fragment)
 
   for (const btn of document.querySelectorAll('.preview')) {
     btn.addEventListener('click', (e) => {
@@ -390,22 +490,28 @@ input[type='checkbox'][role='switch']:checked::before {
     })
   }
 
-  const reset = () => {
-    for (const item of formItems) {
-      const el = document.querySelector(\`.form-item__input[name="\${item.name}"]\`)
-      formData[item.name] = item.default
-      if (item.type === 'switch') {
-        el.checked = item.default
+  const setFieldValue = (name, value) => {
+    const input = document.querySelector(\`.form-item__input[name="\${name}"]\`)
+    if (!input) return
+    if (input.type === 'checkbox') {
+      input.checked = value
+    } else {
+      input.value = value
+    }
+  }
+
+  const reset = (items = formItems) => {
+    for (const item of items) {
+      if (item.type === 'group') {
+        reset(item.items)
+      } else if (item.type === 'page') {
+        continue;
       } else {
-        el && (el.value = item.default)
+        setFieldValue(item.name, item.default)
       }
     }
     invoke('removeSettings', formData)
   }
-  document.getElementById('reset').addEventListener('click', () => reset())
-
-  document.getElementById('chooseBgImg')
-    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`
 
   const html =
@@ -416,36 +522,10 @@ input[type='checkbox'][role='switch']:checked::before {
     <style>${style}</style>
   </head>
   <body>
-  <div class="list">
-    <div class="list__header">${i18n(['Common', '通用'])}</div>
-    <form class="list__body" action="javascript:void(0);">
-      <label class="form-item">
-        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
-        <input name="useICloud" type="checkbox" role="switch">
-      </label>
-      <label id="chooseBgImg" class="form-item form-item--link">
-        <div>${i18n(['Background image', '背景图'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-      <label id='reset' class="form-item form-item--link">
-        <div>${i18n(['Reset', '重置'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-    </form>
-  </div>
-  <div class="list">
-    <div class="list__header">${i18n(['Settings', '设置'])}</div>
-    <form id="form" class="list__body" action="javascript:void(0);"></form>
-  </div>
-  <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
-  </div>
-  <footer>
-    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
-  </footer>
-    <script>${js}</script>
+  ${head || ''}
+  <section id="settings"></section>
+  ${isFirstPage ? (previewsHTML + copyrightHTML) : ''}
+  <script>${js}</script>
   </body>
 </html>`
 
@@ -453,35 +533,24 @@ input[type='checkbox'][role='switch']:checked::before {
   await webView.loadHTML(html, homePage)
 
   const clearBgImg = () => {
+    const { backgroundImage } = settings
     delete settings.backgroundImage
-    const fm = FileManager.local()
-    if (fm.fileExists(imgPath)) {
-      fm.remove(imgPath)
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      fm.remove(backgroundImage)
     }
+    writeSettings(settings, { useICloud: settings.useICloud })
+    toast(i18n(['Cleared success!', '背景已清除']))
   }
 
   const chooseBgImg = async () => {
-    const { option } = await presentSheet({
-      options: [
-        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
-        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
-      ],
-      cancelText: i18n(['Cancel', '取消'])
-    })
-    switch (option?.key) {
-      case 'choose': {
-        try {
-          const image = await Photos.fromLibrary()
-          cache.writeImage('bg.png', image)
-          settings.backgroundImage = imgPath
-          writeSettings(settings, { useICloud: settings.useICloud })
-        } catch (e) {}
-        break
-      }
-      case 'clear':
-        clearBgImg()
-        writeSettings(settings, { useICloud: settings.useICloud })
-        break
+    try {
+      const image = await Photos.fromLibrary()
+      cache.writeImage('bg.png', image)
+      const imgPath = fm.joinPath(cache.cacheDirectory, 'bg.png')
+      settings.backgroundImage = imgPath
+      writeSettings(settings, { useICloud: settings.useICloud })
+    } catch (e) {
+      console.log('[info] 用户取消选择图片')
     }
   }
 
@@ -507,11 +576,7 @@ input[type='checkbox'][role='switch']:checked::before {
     const { code, data } = event
     switch (code) {
       case 'preview': {
-        const widget = await render({ settings, family: data })
-        const { backgroundImage } = settings
-        if (backgroundImage) {
-          widget.backgroundImage = FileManager.local().readImage(backgroundImage)
-        }
+        const widget = await getWidget({ settings, family: data })
         webView.evaluateJavaScript(
           'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
           false
@@ -523,7 +588,7 @@ input[type='checkbox'][role='switch']:checked::before {
         Safari.openInApp(data, true)
         break
       case 'changeSettings':
-        settings = { ...settings, ...data }
+        Object.assign(settings, data)
         writeSettings(settings, { useICloud: settings.useICloud })
         break
       case 'moveSettings':
@@ -531,15 +596,40 @@ input[type='checkbox'][role='switch']:checked::before {
         moveSettings(data, settings)
         break
       case 'removeSettings':
-        settings = { ...settings, ...data }
+        Object.assign(settings, data)
         clearBgImg()
         removeSettings(settings)
         break
       case 'chooseBgImg':
-        await chooseBgImg()
+        chooseBgImg()
+        break
+      case 'clearBgImg':
+        clearBgImg()
         break
       case 'itemClick':
-        onItemClick?.(data)
+        if (data.type === 'page') {
+          // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
+          const item = (() => {
+            const find = (items) => {
+              for (const el of items) {
+                if (el.name === data.name) return el
+
+                if (el.type === 'group') {
+                  const r = find(el.items)
+                  if (r) return r
+                }
+              }
+              return null
+            }
+            return find(formItems)
+          })()
+          await present(item, false, { settings })
+        } else {
+          await onItemClick?.(data, { settings })
+        }
+        break
+      case 'native':
+        onWebEvent?.(data)
         break
     }
     injectListener()
@@ -551,6 +641,80 @@ input[type='checkbox'][role='switch']:checked::before {
   })
   webView.present()
   // ======= web end =========
+}
+
+/**
+ * @param {Options} options
+ */
+const withSettings = async (options) => {
+  const { formItems, onItemClick, ...restOptions } = options
+  return present({
+    formItems: [
+      {
+        label: i18n(['Common', '通用']),
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Sync with iCloud', 'iCloud 同步']),
+            type: 'switch',
+            name: 'useICloud',
+            default: false
+          },
+          {
+            label: i18n(['Background', '背景']),
+            type: 'page',
+            name: 'background',
+            formItems: [
+              {
+                label: i18n(['Background', '背景']),
+                type: 'group',
+                items: [
+                  {
+                    name: 'backgroundColorLight',
+                    type: 'color',
+                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    default: '#ffffff'
+                  },
+                  {
+                    name: 'backgroundColorDark',
+                    type: 'color',
+                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    default: '#242426'
+                  },
+                  {
+                    label: i18n(['Background image', '背景图']),
+                    type: 'cell',
+                    name: 'backgroundImage'
+                  }
+                ]
+              },
+              {
+                type: 'group',
+                items: [
+                  {
+                    label: i18n(['Clear background image', '清除背景图']),
+                    type: 'cell',
+                    name: 'clearBackgroundImage'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: i18n(['Reset', '重置']),
+            type: 'cell',
+            name: 'reset'
+          }
+        ]
+      },
+      {
+        label: i18n(['Settings', '设置']),
+        type: 'group',
+        items: formItems
+      }
+    ],
+    ...restOptions
+  }, true)
 }
 
 module.exports = {
