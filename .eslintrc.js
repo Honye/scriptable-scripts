@@ -18,6 +18,7 @@ module.exports = {
   globals: {
     CallbackURL: 'readonly',
     Data: 'readonly',
+    DocumentPicker: 'readonly',
     importModule: 'writable',
     log: 'writable',
     args: 'readonly',
@@ -31,6 +32,7 @@ module.exports = {
     Keychain: 'readonly',
     LinearGradient: 'readonly',
     Notification: 'readonly',
+    Pasteboard: 'readonly',
     Point: 'readonly',
     QuickLook: 'readonly',
     Rect: 'readonly',
