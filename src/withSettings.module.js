@@ -6,12 +6,13 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.3.0
+ * @version 1.4.0
  * @author Honye
  */
 
 const { i18n, useCache, useFileManager } = importModule('utils.module')
 const fm = FileManager.local()
+const fileName = 'settings.json'
 
 const toast = (message) => {
   const notification = new Notification()
@@ -20,22 +21,72 @@ const toast = (message) => {
   notification.schedule()
 }
 
+const isUseICloud = () => {
+  const ifm = useFileManager({ useICloud: true })
+  const filePath = fm.joinPath(ifm.cacheDirectory, fileName)
+  return fm.fileExists(filePath)
+}
+
+/** 查看配置文件可导出分享 */
+const exportSettings = () => {
+  const scopedFM = useFileManager({ useICloud: isUseICloud() })
+  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName)
+  if (fm.isFileStoredIniCloud(filePath)) {
+    fm.downloadFileFromiCloud(filePath)
+  }
+  if (fm.fileExists(filePath)) {
+    QuickLook.present(filePath)
+  } else {
+    const alert = new Alert()
+    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改'])
+    alert.addCancelAction(i18n(['OK', '好的']))
+    alert.present()
+  }
+}
+
+const importSettings = async () => {
+  const alert1 = new Alert()
+  alert1.message = i18n([
+    'Will replace existing configuration',
+    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
+  ])
+  alert1.addAction(i18n(['Import', '导入']))
+  alert1.addCancelAction(i18n(['Cancel', '取消']))
+  const i = await alert1.present()
+  if (i === -1) return
+
+  const pathList = await DocumentPicker.open(['public.json'])
+  for (const path of pathList) {
+    const fileName = fm.fileName(path, true)
+    const scopedFM = useFileManager({ useICloud: isUseICloud() })
+    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName)
+    if (fm.fileExists(destPath)) {
+      fm.remove(destPath)
+    }
+    const i = destPath.lastIndexOf('/')
+    const directory = destPath.substring(0, i)
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true)
+    }
+    fm.copy(path, destPath)
+  }
+  const alert = new Alert()
+  alert.message = i18n(['Imported success', '导入成功'])
+  alert.addAction(i18n(['Restart', '重新运行']))
+  await alert.present()
+  const callback = new CallbackURL('scriptable:///run')
+  callback.addParameter('scriptName', Script.name())
+  callback.open()
+}
+
 /**
  * @returns {Promise<Settings>}
  */
 const readSettings = async () => {
-  const localFM = useFileManager()
-  let settings = localFM.readJSON('settings.json')
-  if (settings) {
-    console.log('[info] use local settings')
-    return settings
-  }
-
-  const iCloudFM = useFileManager({ useICloud: true })
-  settings = iCloudFM.readJSON('settings.json')
-  if (settings) {
-    console.log('[info] use iCloud settings')
-  }
+  const useICloud = isUseICloud()
+  console.log(`[info] use ${useICloud ? 'iCloud' : 'local'} settings`)
+  const fm = useFileManager({ useICloud })
+  const settings = fm.readJSON(fileName)
   return settings
 }
 
@@ -45,16 +96,13 @@ const readSettings = async () => {
  */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useFileManager({ useICloud })
-  fm.writeJSON('settings.json', data)
+  fm.writeJSON(fileName, data)
 }
 
 const removeSettings = async (settings) => {
   const cache = useFileManager({ useICloud: settings.useICloud })
   fm.remove(
-    fm.joinPath(
-      cache.cacheDirectory,
-      'settings.json'
-    )
+    fm.joinPath(cache.cacheDirectory, fileName)
   )
 }
 
@@ -62,10 +110,11 @@ const moveSettings = (useICloud, data) => {
   const localFM = useFileManager()
   const iCloudFM = useFileManager({ useICloud: true })
   const [i, l] = [
-    fm.joinPath(iCloudFM.cacheDirectory, 'settings.json'),
-    fm.joinPath(localFM.cacheDirectory, 'settings.json')
+    fm.joinPath(iCloudFM.cacheDirectory, fileName),
+    fm.joinPath(localFM.cacheDirectory, fileName)
   ]
   try {
+    // 移动文件需要创建父文件夹，写入操作会自动创建文件夹
     writeSettings(data, { useICloud })
     if (useICloud) {
       if (fm.fileExists(l)) fm.remove(l)
@@ -339,7 +388,10 @@ input[type='checkbox'][role='switch']:checked::before {
 
   const js =
 `(() => {
-  const settings = ${JSON.stringify(settings)}
+  const settings = ${JSON.stringify({
+    ...settings,
+    useICloud: isUseICloud()
+  })}
   const formItems = ${JSON.stringify(formItems)}
 
   window.invoke = (code, data) => {
@@ -708,11 +760,39 @@ const withSettings = async (options) => {
         ]
       },
       {
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Export settings', '导出配置']),
+            type: 'cell',
+            name: 'export'
+          },
+          {
+            label: i18n(['Import settings', '导入配置']),
+            type: 'cell',
+            name: 'import'
+          }
+        ]
+      },
+      {
         label: i18n(['Settings', '设置']),
         type: 'group',
         items: formItems
       }
     ],
+    onItemClick: (item, ...args) => {
+      const { name } = item
+      if (name === 'export') {
+        exportSettings()
+      }
+      if (name === 'import') {
+        importSettings().catch((err) => {
+          console.error(err)
+          throw err
+        })
+      }
+      onItemClick?.(item, ...args)
+    },
     ...restOptions
   }, true)
 }
