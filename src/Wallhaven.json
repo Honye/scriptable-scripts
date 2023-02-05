@@ -1,0 +1,8 @@
+{
+  "name": "Wallhaven",
+  "version": "1.0.0",
+  "setting": {
+    "icon-color": "teal",
+    "icon-glyph": "image"
+  }
+}
