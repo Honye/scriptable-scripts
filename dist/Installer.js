@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: cloud-download-alt; icon-color: deep-gray; share-sheet-inputs: file-url,url,plain-text;
 /**
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -160,7 +160,7 @@ async function installByURL (url, options) {
       await notification.schedule();
       throw e
     });
-  const fileName = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1));
+  const fileName = decodeURIComponent(url.split('/').pop().replace(/([^?#]+)([?#].*)*/, '$1'));
   let filePath = `${appRoot}/${fileName}`;
   if (fs.fileExists(filePath) && !override) {
     const alert = new Alert();

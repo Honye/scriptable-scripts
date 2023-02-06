@@ -1,3 +1,6 @@
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-glyph: th; icon-color: blue;
 /**
  * @version 0.1.1
  * @author Honye

@@ -100,7 +100,7 @@ async function installByURL (url, options) {
       await notification.schedule()
       throw e
     })
-  const fileName = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1))
+  const fileName = decodeURIComponent(url.split('/').pop().replace(/([^?#]+)([?#].*)*/, '$1'))
   let filePath = `${appRoot}/${fileName}`
   if (fs.fileExists(filePath) && !override) {
     const alert = new Alert()
