@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "description": "星座运势",
+  "setting": {
+    "icon-glyph": "star-of-david",
+    "icon-color": "deep-blue"
+  }
+}
