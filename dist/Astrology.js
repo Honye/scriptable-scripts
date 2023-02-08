@@ -4,7 +4,7 @@
 /**
  * 星座运势
  *
- * @version 1.0.0
+ * @version 1.1.0
  * @author Honye
  */
 
@@ -1127,7 +1127,7 @@ const preference = {
   borderWidth: 6,
   borderColor: '',
   cornerRadius: 16,
-  backgroundColorLight: '#ffffff',
+  backgroundColorLight: '#f9f9f9',
   backgroundColorDark: '#242426',
   backgroundImage: '',
   textColorLight: '#222222',
@@ -1136,6 +1136,7 @@ const preference = {
   iconName: 'star.fill',
   avatarSize: 32
 };
+const contentPadding = 8;
 const fm = FileManager.local();
 const cache = useCache();
 const constellations = new Map([
@@ -1210,20 +1211,6 @@ const constellationOptions = (() => {
   }
   return options
 })();
-const colors = {
-  红色: '#ff4015',
-  橙色: '#feb43f',
-  黄色: '#fff76b',
-  绿色: '#96d35f',
-  青色: '#cde8b5',
-  蓝色: '#01c7fc',
-  紫色: '#e292fe',
-  灰色: '#adadad',
-  粉色: '#f4a4c0',
-  黑色: '#333333',
-  白色: '#ebebeb',
-  棕色: '#7a4a00'
-};
 
 /**
  * @param {string} constellation 星座
@@ -1273,18 +1260,32 @@ const getImg = async (url) => {
 
 /**
  * @param {WidgetStack} container
+ * @param {object} options
+ * @param {number} options.width
+ * @param {Color} options.color
  */
-const addHead = async (container, { color }) => {
-  const { textColorLight, textColorDark } = preference;
+const addAvatar = async (container, { width, color }) => {
   const constellation = constellations.get(preference.constellation);
-  const stack = container.addStack();
-  stack.centerAlignContent();
-  const avatar = stack.addStack();
-  const avatarSize = new Size(...Array(2).fill(preference.avatarSize));
-  avatar.size = avatarSize;
+  const avatar = container.addStack();
+  const size = new Size(...Array(2).fill(width));
+  avatar.size = size;
   avatar.backgroundImage = getAvatarBg(color);
   const img = avatar.addImage(await getImg(constellation.image));
-  img.imageSize = avatarSize;
+  img.imageSize = size;
+};
+
+/**
+ * @param {WidgetStack} container
+ * @param {object} options
+ * @param {Color} options.color
+ */
+const addHead = async (container, { color }) => {
+  const { textColorLight, textColorDark, avatarSize } = preference;
+  const constellation = constellations.get(preference.constellation);
+  const stack = container.addStack();
+  stack.size = new Size(-1, 32);
+  stack.centerAlignContent();
+  await addAvatar(stack, { width: avatarSize, color });
   stack.addSpacer(8);
   const info = stack.addStack();
   info.layoutVertically();
@@ -1303,66 +1304,209 @@ const addHead = async (container, { color }) => {
 
 /**
  * @param {WidgetStack} container
+ * @param {object} options
+ * @param {Size} options.size
+ * @param {string} options.value
  */
-const addProgress = (container, data) => {
-  const { textColorLight, textColorDark, iconName, iconColor } = preference;
+const addStars = (container, { value, size }) => {
+  const { iconName, iconColor } = preference;
   const stack = container.addStack();
+  stack.centerAlignContent();
+  for (let i = 0; i < 5; i++) {
+    const sfs = SFSymbol.named(iconName);
+    const star = stack.addImage(sfs.image);
+    star.tintColor = i < value ? new Color(iconColor) : Color.lightGray();
+    star.imageSize = size;
+  }
+};
+
+/**
+ * 百分比转为5星比
+ * @param {string} percent 带%的百分比
+ */
+const percent2Stars = (percent) => {
+  const v = Number(percent.replace(/%$/, ''));
+  // 至少1星
+  const n = Math.max(Math.round(v / 100 * 5), 1);
+  return n
+};
+
+/**
+ * @param {WidgetStack} container
+ * @param {{ name: string; value: string }} data
+ */
+const addItem = (container, data) => {
+  const { textColorLight, textColorDark } = preference;
+  const fontSize = 10;
+  const iconSize = fontSize + 3;
+  const height = iconSize;
+  const stack = container.addStack();
+  stack.size = new Size(-1, height);
   stack.centerAlignContent();
   stack.spacing = 6;
   const label = stack.addText(data.name);
-  label.font = Font.systemFont(10);
+  label.font = Font.systemFont(fontSize);
   label.textColor = Color.dynamic(
     new Color(textColorLight, 0.8),
     new Color(textColorDark, 0.8)
   );
-  const progress = stack.addStack();
-  progress.centerAlignContent();
-  const percent = Number(data.value.slice(0, -1));
-  // 至少1星
-  const n = Math.max(Math.round(percent / 100 * 5), 1);
-  for (let i = 0; i < 5; i++) {
-    const sfs = SFSymbol.named(iconName);
-    const star = progress.addImage(sfs.image);
-    star.tintColor = i < n ? new Color(iconColor) : Color.lightGray();
-    star.imageSize = new Size(13, 13);
+  const matches = data.value.match(/(\d+)%$/);
+  if (matches) {
+    // if: 百分比使用五星
+    const n = percent2Stars(data.value);
+    addStars(stack, {
+      value: n,
+      size: new Size(iconSize, iconSize)
+    });
+  } else {
+    const text = stack.addText(data.value);
+    text.font = Font.systemFont(fontSize);
+    text.textColor = Color.dynamic(new Color(textColorLight), new Color(textColorDark));
   }
 };
 
 /**
  * @param {WidgetStack} container
+ * @param {{new_list:{name:string;value:string}[]}} data
  */
-const addItem = (container, data) => {
-  const { textColorLight, textColorDark } = preference;
-  const stack = container.addStack();
-  stack.centerAlignContent();
-  stack.spacing = 6;
-  const label = stack.addText(data.name);
-  label.font = Font.systemFont(10);
-  label.textColor = Color.dynamic(
-    new Color(textColorLight, 0.8),
-    new Color(textColorDark, 0.8)
-  );
-  const text = stack.addText(data.value);
-  text.font = Font.systemFont(10);
-  text.textColor = Color.dynamic(new Color(textColorLight), new Color(textColorDark));
+const addSmallContent = async (container, { new_list: data }) => {
+  const { borderColor } = preference;
+  const lucky = data.find((item) => item.name === '幸运颜色');
+
+  container.layoutVertically();
+  const { height } = container.size;
+  let gap = (height - contentPadding * 2 - 32 - 13 * 5 - 2) / 5;
+  console.log(`[info] max gap size: ${gap}`);
+  gap = Math.min(gap, contentPadding);
+  console.log(`[info] actual gap size: ${gap}`);
+  await addHead(container, { color: borderColor || lucky.bg_color_value });
+  container.addSpacer(2);
+  container.addSpacer(gap);
+  addItem(container, data.find((item) => item.name === '工作指数'));
+  container.addSpacer(gap);
+  addItem(container, data.find((item) => item.name === '财运指数'));
+  container.addSpacer(gap);
+  addItem(container, data.find((item) => item.name === '爱情指数'));
+  container.addSpacer(gap);
+  // 幸运颜色
+  addItem(container, lucky);
+  container.addSpacer(gap);
+  addItem(container, data.find((item) => item.name === '幸运数字'));
 };
 
 /**
- * @param {{name:string;value:string}[]} data
+ * @param {WidgetStack} container
  */
-const createSmallWidget = async (data) => {
+const addMediumContent = async (container, data) => {
+  const { new_list: newList } = data;
+  const { borderColor, textColorLight, textColorDark } = preference;
+  const { height } = container.size;
+  const constellation = constellations.get(preference.constellation);
+  const lucky = newList.find((item) => item.name === '幸运颜色');
+  const textColor = Color.dynamic(new Color(textColorLight), new Color(textColorDark));
+  const leftStack = container.addStack();
+  leftStack.layoutVertically();
+
+  const headStack = leftStack.addStack();
+  headStack.centerAlignContent();
+  headStack.spacing = 6;
+  await addAvatar(headStack, { width: 36, color: borderColor || lucky.bg_color_value });
+
+  const hrStack = headStack.addStack();
+  hrStack.layoutVertically();
+  hrStack.centerAlignContent();
+  const htStack = hrStack.addStack();
+  htStack.topAlignContent();
+  htStack.spacing = 4;
+  const hbStack = hrStack.addStack();
+  hbStack.bottomAlignContent();
+  hbStack.spacing = 4;
+
+  const nameStack = htStack.addStack();
+  nameStack.layoutVertically();
+  nameStack.topAlignContent();
+  nameStack.size = new Size(10 * 6, -1);
+  const nameText = nameStack.addText(constellation.name);
+  nameText.leftAlignText();
+  nameText.font = Font.systemFont(14);
+  nameText.textColor = textColor;
+
+  const rangeStack = hbStack.addStack();
+  rangeStack.bottomAlignContent();
+  rangeStack.size = new Size(10 * 6, -1);
+  const rangeText = rangeStack.addText(
+    constellation.range.replace(/\//g, '.').replace(/\s/g, '')
+  );
+  rangeText.leftAlignText();
+  rangeText.font = Font.systemFont(10);
+  rangeText.textColor = textColor;
+  rangeText.lineLimit = 1;
+  rangeText.minimumScaleFactor = 0.6;
+
+  const df = new DateFormatter();
+  df.dateFormat = 'MM月dd日';
+  const dateText = htStack.addText(df.string(new Date()));
+  dateText.font = Font.systemFont(14);
+  dateText.textColor = textColor;
+  hrStack.addSpacer(2);
+
+  const summary = newList.find((item) => item.name === '今日幸运值');
+  const n = percent2Stars(summary.value);
+  addStars(hbStack, { size: new Size(13, 13), value: n });
+
+  leftStack.addSpacer(10);
+  const contentText = leftStack.addText(data.new_content);
+  contentText.font = Font.systemFont(12);
+  contentText.minimumScaleFactor = 0.8;
+  contentText.textColor = textColor;
+
+  container.addSpacer(6);
+  const lineStack = container.addStack();
+  lineStack.layoutVertically();
+  lineStack.size = new Size(0.5, -1);
+  lineStack.addSpacer();
+  lineStack.backgroundColor = new Color(Color.lightGray().hex, 0.2);
+  container.addSpacer(6);
+
+  const rightStack = container.addStack();
+  rightStack.layoutVertically();
+  let gap = (height - contentPadding * 2 - 13 * 7) / 6;
+  console.log(`[info] max gap size: ${gap}`);
+  gap = Math.min(gap, contentPadding);
+  console.log(`[info] actual gap size: ${gap}`);
+  addItem(rightStack, newList.find((item) => item.name === '爱情指数'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '工作指数'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '财运指数'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '健康指数'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '幸运数字'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '幸运颜色'));
+  rightStack.addSpacer(gap);
+  addItem(rightStack, newList.find((item) => item.name === '贵人星座'));
+};
+
+const createWidget = async () => {
   const {
-    borderWidth,
+    constellation,
     borderColor,
+    borderWidth,
     cornerRadius,
     backgroundColorLight,
     backgroundColorDark,
     backgroundImage
   } = preference;
+
+  const data = await getData(constellation);
+  const { new_list: newList } = data.today;
+  const family = config.widgetFamily;
   const widget = new ListWidget();
   widget.setPadding(...Array(4).fill(0));
-  const lucky = data.find((item) => item.name === '幸运颜色');
-  widget.backgroundColor = new Color(borderColor || colors[lucky.value]);
+  const lucky = newList.find((item) => item.name === '幸运颜色');
+  widget.backgroundColor = new Color(borderColor || lucky.bg_color_value);
 
   const widgetSize = getWidgetSize();
   const container = widget.addStack();
@@ -1370,8 +1514,7 @@ const createSmallWidget = async (data) => {
     widgetSize.width - borderWidth * 2,
     widgetSize.height - borderWidth * 2
   );
-  container.setPadding(...Array(4).fill(8));
-  container.layoutVertically();
+  container.setPadding(...Array(4).fill(contentPadding));
   container.cornerRadius = cornerRadius;
   container.backgroundColor = Color.dynamic(
     new Color(backgroundColorLight),
@@ -1380,28 +1523,12 @@ const createSmallWidget = async (data) => {
   if (backgroundImage && fm.fileExists(backgroundImage)) {
     container.backgroundColor = undefined;
   }
-
-  await addHead(container, { color: borderColor || colors[lucky.value] });
-  container.addSpacer(2);
-  container.addSpacer();
-  addProgress(container, data.find((item) => item.name === '工作指数'));
-  container.addSpacer();
-  addProgress(container, data.find((item) => item.name === '财运指数'));
-  container.addSpacer();
-  addProgress(container, data.find((item) => item.name === '爱情指数'));
-  container.addSpacer();
-  // 幸运颜色
-  addItem(container, lucky);
-  container.addSpacer();
-  addItem(container, data.find((item) => item.name === '幸运数字'));
-
+  if (family === 'small') {
+    await addSmallContent(container, data.today);
+  } else {
+    await addMediumContent(container, data.today);
+  }
   return widget
-};
-
-const createWidget = async () => {
-  const { constellation } = preference;
-  const data = await getData(constellation);
-  return await createSmallWidget(data.today.new_list)
 };
 
 await withSettings({
