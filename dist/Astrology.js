@@ -4,7 +4,7 @@
 /**
  * 星座运势
  *
- * @version 1.1.0
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -1217,9 +1217,25 @@ const constellationOptions = (() => {
  */
 const getData = async (constellation) => {
   const request = new Request(`https://interface.sina.cn/ast/get_app_fate.d.json?type=astro&class=${constellation}`);
+  const date = new Date();
+  const today = date.toLocaleDateString('zh-CN').replace(/\//g, '-');
+  date.setDate(-1);
+  const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-');
+  const fm = FileManager.local();
+  const ypath = fm.joinPath(cache.cacheDirectory, `${yesterday}.json`);
+  if (fm.fileExists(ypath)) {
+    fm.remove(ypath);
+  }
+  const tpath = fm.joinPath(cache.cacheDirectory, `${today}.json`);
+  if (fm.fileExists(tpath)) {
+    const data = cache.readJSON(tpath);
+    return data
+  }
+
   const { result } = await request.loadJSON();
   const { status, data } = result;
   if (status.code === 0) {
+    cache.writeJSON(`${today}.json`, data);
     return data
   }
   return Promise.reject(status)
@@ -1397,7 +1413,7 @@ const addSmallContent = async (container, { new_list: data }) => {
 /**
  * @param {WidgetStack} container
  */
-const addMediumContent = async (container, data) => {
+const addMediumContent = async (container, data, { padding } = { padding: contentPadding }) => {
   const { new_list: newList } = data;
   const { borderColor, textColorLight, textColorDark } = preference;
   const { height } = container.size;
@@ -1470,7 +1486,7 @@ const addMediumContent = async (container, data) => {
 
   const rightStack = container.addStack();
   rightStack.layoutVertically();
-  let gap = (height - contentPadding * 2 - 13 * 7) / 6;
+  let gap = (height - padding * 2 - 13 * 7) / 6;
   console.log(`[info] max gap size: ${gap}`);
   gap = Math.min(gap, contentPadding);
   console.log(`[info] actual gap size: ${gap}`);
@@ -1487,6 +1503,93 @@ const addMediumContent = async (container, data) => {
   addItem(rightStack, newList.find((item) => item.name === '幸运颜色'));
   rightStack.addSpacer(gap);
   addItem(rightStack, newList.find((item) => item.name === '贵人星座'));
+};
+
+const addLargeContent = async (container, data) => {
+  const { width, height } = container.size;
+  container.layoutVertically();
+  const topStack = container.addStack();
+  const topHeight = 13 * 7 + 8 * 6;
+  topStack.size = new Size(-1, topHeight);
+  await addMediumContent(topStack, data, { padding: 0 });
+
+  const gap = 14;
+  container.addSpacer(gap);
+  await addChart(
+    container,
+    data.chart,
+    {
+      size: new Size(width - contentPadding * 2, height - contentPadding * 2 - topHeight - gap)
+    }
+  );
+};
+
+/**
+ * @param {WidgetStack} container
+ */
+const addChart = async (container, chartData, { size }) => {
+  const { xAxis, series } = chartData;
+  const labels = JSON.stringify(xAxis.data);
+  const colors = [
+    'rgb(91, 0, 255)',
+    'rgb(255, 135, 189)',
+    'rgb(49, 146, 241)',
+    'rgb(255, 206, 114)',
+    'rgb(80, 227, 194)'
+  ];
+  const datasets = series.map((item, i) => ({
+    label: item.name,
+    fill: false,
+    borderColor: colors[i],
+    backgroundColor: colors[i].replace(/^rgb/, 'rgba').replace(/\)$/, ', 0.5)'),
+    data: item.data
+  }));
+
+  const stack = container.addStack();
+  const options = `{
+    type: 'line',
+    data: {
+      labels: ${labels},
+      datasets: ${JSON.stringify(datasets)}
+    },
+    options: {
+      scales: {
+        y: {
+          min: 0,
+          max: 100,
+          ticks: {
+            callback: (val, i) => {
+              const text = ['', '很差', '一般', '平平', '好运', '很棒']
+              const t = text[i / 2]
+              if (t) {
+                return t
+              }
+              return val + '%'
+            }
+          }
+        }
+      }
+    }
+  }`;
+  const date = new Date();
+  const today = date.toLocaleDateString('zh-CN').replace(/\//g, '-');
+  date.setDate(-1);
+  const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-');
+  const fm = FileManager.local();
+  const ypath = fm.joinPath(cache.cacheDirectory, yesterday);
+  if (fm.fileExists(ypath)) {
+    fm.remove(ypath);
+  }
+  const tpath = fm.joinPath(cache.cacheDirectory, today);
+  let img;
+  if (fm.fileExists(tpath)) {
+    img = cache.readImage(tpath);
+  } else {
+    img = await getImage(`https://quickchart.io/chart?v=4&c=${encodeURIComponent(options)}`);
+    cache.writeImage(today, img);
+  }
+  const image = stack.addImage(img);
+  image.imageSize = size;
 };
 
 const createWidget = async () => {
@@ -1525,8 +1628,10 @@ const createWidget = async () => {
   }
   if (family === 'small') {
     await addSmallContent(container, data.today);
-  } else {
+  } else if (family === 'medium') {
     await addMediumContent(container, data.today);
+  } else {
+    await addLargeContent(container, data.today);
   }
   return widget
 };
