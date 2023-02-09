@@ -103,20 +103,21 @@ const getData = async (constellation) => {
   date.setDate(-1)
   const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
   const fm = FileManager.local()
-  const ypath = fm.joinPath(cache.cacheDirectory, `${yesterday}.json`)
+  const ypath = fm.joinPath(cache.cacheDirectory, `${constellation}-${yesterday}.json`)
   if (fm.fileExists(ypath)) {
     fm.remove(ypath)
   }
-  const tpath = fm.joinPath(cache.cacheDirectory, `${today}.json`)
+  const fileName = `${constellation}-${today}.json`
+  const tpath = fm.joinPath(cache.cacheDirectory, fileName)
   if (fm.fileExists(tpath)) {
-    const data = cache.readJSON(tpath)
+    const data = cache.readJSON(fileName)
     return data
   }
 
   const { result } = await request.loadJSON()
   const { status, data } = result
   if (status.code === 0) {
-    cache.writeJSON(`${today}.json`, data)
+    cache.writeJSON(fileName, data)
     return data
   }
   return Promise.reject(status)
@@ -409,6 +410,7 @@ const addLargeContent = async (container, data) => {
  * @param {WidgetStack} container
  */
 const addChart = async (container, chartData, { size }) => {
+  const { constellation } = preference
   const { xAxis, series } = chartData
   const labels = JSON.stringify(xAxis.data)
   const colors = [
@@ -457,17 +459,18 @@ const addChart = async (container, chartData, { size }) => {
   date.setDate(-1)
   const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
   const fm = FileManager.local()
-  const ypath = fm.joinPath(cache.cacheDirectory, yesterday)
+  const ypath = fm.joinPath(cache.cacheDirectory, `${constellation}-${yesterday}`)
   if (fm.fileExists(ypath)) {
     fm.remove(ypath)
   }
-  const tpath = fm.joinPath(cache.cacheDirectory, today)
+  const fileName = `${constellation}-${today}`
+  const tpath = fm.joinPath(cache.cacheDirectory, fileName)
   let img
   if (fm.fileExists(tpath)) {
-    img = cache.readImage(tpath)
+    img = cache.readImage(fileName)
   } else {
     img = await getImage(`https://quickchart.io/chart?v=4&c=${encodeURIComponent(options)}`)
-    cache.writeImage(today, img)
+    cache.writeImage(fileName, img)
   }
   const image = stack.addImage(img)
   image.imageSize = size
