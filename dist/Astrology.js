@@ -4,7 +4,7 @@
 /**
  * 星座运势
  *
- * @version 1.2.1
+ * @version 1.2.2
  * @author Honye
  */
 
@@ -1130,11 +1130,11 @@ const preference = {
   backgroundColorLight: '#f9f9f9',
   backgroundColorDark: '#242426',
   backgroundImage: '',
-  textColorLight: '#222222',
+  textColorLight: '#333333',
   textColorDark: '#ffffff',
   iconColor: '#facb19',
   iconName: 'star.fill',
-  avatarSize: 32
+  fontSize: 10
 };
 const contentPadding = 8;
 const fm = FileManager.local();
@@ -1297,22 +1297,22 @@ const addAvatar = async (container, { width, color }) => {
  * @param {Color} options.color
  */
 const addHead = async (container, { color }) => {
-  const { textColorLight, textColorDark, avatarSize } = preference;
+  const { textColorLight, textColorDark, fontSize } = preference;
   const constellation = constellations.get(preference.constellation);
   const stack = container.addStack();
-  stack.size = new Size(-1, 32);
+  stack.size = new Size(-1, fontSize * 3.2);
   stack.centerAlignContent();
-  await addAvatar(stack, { width: avatarSize, color });
+  await addAvatar(stack, { width: fontSize * 3.2, color });
   stack.addSpacer(8);
   const info = stack.addStack();
   info.layoutVertically();
   const title = info.addText(constellation.name);
-  title.font = Font.systemFont(13);
+  title.font = Font.systemFont(fontSize * 1.2);
   title.textColor = Color.dynamic(new Color(textColorLight), new Color(textColorDark));
   const df = new DateFormatter();
   df.dateFormat = 'yyyy-MM-dd';
   const date = info.addText(df.string(new Date()));
-  date.font = Font.systemFont(10);
+  date.font = Font.systemFont(fontSize * 0.85);
   date.textColor = Color.dynamic(
     new Color(textColorLight, 0.8),
     new Color(textColorDark, 0.8)
@@ -1353,8 +1353,7 @@ const percent2Stars = (percent) => {
  * @param {{ name: string; value: string }} data
  */
 const addItem = (container, data) => {
-  const { textColorLight, textColorDark } = preference;
-  const fontSize = 10;
+  const { textColorLight, textColorDark, fontSize } = preference;
   const iconSize = fontSize + 3;
   const height = iconSize;
   const stack = container.addStack();
@@ -1387,12 +1386,12 @@ const addItem = (container, data) => {
  * @param {{new_list:{name:string;value:string}[]}} data
  */
 const addSmallContent = async (container, { new_list: data }) => {
-  const { borderColor } = preference;
+  const { borderColor, fontSize } = preference;
   const lucky = data.find((item) => item.name === '幸运颜色');
 
   container.layoutVertically();
   const { height } = container.size;
-  let gap = (height - contentPadding * 2 - 32 - 13 * 5 - 2) / 5;
+  let gap = (height - contentPadding * 2 - fontSize * 3 - (fontSize + 3) * 5 - 2) / 5;
   console.log(`[info] max gap size: ${gap}`);
   gap = Math.min(gap, contentPadding);
   console.log(`[info] actual gap size: ${gap}`);
@@ -1416,8 +1415,9 @@ const addSmallContent = async (container, { new_list: data }) => {
  */
 const addMediumContent = async (container, data, { padding } = { padding: contentPadding }) => {
   const { new_list: newList } = data;
-  const { borderColor, textColorLight, textColorDark } = preference;
+  const { borderColor, textColorLight, textColorDark, fontSize } = preference;
   const { height } = container.size;
+  const iconSize = fontSize + 3;
   const constellation = constellations.get(preference.constellation);
   const lucky = newList.find((item) => item.name === '幸运颜色');
   const textColor = Color.dynamic(new Color(textColorLight), new Color(textColorDark));
@@ -1427,7 +1427,7 @@ const addMediumContent = async (container, data, { padding } = { padding: conten
   const headStack = leftStack.addStack();
   headStack.centerAlignContent();
   headStack.spacing = 6;
-  await addAvatar(headStack, { width: 36, color: borderColor || lucky.bg_color_value });
+  await addAvatar(headStack, { width: fontSize * 3.2, color: borderColor || lucky.bg_color_value });
 
   const hrStack = headStack.addStack();
   hrStack.layoutVertically();
@@ -1439,23 +1439,25 @@ const addMediumContent = async (container, data, { padding } = { padding: conten
   hbStack.bottomAlignContent();
   hbStack.spacing = 4;
 
+  const rangeTextSize = fontSize * 0.8;
+  const rangeWidth = rangeTextSize * 6;
   const nameStack = htStack.addStack();
   nameStack.layoutVertically();
   nameStack.topAlignContent();
-  nameStack.size = new Size(10 * 6, -1);
+  nameStack.size = new Size(rangeWidth, -1);
   const nameText = nameStack.addText(constellation.name);
   nameText.leftAlignText();
-  nameText.font = Font.systemFont(14);
+  nameText.font = Font.systemFont(fontSize * 1.2);
   nameText.textColor = textColor;
 
   const rangeStack = hbStack.addStack();
   rangeStack.bottomAlignContent();
-  rangeStack.size = new Size(10 * 6, -1);
+  rangeStack.size = new Size(rangeWidth, -1);
   const rangeText = rangeStack.addText(
     constellation.range.replace(/\//g, '.').replace(/\s/g, '')
   );
   rangeText.leftAlignText();
-  rangeText.font = Font.systemFont(10);
+  rangeText.font = Font.systemFont(rangeTextSize);
   rangeText.textColor = textColor;
   rangeText.lineLimit = 1;
   rangeText.minimumScaleFactor = 0.6;
@@ -1463,19 +1465,22 @@ const addMediumContent = async (container, data, { padding } = { padding: conten
   const df = new DateFormatter();
   df.dateFormat = 'MM月dd日';
   const dateText = htStack.addText(df.string(new Date()));
-  dateText.font = Font.systemFont(14);
+  dateText.font = Font.systemFont(fontSize * 1.2);
   dateText.textColor = textColor;
   hrStack.addSpacer(2);
 
   const summary = newList.find((item) => item.name === '今日幸运值');
   const n = percent2Stars(summary.value);
-  addStars(hbStack, { size: new Size(13, 13), value: n });
+  addStars(hbStack, { size: new Size(iconSize, iconSize), value: n });
 
   leftStack.addSpacer(10);
   const contentText = leftStack.addText(data.new_content);
-  contentText.font = Font.systemFont(12);
+  contentText.font = Font.systemFont(fontSize * 1.1);
   contentText.minimumScaleFactor = 0.8;
-  contentText.textColor = textColor;
+  contentText.textColor = Color.dynamic(
+    new Color(textColorLight, 0.9),
+    new Color(textColorDark, 0.9)
+  );
 
   container.addSpacer(6);
   const lineStack = container.addStack();
@@ -1487,7 +1492,7 @@ const addMediumContent = async (container, data, { padding } = { padding: conten
 
   const rightStack = container.addStack();
   rightStack.layoutVertically();
-  let gap = (height - padding * 2 - 13 * 7) / 6;
+  let gap = (height - padding * 2 - iconSize * 7) / 6;
   console.log(`[info] max gap size: ${gap}`);
   gap = Math.min(gap, contentPadding);
   console.log(`[info] actual gap size: ${gap}`);
@@ -1507,10 +1512,11 @@ const addMediumContent = async (container, data, { padding } = { padding: conten
 };
 
 const addLargeContent = async (container, data) => {
+  const { fontSize } = preference;
   const { width, height } = container.size;
   container.layoutVertically();
   const topStack = container.addStack();
-  const topHeight = 13 * 7 + 8 * 6;
+  const topHeight = (fontSize + 3) * 7 + 6 * 6;
   topStack.size = new Size(-1, topHeight);
   await addMediumContent(topStack, data, { padding: 0 });
 
@@ -1665,6 +1671,12 @@ await withSettings({
       name: 'cornerRadius',
       type: 'number',
       default: preference.cornerRadius
+    },
+    {
+      label: i18n(['Font size', '文字大小']),
+      name: 'fontSize',
+      type: 'number',
+      default: preference.fontSize
     },
     {
       label: i18n(['Text color (light)', '文字颜色（白天）']),
