@@ -1,12 +1,76 @@
+const { i18n } = importModule('./utils.module')
+
 const fm = FileManager.local()
+
+/**
+ * @param {string[]} fileURLs
+ * @param {string} destPath
+ */
+const copyFiles = async (fileURLs, destPath) => {
+  let isReplaceAll = false
+  const fm = FileManager.local()
+  for (const fileURL of fileURLs) {
+    console.log(fileURL)
+    const fileName = fm.fileName(fileURL, true)
+    const filePath = fm.joinPath(destPath, fileName)
+    if (fm.fileExists(filePath)) {
+      if (isReplaceAll) {
+        fm.remove(filePath)
+      } else {
+        const alert = new Alert()
+        alert.message = `“${fileName}”已存在，是否替换？`
+        const actions = ['全是', '是', '否']
+        for (const action of actions) alert.addAction(action)
+        alert.addCancelAction('取消')
+        const value = await alert.present()
+        switch (actions[value]) {
+          case '全是':
+            isReplaceAll = true
+            fm.remove(filePath)
+            break
+          case '是':
+            fm.remove(filePath)
+            break
+          case '否':
+            continue
+          default: // 取消
+            return
+        }
+      }
+    }
+    fm.copy(fileURL, filePath)
+  }
+  const alert = new Alert()
+  alert.title = '导入成功'
+  alert.message = '重新进入此目录可查看'
+  alert.addCancelAction('好的')
+  await alert.present()
+}
+
+/**
+ * @param {string} destPath 输出目录
+ */
+const importFiles = async (destPath) => {
+  let fileURLs = args.fileURLs
+  if (!fileURLs.length) {
+    try {
+      fileURLs = await DocumentPicker.open()
+    } catch (e) {
+      // 用户取消
+      return
+    }
+  }
+  await copyFiles(fileURLs, destPath)
+}
 
 /**
  * @param {object} options
  * @param {string} options.title
  * @param {File[]} options.list
+ * @param {string} [options.directory]
  */
 const presentList = async (options) => {
-  const { title, list } = options
+  const { title, list, directory } = options
   const webView = new WebView()
   const css =
   `:root {
@@ -51,6 +115,7 @@ const presentList = async (options) => {
   .header__right {
     text-align: right;
   }
+  .header__btn,
   .select-all,
   .select {
     font-size: 0.875rem;
@@ -191,6 +256,7 @@ const presentList = async (options) => {
     target.innerText = target.innerText === '选择' ? '完成' : '选择'
   
     document.querySelector('.select-all').toggleAttribute('hidden')
+    document.querySelector('#import')?.toggleAttribute('hidden')
     document.querySelector('.list').classList.toggle('list-select')
     document.querySelector('.fixed-bottom').classList.toggle('show')
   })
@@ -239,7 +305,6 @@ const presentList = async (options) => {
 
   window.addEventListener('JWeb', (e) => {
     const { code, data } = e.detail
-    console.log('收到事件了')
     switch (code) {
       case 'remove-success':
         removeItems(JSON.parse(data))
@@ -259,9 +324,17 @@ const presentList = async (options) => {
   </head>
   <body>
     <div class="header">
-      <div class="header__left"><button class="select-all" hidden>全选</button></div>
+      <div class="header__left">
+        <button class="select-all" hidden>全选</button>
+        ${directory
+          ? '<button id="import" class="header__btn" onclick="invoke(\'import\')">导入</button>'
+          : ''
+        }
+      </div>
       <h3 class="title">${title}</h3>
-      <div class="header__right"><button class="select">选择</button></div>
+      <div class="header__right">
+        <button class="select">选择</button>
+      </div>
     </div>
     <ul class="list">
     ${list.map((file) => (
@@ -306,11 +379,20 @@ const presentList = async (options) => {
         })
       presentList({
         title: name,
-        list
+        list,
+        directory: filePath
       })
     } else {
       if (!fm.isFileDownloaded(filePath)) {
         await fm.downloadFileFromiCloud(filePath)
+      }
+      if (/.(js|json)$/.test(filePath)) {
+        QuickLook.present(filePath)
+        return
+      }
+      if (/.(jpg|jpeg|gif|png|heic|heif|webp)$/i.test(filePath)) {
+        QuickLook.present(filePath, false)
+        return
       }
       try {
         const image = fm.readImage(filePath)
@@ -371,6 +453,9 @@ const presentList = async (options) => {
       case 'remove':
         remove(data).catch((e) => console.error(e))
         break
+      case 'import':
+        importFiles(directory).catch((err) => console.error(err))
+        break
     }
     injectListener()
   }
@@ -386,32 +471,32 @@ presentList({
   title: 'Clean Files',
   list: [
     {
-      name: 'Local cache directory',
+      name: i18n(['Local cache directory', '本地缓存']),
       filePath: FileManager.local().cacheDirectory(),
       isDirectory: true
     },
     {
-      name: 'Local documents directory',
+      name: i18n(['Local documents directory', '本地文件']),
       filePath: FileManager.local().documentsDirectory(),
       isDirectory: true
     },
     {
-      name: 'Local library directory',
+      name: i18n(['Local library directory', '本地库存']),
       filePath: FileManager.local().libraryDirectory(),
       isDirectory: true
     },
     {
-      name: 'Local temporary directory',
+      name: i18n(['Local temporary directory', '本地暂存']),
       filePath: FileManager.local().temporaryDirectory(),
       isDirectory: true
     },
     {
-      name: 'iCloud document directory',
+      name: i18n(['iCloud document directory', 'iCloud 文件']),
       filePath: FileManager.iCloud().documentsDirectory(),
       isDirectory: true
     },
     {
-      name: 'iCloud library directory',
+      name: i18n(['iCloud library directory', 'iCloud 库存']),
       filePath: FileManager.iCloud().libraryDirectory(),
       isDirectory: true
     }
