@@ -100,7 +100,7 @@ const getData = async (constellation) => {
   const request = new Request(`https://interface.sina.cn/ast/get_app_fate.d.json?type=astro&class=${constellation}`)
   const date = new Date()
   const today = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
-  date.setDate(-1)
+  date.setDate(date.getDate() - 1)
   const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
   const fm = FileManager.local()
   const ypath = fm.joinPath(cache.cacheDirectory, `${constellation}-${yesterday}.json`)
@@ -462,7 +462,7 @@ const addChart = async (container, chartData, { size }) => {
   }`
   const date = new Date()
   const today = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
-  date.setDate(-1)
+  date.setDate(date.getDate() - 1)
   const yesterday = date.toLocaleDateString('zh-CN').replace(/\//g, '-')
   const fm = FileManager.local()
   const ypath = fm.joinPath(cache.cacheDirectory, `${constellation}-${yesterday}`)
