@@ -4,7 +4,7 @@
 /**
  * Clean files
  *
- * @version 2.1.0
+ * @version 2.1.1
  * @author Honye
  */
 
@@ -36,7 +36,6 @@ const copyFiles = async (fileURLs, destPath) => {
   let isReplaceAll = false;
   const fm = FileManager.local();
   for (const fileURL of fileURLs) {
-    console.log(fileURL);
     const fileName = fm.fileName(fileURL, true);
     const filePath = fm.joinPath(destPath, fileName);
     if (fm.fileExists(filePath)) {
@@ -114,6 +113,8 @@ const presentList = async (options) => {
     margin: 0;
     -webkit-font-smoothing: antialiased;
     font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
+    min-height: 100vh;
+    box-sizing: border-box;
     accent-color: var(--color-primary);
     padding-top: env(safe-area-inset-top);
   }
@@ -393,14 +394,20 @@ const presentList = async (options) => {
   const view = async (data) => {
     const { isDirectory, filePath, name } = data;
     if (Number(isDirectory)) {
+      const unit = i18n(['items', '项']);
       const list = fm.listContents(filePath)
         .map((name) => {
           const path = fm.joinPath(filePath, name);
+          const isDirectory = fm.isDirectory(path);
+          const date = fm.modificationDate(path).toLocaleDateString('zh-CN');
+          const size = fm.fileSize(path);
           return {
             name,
-            info: `${fm.modificationDate(path).toLocaleString()}`,
+            info: isDirectory
+              ? `${date} - ${fm.listContents(path).length} ${unit}`
+              : `${date} - ${size > 1024 ? `${(size / 1024).toFixed(1)} MB` : `${size} KB`}`,
             filePath: path,
-            isDirectory: FileManager.local().isDirectory(path)
+            isDirectory
           }
         });
       presentList({
