@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "description": "",
+  "setting": {
+    "icon-glyph": "snowflake",
+    "icon-color": "teal"
+  }
+}
