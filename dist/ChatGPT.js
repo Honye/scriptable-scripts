@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: snowflake; icon-color: teal;
 /**
- * @version 1.0.0
+ * @version 1.1.0
  * @author Honye
  */
 
@@ -944,7 +944,7 @@ const preference = {
   showPrompt: true,
   useImageAPI: false,
   apiKey: '',
-  model: 'text-davinci-003'
+  model: 'gpt-3.5-turbo'
 };
 
 /**
@@ -997,6 +997,29 @@ const createImage = async () => {
 };
 
 /**
+ * @return {Promise<{
+ *  choices: {
+ *    message: { role: string; content: string }
+ *  }[];
+ * }>}
+ */
+const createChatCompletion = async () => {
+  const { model, prompt } = preference;
+  const json = await request({
+    url: '/chat/completions',
+    data: {
+      model,
+      messages: [
+        { role: 'system', content: `Current date: ${new Date().toLocaleDateString()}` },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7
+    }
+  });
+  return json
+};
+
+/**
  * @param {string} message
  */
 const createErrorWidget = (message) => {
@@ -1024,10 +1047,36 @@ const createImageWidget = async () => {
   return widget
 };
 
+const createChatWidget = async () => {
+  const { showPrompt, fontSize } = preference;
+  const { choices } = await createChatCompletion();
+  const widget = new ListWidget();
+  if (showPrompt) {
+    const promptText = widget.addText(preference.prompt);
+    promptText.font = Font.systemFont(fontSize);
+    promptText.textColor = Color.gray();
+    widget.addSpacer(fontSize);
+  }
+  const contentText = widget.addText(choices[0].message.content.trim());
+  contentText.font = Font.systemFont(fontSize);
+  contentText.minimumScaleFactor = 0.8;
+  return widget
+};
+
 const createWidget = async () => {
-  const { apiKey, fontSize, showPrompt, useImageAPI } = preference;
+  const {
+    apiKey,
+    model,
+    fontSize,
+    showPrompt,
+    useImageAPI
+  } = preference;
   if (!apiKey) {
     return createErrorWidget(i18n(['Have to enter API Key', '必须填写 API Key']))
+  }
+
+  if (/^gpt-3.5-turbo/.test(model)) {
+    return await createChatWidget()
   }
 
   if (useImageAPI) {
