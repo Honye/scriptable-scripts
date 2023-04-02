@@ -1,5 +1,5 @@
 const { withSettings } = importModule('./withSettings.module')
-const { getImage, i18n, useCache } = importModule('./utils.module')
+const { i18n, useCache } = importModule('./utils.module')
 
 const preference = {
   apiKey: '',
@@ -16,6 +16,9 @@ const getBalance = async () => {
   }
   try {
     const json = await request.loadJSON()
+    if (json.error) {
+      throw new Error(json.error.message)
+    }
     cache.writeJSON('credit_grants.json', json)
     return json
   } catch (e) {
@@ -70,7 +73,7 @@ const createWidget = async () => {
 await withSettings({
   formItems: [
     {
-      label: 'API Key',
+      label: 'Session Key',
       name: 'apiKey',
       type: 'string',
       default: preference.apiKey
