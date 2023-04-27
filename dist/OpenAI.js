@@ -4,7 +4,7 @@
 /**
  * OpenAI account usage
  *
- * @version 0.2.0
+ * @version 1.0.0
  * @author Honye
  */
 
@@ -948,6 +948,11 @@ const getBalance = async () => {
   try {
     const json = await request.loadJSON();
     if (json.error) {
+      const notification = new Notification();
+      notification.title = Script.name();
+      notification.body = i18n(['Session has expired!', 'Session Key 已过期！']);
+      notification.openURL = 'https://platform.openai.com/account/usage';
+      notification.schedule();
       throw new Error(json.error.message)
     }
     cache.writeJSON('credit_grants.json', json);
