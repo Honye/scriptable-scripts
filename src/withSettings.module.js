@@ -6,11 +6,12 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.0
+ * @version 1.4.1
  * @author Honye
  */
 
 const { i18n, useCache, useFileManager } = importModule('utils.module')
+const { loadHTML } = importModule('Bridge.module')
 const fm = FileManager.local()
 const fileName = 'settings.json'
 
@@ -394,13 +395,8 @@ input[type='checkbox'][role='switch']:checked::before {
   })}
   const formItems = ${JSON.stringify(formItems)}
 
-  window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+  window.invoke = (code, data, cb) => {
+    ScriptableBridge.invoke(code, data, cb)
   }
 
   const formData = {};
@@ -529,16 +525,14 @@ input[type='checkbox'][role='switch']:checked::before {
       const icon = e.currentTarget.querySelector('.iconfont')
       const className = icon.className
       icon.className = 'iconfont icon-loading'
-      const listener = (event) => {
-        const { code } = event.detail
-        if (code === 'previewStart') {
+      invoke(
+        'preview',
+        e.currentTarget.dataset.size,
+        () => {
           target.classList.remove('loading')
           icon.className = className
-          window.removeEventListener('JWeb', listener);
         }
-      }
-      window.addEventListener('JWeb', listener)
-      invoke('preview', e.currentTarget.dataset.size)
+      )
     })
   }
 
@@ -582,7 +576,64 @@ input[type='checkbox'][role='switch']:checked::before {
 </html>`
 
   const webView = new WebView()
-  await webView.loadHTML(html, homePage)
+  const methods = {
+    async preview (data) {
+      const widget = await getWidget({ settings, family: data })
+      widget[`present${data.replace(data[0], data[0].toUpperCase())}`]()
+    },
+    safari (data) {
+      Safari.openInApp(data, true)
+    },
+    changeSettings (data) {
+      Object.assign(settings, data)
+      writeSettings(settings, { useICloud: settings.useICloud })
+    },
+    moveSettings (data) {
+      settings.useICloud = data
+      moveSettings(data, settings)
+    },
+    removeSettings (data) {
+      Object.assign(settings, data)
+      clearBgImg()
+      removeSettings(settings)
+    },
+    chooseBgImg (data) {
+      chooseBgImg()
+    },
+    clearBgImg () {
+      clearBgImg()
+    },
+    async itemClick (data) {
+      if (data.type === 'page') {
+        // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
+        const item = (() => {
+          const find = (items) => {
+            for (const el of items) {
+              if (el.name === data.name) return el
+
+              if (el.type === 'group') {
+                const r = find(el.items)
+                if (r) return r
+              }
+            }
+            return null
+          }
+          return find(formItems)
+        })()
+        await present(item, false, { settings })
+      } else {
+        await onItemClick?.(data, { settings })
+      }
+    },
+    native (data) {
+      onWebEvent?.(data)
+    }
+  }
+  await loadHTML(
+    webView,
+    { html, baseURL: homePage },
+    { methods }
+  )
 
   const clearBgImg = () => {
     const { backgroundImage } = settings
@@ -606,91 +657,6 @@ input[type='checkbox'][role='switch']:checked::before {
     }
   }
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err)
-      throw err
-    })
-    const { code, data } = event
-    switch (code) {
-      case 'preview': {
-        const widget = await getWidget({ settings, family: data })
-        webView.evaluateJavaScript(
-          'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
-          false
-        )
-        widget[`present${data.replace(data[0], data[0].toUpperCase())}`]()
-        break
-      }
-      case 'safari':
-        Safari.openInApp(data, true)
-        break
-      case 'changeSettings':
-        Object.assign(settings, data)
-        writeSettings(settings, { useICloud: settings.useICloud })
-        break
-      case 'moveSettings':
-        settings.useICloud = data
-        moveSettings(data, settings)
-        break
-      case 'removeSettings':
-        Object.assign(settings, data)
-        clearBgImg()
-        removeSettings(settings)
-        break
-      case 'chooseBgImg':
-        chooseBgImg()
-        break
-      case 'clearBgImg':
-        clearBgImg()
-        break
-      case 'itemClick':
-        if (data.type === 'page') {
-          // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
-          const item = (() => {
-            const find = (items) => {
-              for (const el of items) {
-                if (el.name === data.name) return el
-
-                if (el.type === 'group') {
-                  const r = find(el.items)
-                  if (r) return r
-                }
-              }
-              return null
-            }
-            return find(formItems)
-          })()
-          await present(item, false, { settings })
-        } else {
-          await onItemClick?.(data, { settings })
-        }
-        break
-      case 'native':
-        onWebEvent?.(data)
-        break
-    }
-    injectListener()
-  }
-
-  injectListener().catch((e) => {
-    console.error(e)
-    throw e
-  })
   webView.present()
   // ======= web end =========
 }
