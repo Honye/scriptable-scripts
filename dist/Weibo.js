@@ -4,46 +4,9 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.2.0
+ * @version 2.3.0
  * @author Honye
  */
-
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-const presentSheet = async (options) => {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return {
-    value,
-    option: options.options[value]
-  }
-};
 
 /**
  * Thanks @mzeryck
@@ -362,6 +325,113 @@ const hashCode = (data) => {
 };
 
 /**
+ * @file Scriptable WebView JSBridge native SDK
+ * @version 1.1.0
+ * @author Honye
+ */
+
+/**
+ * @param {WebView} webView
+ * @param {*} options
+ */
+const inject = async (webView, options) => {
+  /**
+   * @param {string} code
+   * @param {*} data
+   */
+  const sendResult = async (code, data) => {
+    const eventName = `ScriptableBridge_${code}_Result`;
+    try {
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(data)} }
+          )
+        )`
+      );
+    } catch (e) {
+      console.error('[native] sendResult error:');
+      console.error(e);
+    }
+  };
+
+  const js =
+`(() => {
+  const queue = window.__scriptable_bridge_queue
+  if (queue && queue.length) {
+    completion(queue)
+  }
+  window.__scriptable_bridge_queue = null
+
+  if (!window.ScriptableBridge) {
+    window.ScriptableBridge = {
+      invoke(name, data, callback) {
+        const detail = { code: name, data }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
+        const controller = new AbortController()
+        window.addEventListener(
+          eventName,
+          (e) => {
+            callback && callback(e.detail)
+            controller.abort()
+          },
+          { signal: controller.signal }
+        )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
+      }
+    }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
+  }
+})()`;
+
+  const res = await webView.evaluateJavaScript(js, true);
+  if (!res) return inject(webView, options)
+
+  const methods = options.methods || {};
+  if (Array.isArray(res)) {
+    if (res) {
+      for (const { code, data } of res) {
+        // ;(async () => {
+        //   sendResult(code, await methods[code]?.(data))
+        // })()
+        await sendResult(code, await methods[code]?.(data));
+      }
+    }
+  } else {
+    const { code, data } = res;
+    // ;(async () => {
+    //   sendResult(code, await methods[code]?.(data))
+    // })()
+    await sendResult(code, await methods[code]?.(data));
+  }
+  inject(webView, options);
+};
+
+/**
+ * @param {WebView} webView
+ * @param {object} args
+ * @param {string} args.html
+ * @param {string} [args.baseURL]
+ * @param {*} options
+ */
+const loadHTML = async (webView, args, options = {}) => {
+  const { html, baseURL } = args;
+  await webView.loadHTML(html, baseURL);
+  inject(webView, options).catch((err) => console.error(err));
+};
+
+/**
  * 轻松实现桌面组件可视化配置
  *
  * - 颜色选择器及更多表单控件
@@ -369,26 +439,85 @@ const hashCode = (data) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.2
+ * @version 1.4.1
  * @author Honye
  */
+const fm = FileManager.local();
+const fileName = 'settings.json';
+
+const toast = (message) => {
+  const notification = new Notification();
+  notification.title = Script.name();
+  notification.body = message;
+  notification.schedule();
+};
+
+const isUseICloud = () => {
+  const ifm = useFileManager({ useICloud: true });
+  const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
+  return fm.fileExists(filePath)
+};
+
+/** 查看配置文件可导出分享 */
+const exportSettings = () => {
+  const scopedFM = useFileManager({ useICloud: isUseICloud() });
+  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+  if (fm.isFileStoredIniCloud(filePath)) {
+    fm.downloadFileFromiCloud(filePath);
+  }
+  if (fm.fileExists(filePath)) {
+    QuickLook.present(filePath);
+  } else {
+    const alert = new Alert();
+    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
+    alert.addCancelAction(i18n(['OK', '好的']));
+    alert.present();
+  }
+};
+
+const importSettings = async () => {
+  const alert1 = new Alert();
+  alert1.message = i18n([
+    'Will replace existing configuration',
+    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
+  ]);
+  alert1.addAction(i18n(['Import', '导入']));
+  alert1.addCancelAction(i18n(['Cancel', '取消']));
+  const i = await alert1.present();
+  if (i === -1) return
+
+  const pathList = await DocumentPicker.open(['public.json']);
+  for (const path of pathList) {
+    const fileName = fm.fileName(path, true);
+    const scopedFM = useFileManager({ useICloud: isUseICloud() });
+    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+    if (fm.fileExists(destPath)) {
+      fm.remove(destPath);
+    }
+    const i = destPath.lastIndexOf('/');
+    const directory = destPath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+    fm.copy(path, destPath);
+  }
+  const alert = new Alert();
+  alert.message = i18n(['Imported success', '导入成功']);
+  alert.addAction(i18n(['Restart', '重新运行']));
+  await alert.present();
+  const callback = new CallbackURL('scriptable:///run');
+  callback.addParameter('scriptName', Script.name());
+  callback.open();
+};
 
 /**
  * @returns {Promise<Settings>}
  */
 const readSettings = async () => {
-  const localFM = useFileManager();
-  let settings = localFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use local settings');
-    return settings
-  }
-
-  const iCloudFM = useFileManager({ useICloud: true });
-  settings = iCloudFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use iCloud settings');
-  }
+  const useICloud = isUseICloud();
+  console.log(`[info] use ${useICloud ? 'iCloud' : 'local'} settings`);
+  const fm = useFileManager({ useICloud });
+  const settings = fm.readJSON(fileName);
   return settings
 };
 
@@ -398,16 +527,13 @@ const readSettings = async () => {
  */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useFileManager({ useICloud });
-  fm.writeJSON('settings.json', data);
+  fm.writeJSON(fileName, data);
 };
 
 const removeSettings = async (settings) => {
   const cache = useFileManager({ useICloud: settings.useICloud });
-  FileManager.local().remove(
-    FileManager.local().joinPath(
-      cache.cacheDirectory,
-      'settings.json'
-    )
+  fm.remove(
+    fm.joinPath(cache.cacheDirectory, fileName)
   );
 };
 
@@ -415,21 +541,16 @@ const moveSettings = (useICloud, data) => {
   const localFM = useFileManager();
   const iCloudFM = useFileManager({ useICloud: true });
   const [i, l] = [
-    FileManager.local().joinPath(
-      iCloudFM.cacheDirectory,
-      'settings.json'
-    ),
-    FileManager.local().joinPath(
-      localFM.cacheDirectory,
-      'settings.json'
-    )
+    fm.joinPath(iCloudFM.cacheDirectory, fileName),
+    fm.joinPath(localFM.cacheDirectory, fileName)
   ];
   try {
+    // 移动文件需要创建父文件夹，写入操作会自动创建文件夹
     writeSettings(data, { useICloud });
     if (useICloud) {
-      FileManager.local().remove(l);
+      if (fm.fileExists(l)) fm.remove(l);
     } else {
-      FileManager.iCloud().remove(i);
+      if (fm.fileExists(i)) fm.remove(i);
     }
   } catch (e) {
     console.error(e);
@@ -437,49 +558,103 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
- * @typedef {object} FormItem
+ * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {string} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ *  - HTML <input> type 属性
+ *  - `'cell'`: 可点击的
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
 /**
- * @typedef {Record<string, unknown>} Settings
- * @property {boolean} useICloud
- * @property {string} [backgroundImage]
+ * @typedef {Pick<NormalFormItem, 'label'|'name'> & { type: 'group', items: FormItem[] }} GroupFormItem
  */
 /**
- * @param {object} options
- * @param {FormItem[]} [options.formItems]
- * @param {(data: {
- *  settings: Settings;
- *  family?: 'small'|'medium'|'large';
- * }) => Promise<ListWidget>} options.render
- * @param {string} [options.homePage]
- * @param {(item: FormItem) => void} [options.onItemClick]
- * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
+ * @typedef {Omit<NormalFormItem, 'type'> & { type: 'page' } & Pick<Options, 'formItems'|'onItemClick'>} PageFormItem 单独的页面
  */
-const withSettings = async (options) => {
+/**
+ * @typedef {NormalFormItem|GroupFormItem|PageFormItem} FormItem
+ */
+/**
+ * @typedef {object} CommonSettings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage] 背景图路径
+ * @property {string} [backgroundColorLight]
+ * @property {string} [backgroundColorDark]
+ */
+/**
+ * @typedef {CommonSettings & Record<string, unknown>} Settings
+ */
+/**
+ * @typedef {object} Options
+ * @property {(data: {
+ *  settings: Settings;
+ *  family?: typeof config.widgetFamily;
+ * }) => ListWidget | Promise<ListWidget>} render
+ * @property {string} [head] 顶部插入 HTML
+ * @property {FormItem[]} [formItems]
+ * @property {(item: FormItem) => void} [onItemClick]
+ * @property {string} [homePage] 右上角分享菜单地址
+ * @property {(data: any) => void} [onWebEvent]
+ */
+/**
+ * @template T
+ * @typedef {T extends infer O ? {[K in keyof O]: O[K]} : never} Expand
+ */
+
+const previewsHTML =
+`<div class="actions">
+  <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+  <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+  <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
+</div>`;
+
+const copyrightHTML =
+`<footer>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+</footer>`;
+
+/**
+ * @param {Expand<Options>} options
+ * @param {boolean} [isFirstPage]
+ * @param {object} [others]
+ * @param {Settings} [others.settings]
+ * @returns {Promise<ListWidget|undefined>} 仅在 Widget 中运行时返回 ListWidget
+ */
+const present = async (options, isFirstPage, others = {}) => {
   const {
     formItems = [],
     onItemClick,
     render,
-    homePage = 'https://www.imarkr.com'
+    head,
+    homePage = 'https://www.imarkr.com',
+    onWebEvent
   } = options;
   const cache = useCache();
 
-  let settings = await readSettings() || {};
-  const imgPath = FileManager.local().joinPath(
-    cache.cacheDirectory,
-    'bg.png'
-  );
+  const settings = others.settings || await readSettings() || {};
+
+  /**
+   * @param {Parameters<Options['render']>[0]} param
+   */
+  const getWidget = async (param) => {
+    const widget = await render(param);
+    const { backgroundImage, backgroundColorLight, backgroundColorDark } = settings;
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      widget.backgroundImage = fm.readImage(backgroundImage);
+    }
+    if (!widget.backgroundColor || backgroundColorLight || backgroundColorDark) {
+      widget.backgroundColor = Color.dynamic(
+        new Color(backgroundColorLight || '#ffffff'),
+        new Color(backgroundColorDark || '#242426')
+      );
+    }
+    return widget
+  };
 
   if (config.runsInWidget) {
-    const widget = await render({ settings });
-    if (settings.backgroundImage) {
-      widget.backgroundImage = FileManager.local().readImage(imgPath);
-    }
+    const widget = await getWidget({ settings });
     Script.setWidget(widget);
     return widget
   }
@@ -606,6 +781,7 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .copyright {
   margin: 15px;
+  margin-inline: 18px;
   font-size: 12px;
   color: #86868b;
 }
@@ -638,33 +814,24 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
-}`;
+}
+`;
 
   const js =
 `(() => {
-  const settings = ${JSON.stringify(settings)}
+  const settings = ${JSON.stringify({
+    ...settings,
+    useICloud: isUseICloud()
+  })}
   const formItems = ${JSON.stringify(formItems)}
-  
-  window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+
+  window.invoke = (code, data, cb) => {
+    ScriptableBridge.invoke(code, data, cb)
   }
-  
-  const iCloudInput = document.querySelector('input[name="useICloud"]')
-  iCloudInput.checked = settings.useICloud
-  iCloudInput
-    .addEventListener('change', (e) => {
-      invoke('moveSettings', e.target.checked)
-    })
-  
+
   const formData = {};
 
-  const fragment = document.createDocumentFragment()
-  for (const item of formItems) {
+  const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
@@ -689,13 +856,29 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
-    } else if (item.type === 'cell') {
+    } else if (
+      item.type === 'cell' ||
+      item.type === 'page'
+    ) {
       label.classList.add('form-item--link')
       const icon = document.createElement('i')
       icon.className = 'iconfont icon-arrow_right'
       label.appendChild(icon)
       label.addEventListener('click', () => {
-        invoke('itemClick', item)
+        const { name } = item
+        switch (name) {
+          case 'backgroundImage':
+            invoke('chooseBgImg')
+            break
+          case 'clearBackgroundImage':
+            invoke('clearBgImg')
+            break
+          case 'reset':
+            reset()
+            break
+          default:
+            invoke('itemClick', item)
+        }
       })
     } else {
       const input = document.createElement("input")
@@ -709,6 +892,11 @@ input[type='checkbox'][role='switch']:checked::before {
         input.type = 'checkbox'
         input.role = 'switch'
         input.checked = value
+        if (item.name === 'useICloud') {
+          input.addEventListener('change', (e) => {
+            invoke('moveSettings', e.target.checked)
+          })
+        }
       }
       if (item.type === 'number') {
         input.inputMode = 'decimal'
@@ -727,9 +915,38 @@ input[type='checkbox'][role='switch']:checked::before {
       });
       label.appendChild(input);
     }
-    fragment.appendChild(label);
+    return label
   }
-  document.getElementById('form').appendChild(fragment)
+
+  const createList = (list, title) => {
+    const fragment = document.createDocumentFragment()
+
+    let elBody;
+    for (const item of list) {
+      if (item.type === 'group') {
+        const grouped = createList(item.items, item.label)
+        fragment.appendChild(grouped)
+      } else {
+        if (!elBody) {
+          const groupDiv = fragment.appendChild(document.createElement('div'))
+          groupDiv.className = 'list'
+          if (title) {
+            const elTitle = groupDiv.appendChild(document.createElement('div'))
+            elTitle.className = 'list__header'
+            elTitle.textContent = title
+          }
+          elBody = groupDiv.appendChild(document.createElement('div'))
+          elBody.className = 'list__body'
+        }
+        const label = createFormItem(item)
+        elBody.appendChild(label)
+      }
+    }
+    return fragment
+  }
+
+  const fragment = createList(formItems)
+  document.getElementById('settings').appendChild(fragment)
 
   for (const btn of document.querySelectorAll('.preview')) {
     btn.addEventListener('click', (e) => {
@@ -738,35 +955,39 @@ input[type='checkbox'][role='switch']:checked::before {
       const icon = e.currentTarget.querySelector('.iconfont')
       const className = icon.className
       icon.className = 'iconfont icon-loading'
-      const listener = (event) => {
-        const { code } = event.detail
-        if (code === 'previewStart') {
+      invoke(
+        'preview',
+        e.currentTarget.dataset.size,
+        () => {
           target.classList.remove('loading')
           icon.className = className
-          window.removeEventListener('JWeb', listener);
         }
-      }
-      window.addEventListener('JWeb', listener)
-      invoke('preview', e.currentTarget.dataset.size)
+      )
     })
   }
 
-  const reset = () => {
-    for (const item of formItems) {
-      const el = document.querySelector(\`.form-item__input[name="\${item.name}"]\`)
-      formData[item.name] = item.default
-      if (item.type === 'switch') {
-        el.checked = item.default
+  const setFieldValue = (name, value) => {
+    const input = document.querySelector(\`.form-item__input[name="\${name}"]\`)
+    if (!input) return
+    if (input.type === 'checkbox') {
+      input.checked = value
+    } else {
+      input.value = value
+    }
+  }
+
+  const reset = (items = formItems) => {
+    for (const item of items) {
+      if (item.type === 'group') {
+        reset(item.items)
+      } else if (item.type === 'page') {
+        continue;
       } else {
-        el && (el.value = item.default)
+        setFieldValue(item.name, item.default)
       }
     }
     invoke('removeSettings', formData)
   }
-  document.getElementById('reset').addEventListener('click', () => reset())
-
-  document.getElementById('chooseBgImg')
-    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`;
 
   const html =
@@ -777,141 +998,248 @@ input[type='checkbox'][role='switch']:checked::before {
     <style>${style}</style>
   </head>
   <body>
-  <div class="list">
-    <div class="list__header">${i18n(['Common', '通用'])}</div>
-    <form class="list__body" action="javascript:void(0);">
-      <label class="form-item">
-        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
-        <input name="useICloud" type="checkbox" role="switch">
-      </label>
-      <label id="chooseBgImg" class="form-item form-item--link">
-        <div>${i18n(['Background image', '背景图'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-      <label id='reset' class="form-item form-item--link">
-        <div>${i18n(['Reset', '重置'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-    </form>
-  </div>
-  <div class="list">
-    <div class="list__header">${i18n(['Settings', '设置'])}</div>
-    <form id="form" class="list__body" action="javascript:void(0);"></form>
-  </div>
-  <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
-  </div>
-  <footer>
-    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
-  </footer>
-    <script>${js}</script>
+  ${head || ''}
+  <section id="settings"></section>
+  ${isFirstPage ? (previewsHTML + copyrightHTML) : ''}
+  <script>${js}</script>
   </body>
 </html>`;
 
   const webView = new WebView();
-  await webView.loadHTML(html, homePage);
+  const methods = {
+    async preview (data) {
+      const widget = await getWidget({ settings, family: data });
+      widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
+    },
+    safari (data) {
+      Safari.openInApp(data, true);
+    },
+    changeSettings (data) {
+      Object.assign(settings, data);
+      writeSettings(settings, { useICloud: settings.useICloud });
+    },
+    moveSettings (data) {
+      settings.useICloud = data;
+      moveSettings(data, settings);
+    },
+    removeSettings (data) {
+      Object.assign(settings, data);
+      clearBgImg();
+      removeSettings(settings);
+    },
+    chooseBgImg (data) {
+      chooseBgImg();
+    },
+    clearBgImg () {
+      clearBgImg();
+    },
+    async itemClick (data) {
+      if (data.type === 'page') {
+        // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
+        const item = (() => {
+          const find = (items) => {
+            for (const el of items) {
+              if (el.name === data.name) return el
+
+              if (el.type === 'group') {
+                const r = find(el.items);
+                if (r) return r
+              }
+            }
+            return null
+          };
+          return find(formItems)
+        })();
+        await present(item, false, { settings });
+      } else {
+        await onItemClick?.(data, { settings });
+      }
+    },
+    native (data) {
+      onWebEvent?.(data);
+    }
+  };
+  await loadHTML(
+    webView,
+    { html, baseURL: homePage },
+    { methods }
+  );
 
   const clearBgImg = () => {
+    const { backgroundImage } = settings;
     delete settings.backgroundImage;
-    const fm = FileManager.local();
-    if (fm.fileExists(imgPath)) {
-      fm.remove(imgPath);
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      fm.remove(backgroundImage);
     }
+    writeSettings(settings, { useICloud: settings.useICloud });
+    toast(i18n(['Cleared success!', '背景已清除']));
   };
 
   const chooseBgImg = async () => {
-    const { option } = await presentSheet({
-      options: [
-        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
-        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
-      ],
-      cancelText: i18n(['Cancel', '取消'])
-    });
-    switch (option?.key) {
-      case 'choose': {
-        try {
-          const image = await Photos.fromLibrary();
-          cache.writeImage('bg.png', image);
-          settings.backgroundImage = imgPath;
-          writeSettings(settings, { useICloud: settings.useICloud });
-        } catch (e) {}
-        break
-      }
-      case 'clear':
-        clearBgImg();
-        writeSettings(settings, { useICloud: settings.useICloud });
-        break
+    try {
+      const image = await Photos.fromLibrary();
+      cache.writeImage('bg.png', image);
+      const imgPath = fm.joinPath(cache.cacheDirectory, 'bg.png');
+      settings.backgroundImage = imgPath;
+      writeSettings(settings, { useICloud: settings.useICloud });
+    } catch (e) {
+      console.log('[info] 用户取消选择图片');
     }
   };
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err);
-      throw err
-    });
-    const { code, data } = event;
-    switch (code) {
-      case 'preview': {
-        const widget = await render({ settings, family: data });
-        const { backgroundImage } = settings;
-        if (backgroundImage) {
-          widget.backgroundImage = FileManager.local().readImage(backgroundImage);
-        }
-        webView.evaluateJavaScript(
-          'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
-          false
-        );
-        widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
-        break
-      }
-      case 'safari':
-        Safari.openInApp(data, true);
-        break
-      case 'changeSettings':
-        settings = { ...settings, ...data };
-        writeSettings(settings, { useICloud: settings.useICloud });
-        break
-      case 'moveSettings':
-        settings.useICloud = data;
-        moveSettings(data, settings);
-        break
-      case 'removeSettings':
-        settings = { ...settings, ...data };
-        clearBgImg();
-        removeSettings(settings);
-        break
-      case 'chooseBgImg':
-        await chooseBgImg();
-        break
-      case 'itemClick':
-        await onItemClick?.(data);
-        break
-    }
-    injectListener();
-  };
-
-  injectListener().catch((e) => {
-    console.error(e);
-    throw e
-  });
   webView.present();
   // ======= web end =========
+};
+
+/**
+ * @param {Options} options
+ */
+const withSettings = async (options) => {
+  const { formItems, onItemClick, ...restOptions } = options;
+  return present({
+    formItems: [
+      {
+        label: i18n(['Common', '通用']),
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Sync with iCloud', 'iCloud 同步']),
+            type: 'switch',
+            name: 'useICloud',
+            default: false
+          },
+          {
+            label: i18n(['Background', '背景']),
+            type: 'page',
+            name: 'background',
+            formItems: [
+              {
+                label: i18n(['Background', '背景']),
+                type: 'group',
+                items: [
+                  {
+                    name: 'backgroundColorLight',
+                    type: 'color',
+                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    default: '#ffffff'
+                  },
+                  {
+                    name: 'backgroundColorDark',
+                    type: 'color',
+                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    default: '#242426'
+                  },
+                  {
+                    label: i18n(['Background image', '背景图']),
+                    type: 'cell',
+                    name: 'backgroundImage'
+                  }
+                ]
+              },
+              {
+                type: 'group',
+                items: [
+                  {
+                    label: i18n(['Clear background image', '清除背景图']),
+                    type: 'cell',
+                    name: 'clearBackgroundImage'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: i18n(['Reset', '重置']),
+            type: 'cell',
+            name: 'reset'
+          }
+        ]
+      },
+      {
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Export settings', '导出配置']),
+            type: 'cell',
+            name: 'export'
+          },
+          {
+            label: i18n(['Import settings', '导入配置']),
+            type: 'cell',
+            name: 'import'
+          }
+        ]
+      },
+      {
+        label: i18n(['Settings', '设置']),
+        type: 'group',
+        items: formItems
+      }
+    ],
+    onItemClick: (item, ...args) => {
+      const { name } = item;
+      if (name === 'export') {
+        exportSettings();
+      }
+      if (name === 'import') {
+        importSettings().catch((err) => {
+          console.error(err);
+          throw err
+        });
+      }
+      onItemClick?.(item, ...args);
+    },
+    ...restOptions
+  }, true)
+};
+
+/**
+ * @param {WidgetStack} stack
+ * @param {object} options
+ * @param {number} [options.column] column count
+ * @param {number | [number, number]} [options.gap]
+ * @param {'row' | 'column'} [options.direction]
+ */
+const useGrid = async (stack, options) => {
+  const {
+    column,
+    gap = 0,
+    direction = 'row'
+  } = options;
+  const [columnGap, rowGap] = typeof gap === 'number' ? [gap, gap] : gap;
+
+  if (direction === 'row') {
+    stack.layoutVertically();
+  } else {
+    stack.layoutHorizontally();
+  }
+
+  let i = -1;
+  const rows = [];
+
+  const add = async (fn) => {
+    i++;
+    const r = Math.floor(i / column);
+    if (i % column === 0) {
+      if (r > 0) {
+        stack.addSpacer(rowGap);
+      }
+      const rowStack = stack.addStack();
+      if (direction === 'row') {
+        rowStack.layoutHorizontally();
+      } else {
+        rowStack.layoutVertically();
+      }
+      rows.push(rowStack);
+    }
+
+    if (i % column > 0) {
+      rows[r].addSpacer(columnGap);
+    }
+    await fn(rows[r]);
+  };
+
+  return { add }
 };
 
 const paddingVertical = 10;
@@ -937,7 +1265,8 @@ const preference = {
   timeColor: '#666666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
-  gap: 8
+  gap: 8,
+  columns: '1'
 };
 
 /** 微博国际版页面 */
@@ -1012,15 +1341,19 @@ const getLogoImage = async () => {
 const createWidget = async ({ data, updatedAt }) => {
   const {
     fontSize,
-    timeColor,
     colorScheme,
     logoSize,
     padding,
-    gap
+    gap,
+    columns
   } = preference;
   const { widgetFamily } = config;
   const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily];
-  const height = heightPX / scale;
+  let height = heightPX / scale;
+  if (columns > 1) {
+    // 当列数大于 1 时 Logo 和时间占满一行
+    height -= logoSize;
+  }
   conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap));
   if (widgetFamily === 'small') {
     padding[1] = padding[3] = 6;
@@ -1038,32 +1371,38 @@ const createWidget = async ({ data, updatedAt }) => {
 
   const max = conf.count;
   const logoLines = logoSize ? Math.ceil((logoSize + gap) / (fontSize + gap)) : 0;
-  for (let i = 0; i < max; ++i) {
-    const item = data.data[i];
-    if (i === 0) {
-      const stack = widget.addStack();
-      await addItem(stack, item);
-      stack.addSpacer();
-      const textTime = stack.addText(`更新于 ${updatedAt}`);
-      textTime.font = Font.systemFont(fontSize * 0.7);
-      textTime.textColor = new Color(timeColor);
-    } else if (i < max - logoLines) {
-      await addItem(widget, item);
-    } else {
-      if (!widgetBottom) {
-        stackBottom = widget.addStack();
-        stackBottom.bottomAlignContent();
-        widgetBottom = stackBottom.addStack();
-        widgetBottom.layoutVertically();
-        addItem(widgetBottom, item);
+  if (columns > 1) {
+    await addLogoTime(widget, { time: updatedAt });
+    const stackItems = widget.addStack();
+    const { add } = await useGrid(stackItems, { column: columns });
+    for (let i = 0; i < max * columns; ++i) {
+      await add((stack) => addItem(stack, data.data[i]));
+    }
+  } else {
+    for (let i = 0; i < max; ++i) {
+      const item = data.data[i];
+      if (i === 0) {
+        const stack = widget.addStack();
+        await addItem(stack, item);
+        stack.addSpacer();
+        await addTime(stack, updatedAt);
+      } else if (i < max - logoLines) {
+        await addItem(widget, item);
       } else {
-        await addItem(widgetBottom, item);
-      }
-      widgetBottom.length = (widgetBottom.length || 0) + 1;
-      if (widgetBottom.length === logoLines) {
-        stackBottom.addSpacer();
-        const imageLogo = stackBottom.addImage(await getLogoImage());
-        imageLogo.imageSize = new Size(logoSize, logoSize);
+        if (!widgetBottom) {
+          stackBottom = widget.addStack();
+          stackBottom.bottomAlignContent();
+          widgetBottom = stackBottom.addStack();
+          widgetBottom.layoutVertically();
+          addItem(widgetBottom, item);
+        } else {
+          await addItem(widgetBottom, item);
+        }
+        widgetBottom.length = (widgetBottom.length || 0) + 1;
+        if (widgetBottom.length === logoLines) {
+          stackBottom.addSpacer();
+          await addLogo(stackBottom);
+        }
       }
     }
   }
@@ -1146,6 +1485,42 @@ const addItem = async (widget, item) => {
   stack.addSpacer();
 };
 
+/**
+ * @param {WidgetStack} container
+ */
+const addLogo = async (container) => {
+  const { logoSize } = preference;
+  const image = container.addImage(await getLogoImage());
+  image.imageSize = new Size(logoSize, logoSize);
+  return image
+};
+
+/**
+ * @param {WidgetStack} container
+ * @param {string} time
+ */
+const addTime = async (container, time) => {
+  const { fontSize, timeColor } = preference;
+  const textTime = container.addText(`更新于 ${time}`);
+  textTime.font = Font.systemFont(fontSize * 0.7);
+  textTime.textColor = new Color(timeColor);
+  return textTime
+};
+
+/**
+ * @param {WidgetStack} container
+ * @param {object} data
+ * @param {string} data.time
+ */
+const addLogoTime = async (container, { time }) => {
+  const stack = container.addStack();
+  stack.centerAlignContent();
+  await addLogo(stack);
+  stack.addSpacer();
+  await addTime(stack, time);
+  return stack
+};
+
 const main = async () => {
   const data = await fetchData();
 
@@ -1209,6 +1584,17 @@ const main = async () => {
         label: i18n(['Logo size (0: hidden)', 'Logo 大小（0：隐藏）']),
         type: 'number',
         default: preference.logoSize
+      },
+      {
+        name: 'columns',
+        label: i18n(['Column count', '列数']),
+        type: 'select',
+        options: [
+          { label: '1', value: '1' },
+          { label: '2', value: '2' },
+          { label: '3', value: '3' }
+        ],
+        default: preference.columns
       }
     ],
     render: async ({ family, settings }) => {

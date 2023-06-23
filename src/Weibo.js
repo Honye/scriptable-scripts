@@ -1,6 +1,7 @@
 if (typeof require === 'undefined') require = importModule
 const { phoneSize, getImage, useCache, hashCode, i18n } = require('./utils.module')
-const { withSettings } = importModule('withSettings.module')
+const { withSettings } = require('./withSettings.module')
+const { useGrid } = require('./widgets.module')
 
 const paddingVertical = 10
 const themes = {
@@ -25,7 +26,8 @@ const preference = {
   timeColor: '#666666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
-  gap: 8
+  gap: 8,
+  columns: '1'
 }
 
 /** 微博国际版页面 */
@@ -100,15 +102,19 @@ const getLogoImage = async () => {
 const createWidget = async ({ data, updatedAt }) => {
   const {
     fontSize,
-    timeColor,
     colorScheme,
     logoSize,
     padding,
-    gap
+    gap,
+    columns
   } = preference
   const { widgetFamily } = config
   const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily]
-  const height = heightPX / scale
+  let height = heightPX / scale
+  if (columns > 1) {
+    // 当列数大于 1 时 Logo 和时间占满一行
+    height -= logoSize
+  }
   conf.count = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
   if (widgetFamily === 'small') {
     padding[1] = padding[3] = 6
@@ -126,32 +132,38 @@ const createWidget = async ({ data, updatedAt }) => {
 
   const max = conf.count
   const logoLines = logoSize ? Math.ceil((logoSize + gap) / (fontSize + gap)) : 0
-  for (let i = 0; i < max; ++i) {
-    const item = data.data[i]
-    if (i === 0) {
-      const stack = widget.addStack()
-      await addItem(stack, item)
-      stack.addSpacer()
-      const textTime = stack.addText(`更新于 ${updatedAt}`)
-      textTime.font = Font.systemFont(fontSize * 0.7)
-      textTime.textColor = new Color(timeColor)
-    } else if (i < max - logoLines) {
-      await addItem(widget, item)
-    } else {
-      if (!widgetBottom) {
-        stackBottom = widget.addStack()
-        stackBottom.bottomAlignContent()
-        widgetBottom = stackBottom.addStack()
-        widgetBottom.layoutVertically()
-        addItem(widgetBottom, item)
+  if (columns > 1) {
+    await addLogoTime(widget, { time: updatedAt })
+    const stackItems = widget.addStack()
+    const { add } = await useGrid(stackItems, { column: columns })
+    for (let i = 0; i < max * columns; ++i) {
+      await add((stack) => addItem(stack, data.data[i]))
+    }
+  } else {
+    for (let i = 0; i < max; ++i) {
+      const item = data.data[i]
+      if (i === 0) {
+        const stack = widget.addStack()
+        await addItem(stack, item)
+        stack.addSpacer()
+        await addTime(stack, updatedAt)
+      } else if (i < max - logoLines) {
+        await addItem(widget, item)
       } else {
-        await addItem(widgetBottom, item)
-      }
-      widgetBottom.length = (widgetBottom.length || 0) + 1
-      if (widgetBottom.length === logoLines) {
-        stackBottom.addSpacer()
-        const imageLogo = stackBottom.addImage(await getLogoImage())
-        imageLogo.imageSize = new Size(logoSize, logoSize)
+        if (!widgetBottom) {
+          stackBottom = widget.addStack()
+          stackBottom.bottomAlignContent()
+          widgetBottom = stackBottom.addStack()
+          widgetBottom.layoutVertically()
+          addItem(widgetBottom, item)
+        } else {
+          await addItem(widgetBottom, item)
+        }
+        widgetBottom.length = (widgetBottom.length || 0) + 1
+        if (widgetBottom.length === logoLines) {
+          stackBottom.addSpacer()
+          await addLogo(stackBottom)
+        }
       }
     }
   }
@@ -234,6 +246,42 @@ const addItem = async (widget, item) => {
   stack.addSpacer()
 }
 
+/**
+ * @param {WidgetStack} container
+ */
+const addLogo = async (container) => {
+  const { logoSize } = preference
+  const image = container.addImage(await getLogoImage())
+  image.imageSize = new Size(logoSize, logoSize)
+  return image
+}
+
+/**
+ * @param {WidgetStack} container
+ * @param {string} time
+ */
+const addTime = async (container, time) => {
+  const { fontSize, timeColor } = preference
+  const textTime = container.addText(`更新于 ${time}`)
+  textTime.font = Font.systemFont(fontSize * 0.7)
+  textTime.textColor = new Color(timeColor)
+  return textTime
+}
+
+/**
+ * @param {WidgetStack} container
+ * @param {object} data
+ * @param {string} data.time
+ */
+const addLogoTime = async (container, { time }) => {
+  const stack = container.addStack()
+  stack.centerAlignContent()
+  await addLogo(stack)
+  stack.addSpacer()
+  await addTime(stack, time)
+  return stack
+}
+
 const main = async () => {
   const data = await fetchData()
 
@@ -297,6 +345,17 @@ const main = async () => {
         label: i18n(['Logo size (0: hidden)', 'Logo 大小（0：隐藏）']),
         type: 'number',
         default: preference.logoSize
+      },
+      {
+        name: 'columns',
+        label: i18n(['Column count', '列数']),
+        type: 'select',
+        options: [
+          { label: '1', value: '1' },
+          { label: '2', value: '2' },
+          { label: '3', value: '3' }
+        ],
+        default: preference.columns
       }
     ],
     render: async ({ family, settings }) => {

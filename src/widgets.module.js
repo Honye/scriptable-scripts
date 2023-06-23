@@ -16,7 +16,7 @@ module.exports.addAvatar = async (stack, options) => {
 }
 
 /**
- * @param {ListWidget | WidgetStack} stack
+ * @param {WidgetStack} stack
  * @param {object} options
  * @param {number} [options.column] column count
  * @param {number | [number, number]} [options.gap]
