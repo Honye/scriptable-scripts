@@ -1,0 +1,12 @@
+{
+  "name": "Image Uploader",
+  "version": "1.0.0",
+  "setting": {
+    "icon-glyph": "images",
+    "icon-color": "blue",
+    "share-sheet-inputs": [
+      "file-url",
+      "image"
+    ]
+  }
+}
