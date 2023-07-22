@@ -7,7 +7,7 @@
  * - Only support small and medium
  * - Tap widget to open the movie web page
  *
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -127,6 +127,9 @@ const widgetRating = async (widget, data) => {
 
 const getImage = async (url) => {
   const request = new Request(url);
+  request.headers = {
+    'User-Agent': 'FRDMoonWidgetExtension/8.0.0 (iPhone; iOS 16.5.1; Scale/2.00)'
+  };
   const image = await request.loadImage();
   return image
 };

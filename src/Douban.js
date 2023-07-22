@@ -115,6 +115,9 @@ const widgetRating = async (widget, data) => {
 
 const getImage = async (url) => {
   const request = new Request(url)
+  request.headers = {
+    'User-Agent': 'FRDMoonWidgetExtension/8.0.0 (iPhone; iOS 16.5.1; Scale/2.00)'
+  }
   const image = await request.loadImage()
   return image
 }
