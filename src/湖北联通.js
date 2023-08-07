@@ -1,21 +1,16 @@
 if (typeof require === 'undefined') require = importModule
 const { withSettings } = require('./withSettings.module')
-const { getImage, i18n, useCache, isToday } = require('./utils.module')
+const { getImage, i18n, useCache } = require('./utils.module')
 
 let conf = {
   /** wap.10010hb.net */
-  Authorization: '',
-  /** act.10010.com API cookie  */
-  actionCookie: ''
+  Authorization: ''
 }
 const preference = {
   textColorLight: '#222222',
-  textColorDark: '#ffffff',
-  /** 签到时间 */
-  checkInAfter: '12:12',
-  disabledCheckIn: false
+  textColorDark: '#ffffff'
 }
-if (!conf.actionCookie) {
+if (!conf.Authorization) {
   try {
     conf = importModule/* ignore */('Config')['10010']()
   } catch (e) {
@@ -23,7 +18,6 @@ if (!conf.actionCookie) {
   }
 }
 const cache = useCache()
-const Cookie = conf.actionCookie
 const ringStackSize = 61 // 圆环大小
 const ringTextSize = 14 // 圆环中心文字大小
 const creditTextSize = 21 // 话费文本大小
@@ -51,27 +45,15 @@ const hbHeaders = {
 }
 
 const createWidget = async () => {
-  const { disabledCheckIn } = preference
   const data = await getData()
   const { balenceData, flowData, voiceData, _state } = data
-  let signState = 1
-  if (!disabledCheckIn && Cookie) {
-    const { state } = await daySign().catch((e) => {
-      return { state: -1 }
-    })
-    signState = state
-  }
   const widget = new ListWidget()
   widget.setPadding(16, 16, 16, 16)
   widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'))
 
   const status = _state === 'expired'
     ? 'failed' // 余额信息请求失败，检查授权信息是否有效
-    : signState === -1
-      ? 'warning' // 签到失败，检查 act.10010.com Cookie 是否有效
-      : signState === 0
-        ? 'waiting' // 等待签到
-        : 'success' // 一切正常并已签到
+    : 'success'
   addStatusDot(widget, status)
   await addLogo(widget, status)
   await renderBalance(widget, balenceData.amount)
@@ -220,47 +202,6 @@ function drawArc (deg, fillColor, strokeColor) {
 }
 
 /**
- * 每日签到
- * @returns {Promise<{ state: 0 | 1 }>}
- */
-const daySign = async () => {
-  const cachePath = 'daySign.json'
-  const cacheSignData = cache.readJSON(cachePath)
-  const { at } = cacheSignData || {}
-  const signed = at && isToday(new Date(at))
-  // 已签到
-  if (signed) return cacheSignData
-
-  const { checkInAfter } = preference
-  const checkInDate = new Date()
-  checkInDate.setHours(...(checkInAfter.split(':')))
-  // 未到用户设置的最早签到时间
-  if (Date.now() < checkInDate.getTime()) {
-    return { state: 0 }
-  }
-
-  const url = 'https://act.10010.com/SigninApp/signin/daySign'
-  const req = new Request(url)
-  req.headers = {
-    'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0',
-    cookie: Cookie,
-    Host: 'act.10010.com'
-  }
-  const data = await req.loadJSON()
-  if (data.status === '0000' || (data.msg || '').includes('已经签到')) {
-    cache.writeJSON(cachePath, {
-      ...data,
-      at: new Date().toISOString(),
-      state: 1
-    })
-    return data
-  }
-  console.warn(`[${Script.name()}]: 签到失败`)
-  console.warn(data)
-  return Promise.reject(data.msg)
-}
-
-/**
  * 湖北联通余额
  * @returns {{ amount: string }}
  */
@@ -343,18 +284,6 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
-    },
-    {
-      name: 'checkInAfter',
-      label: i18n(['Check in after time', '最早签到时间']),
-      type: 'time',
-      default: preference.checkInAfter
-    },
-    {
-      name: 'disabledCheckIn',
-      label: i18n(['Disabled check in', '禁用签到']),
-      type: 'switch',
-      default: preference.disabledCheckIn
     }
   ],
   render: async ({ settings }) => {

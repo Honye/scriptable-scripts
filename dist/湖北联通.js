@@ -2,48 +2,11 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: mobile-alt; icon-color: red;
 /**
- * 湖北联通信息展示和自动签到
+ * 湖北联通余额信息展示
  *
- * @version 1.0.0
+ * @version 1.1.0
  * @author Honye
  */
-
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-const presentSheet = async (options) => {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return {
-    value,
-    option: options.options[value]
-  }
-};
 
 /**
  * 多语言国际化
@@ -72,25 +35,6 @@ const getImage = async (url) => {
   const image = await request.loadImage();
   return image
 };
-
-/**
- * 是否同一天
- * @param {string|number|Date} a
- * @param {string|number|Date} b
- */
-const isSameDay = (a, b) => {
-  const leftDate = new Date(a);
-  leftDate.setHours(0);
-  const rightDate = new Date(b);
-  rightDate.setHours(0);
-  return Math.abs(leftDate - rightDate) < 3600000
-};
-
-/**
- * 是否是今天
- * @param {string|number|Date} date
- */
-const isToday = (date) => isSameDay(new Date(), date);
 
 /**
  * @param {...string} paths
@@ -200,6 +144,105 @@ const useFileManager = (options = {}) => {
 const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
+ * @file Scriptable WebView JSBridge native SDK
+ * @version 1.1.0-beta
+ * @author Honye
+ */
+
+/**
+ * @param {WebView} webView
+ * @param {*} options
+ */
+const inject = async (webView, options) => {
+  /**
+   * @param {string} code
+   * @param {*} data
+   */
+  const sendResult = async (code, data) => {
+    const eventName = `ScriptableBridge_${code}_Result`;
+    try {
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(data)} }
+          )
+        )`
+      );
+    } catch (e) {
+      console.error('[native] sendResult error:');
+      console.error(e);
+    }
+  };
+
+  const js =
+`(() => {
+  const queue = window.__scriptable_bridge_queue
+  if (queue && queue.length) {
+    completion(queue)
+  }
+  window.__scriptable_bridge_queue = null
+
+  if (!window.ScriptableBridge) {
+    window.ScriptableBridge = {
+      invoke(name, data, callback) {
+        const detail = { code: name, data }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
+        const controller = new AbortController()
+        window.addEventListener(
+          eventName,
+          (e) => {
+            callback && callback(e.detail)
+            controller.abort()
+          },
+          { signal: controller.signal }
+        )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
+      }
+    }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
+  }
+})()`;
+
+  const res = await webView.evaluateJavaScript(js, true);
+  if (!res) return inject(webView, options)
+
+  const methods = options.methods || {};
+  const events = Array.isArray(res) ? res : [res];
+  for (const { code, data } of events) {
+    // TODO 同时执行多次 webView.evaluateJavaScript 存在问题
+    // ;(async () => {
+    //   sendResult(code, await methods[code]?.(data))
+    // })()
+    await sendResult(code, await methods[code]?.(data));
+  }
+  inject(webView, options);
+};
+
+/**
+ * @param {WebView} webView
+ * @param {object} args
+ * @param {string} args.html
+ * @param {string} [args.baseURL]
+ * @param {*} options
+ */
+const loadHTML = async (webView, args, options = {}) => {
+  const { html, baseURL } = args;
+  await webView.loadHTML(html, baseURL);
+  inject(webView, options).catch((err) => console.error(err));
+};
+
+/**
  * 轻松实现桌面组件可视化配置
  *
  * - 颜色选择器及更多表单控件
@@ -207,26 +250,85 @@ const useCache = () => useFileManager({ basePath: 'cache' });
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.1
+ * @version 1.4.2
  * @author Honye
  */
+const fm = FileManager.local();
+const fileName = 'settings.json';
+
+const toast = (message) => {
+  const notification = new Notification();
+  notification.title = Script.name();
+  notification.body = message;
+  notification.schedule();
+};
+
+const isUseICloud = () => {
+  const ifm = useFileManager({ useICloud: true });
+  const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
+  return fm.fileExists(filePath)
+};
+
+/** 查看配置文件可导出分享 */
+const exportSettings = () => {
+  const scopedFM = useFileManager({ useICloud: isUseICloud() });
+  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+  if (fm.isFileStoredIniCloud(filePath)) {
+    fm.downloadFileFromiCloud(filePath);
+  }
+  if (fm.fileExists(filePath)) {
+    QuickLook.present(filePath);
+  } else {
+    const alert = new Alert();
+    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
+    alert.addCancelAction(i18n(['OK', '好的']));
+    alert.present();
+  }
+};
+
+const importSettings = async () => {
+  const alert1 = new Alert();
+  alert1.message = i18n([
+    'Will replace existing configuration',
+    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
+  ]);
+  alert1.addAction(i18n(['Import', '导入']));
+  alert1.addCancelAction(i18n(['Cancel', '取消']));
+  const i = await alert1.present();
+  if (i === -1) return
+
+  const pathList = await DocumentPicker.open(['public.json']);
+  for (const path of pathList) {
+    const fileName = fm.fileName(path, true);
+    const scopedFM = useFileManager({ useICloud: isUseICloud() });
+    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+    if (fm.fileExists(destPath)) {
+      fm.remove(destPath);
+    }
+    const i = destPath.lastIndexOf('/');
+    const directory = destPath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+    fm.copy(path, destPath);
+  }
+  const alert = new Alert();
+  alert.message = i18n(['Imported success', '导入成功']);
+  alert.addAction(i18n(['Restart', '重新运行']));
+  await alert.present();
+  const callback = new CallbackURL('scriptable:///run');
+  callback.addParameter('scriptName', Script.name());
+  callback.open();
+};
 
 /**
  * @returns {Promise<Settings>}
  */
 const readSettings = async () => {
-  const localFM = useFileManager();
-  let settings = localFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use local settings');
-    return settings
-  }
-
-  const iCloudFM = useFileManager({ useICloud: true });
-  settings = iCloudFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use iCloud settings');
-  }
+  const useICloud = isUseICloud();
+  console.log(`[info] use ${useICloud ? 'iCloud' : 'local'} settings`);
+  const fm = useFileManager({ useICloud });
+  const settings = fm.readJSON(fileName);
   return settings
 };
 
@@ -236,16 +338,13 @@ const readSettings = async () => {
  */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useFileManager({ useICloud });
-  fm.writeJSON('settings.json', data);
+  fm.writeJSON(fileName, data);
 };
 
 const removeSettings = async (settings) => {
   const cache = useFileManager({ useICloud: settings.useICloud });
-  FileManager.local().remove(
-    FileManager.local().joinPath(
-      cache.cacheDirectory,
-      'settings.json'
-    )
+  fm.remove(
+    fm.joinPath(cache.cacheDirectory, fileName)
   );
 };
 
@@ -253,21 +352,16 @@ const moveSettings = (useICloud, data) => {
   const localFM = useFileManager();
   const iCloudFM = useFileManager({ useICloud: true });
   const [i, l] = [
-    FileManager.local().joinPath(
-      iCloudFM.cacheDirectory,
-      'settings.json'
-    ),
-    FileManager.local().joinPath(
-      localFM.cacheDirectory,
-      'settings.json'
-    )
+    fm.joinPath(iCloudFM.cacheDirectory, fileName),
+    fm.joinPath(localFM.cacheDirectory, fileName)
   ];
   try {
+    // 移动文件需要创建父文件夹，写入操作会自动创建文件夹
     writeSettings(data, { useICloud });
     if (useICloud) {
-      FileManager.local().remove(l);
+      if (fm.fileExists(l)) fm.remove(l);
     } else {
-      FileManager.iCloud().remove(i);
+      if (fm.fileExists(i)) fm.remove(i);
     }
   } catch (e) {
     console.error(e);
@@ -275,49 +369,103 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
- * @typedef {object} FormItem
+ * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {string} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ *  - HTML <input> type 属性
+ *  - `'cell'`: 可点击的
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
 /**
- * @typedef {Record<string, unknown>} Settings
- * @property {boolean} useICloud
- * @property {string} [backgroundImage]
+ * @typedef {Pick<NormalFormItem, 'label'|'name'> & { type: 'group', items: FormItem[] }} GroupFormItem
  */
 /**
- * @param {object} options
- * @param {FormItem[]} [options.formItems]
- * @param {(data: {
- *  settings: Settings;
- *  family?: 'small'|'medium'|'large';
- * }) => Promise<ListWidget>} options.render
- * @param {string} [options.homePage]
- * @param {(item: FormItem) => void} [options.onItemClick]
- * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
+ * @typedef {Omit<NormalFormItem, 'type'> & { type: 'page' } & Pick<Options, 'formItems'|'onItemClick'>} PageFormItem 单独的页面
  */
-const withSettings = async (options) => {
+/**
+ * @typedef {NormalFormItem|GroupFormItem|PageFormItem} FormItem
+ */
+/**
+ * @typedef {object} CommonSettings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage] 背景图路径
+ * @property {string} [backgroundColorLight]
+ * @property {string} [backgroundColorDark]
+ */
+/**
+ * @typedef {CommonSettings & Record<string, unknown>} Settings
+ */
+/**
+ * @typedef {object} Options
+ * @property {(data: {
+ *  settings: Settings;
+ *  family?: typeof config.widgetFamily;
+ * }) => ListWidget | Promise<ListWidget>} render
+ * @property {string} [head] 顶部插入 HTML
+ * @property {FormItem[]} [formItems]
+ * @property {(item: FormItem) => void} [onItemClick]
+ * @property {string} [homePage] 右上角分享菜单地址
+ * @property {(data: any) => void} [onWebEvent]
+ */
+/**
+ * @template T
+ * @typedef {T extends infer O ? {[K in keyof O]: O[K]} : never} Expand
+ */
+
+const previewsHTML =
+`<div class="actions">
+  <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+  <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+  <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
+</div>`;
+
+const copyrightHTML =
+`<footer>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+</footer>`;
+
+/**
+ * @param {Expand<Options>} options
+ * @param {boolean} [isFirstPage]
+ * @param {object} [others]
+ * @param {Settings} [others.settings]
+ * @returns {Promise<ListWidget|undefined>} 仅在 Widget 中运行时返回 ListWidget
+ */
+const present = async (options, isFirstPage, others = {}) => {
   const {
     formItems = [],
     onItemClick,
     render,
-    homePage = 'https://www.imarkr.com'
+    head,
+    homePage = 'https://www.imarkr.com',
+    onWebEvent
   } = options;
   const cache = useCache();
 
-  let settings = await readSettings() || {};
-  const imgPath = FileManager.local().joinPath(
-    cache.cacheDirectory,
-    'bg.png'
-  );
+  const settings = others.settings || await readSettings() || {};
+
+  /**
+   * @param {Parameters<Options['render']>[0]} param
+   */
+  const getWidget = async (param) => {
+    const widget = await render(param);
+    const { backgroundImage, backgroundColorLight, backgroundColorDark } = settings;
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      widget.backgroundImage = fm.readImage(backgroundImage);
+    }
+    if (!widget.backgroundColor || backgroundColorLight || backgroundColorDark) {
+      widget.backgroundColor = Color.dynamic(
+        new Color(backgroundColorLight || '#ffffff'),
+        new Color(backgroundColorDark || '#242426')
+      );
+    }
+    return widget
+  };
 
   if (config.runsInWidget) {
-    const widget = await render({ settings });
-    if (settings.backgroundImage) {
-      widget.backgroundImage = FileManager.local().readImage(imgPath);
-    }
+    const widget = await getWidget({ settings });
     Script.setWidget(widget);
     return widget
   }
@@ -444,6 +592,7 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .copyright {
   margin: 15px;
+  margin-inline: 18px;
   font-size: 12px;
   color: #86868b;
 }
@@ -476,33 +625,24 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
-}`;
+}
+`;
 
   const js =
 `(() => {
-  const settings = JSON.parse('${JSON.stringify(settings)}')
-  const formItems = JSON.parse('${JSON.stringify(formItems)}')
-  
-  window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+  const settings = ${JSON.stringify({
+    ...settings,
+    useICloud: isUseICloud()
+  })}
+  const formItems = ${JSON.stringify(formItems)}
+
+  window.invoke = (code, data, cb) => {
+    ScriptableBridge.invoke(code, data, cb)
   }
-  
-  const iCloudInput = document.querySelector('input[name="useICloud"]')
-  iCloudInput.checked = settings.useICloud
-  iCloudInput
-    .addEventListener('change', (e) => {
-      invoke('moveSettings', e.target.checked)
-    })
-  
+
   const formData = {};
 
-  const fragment = document.createDocumentFragment()
-  for (const item of formItems) {
+  const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
@@ -527,13 +667,29 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
-    } else if (item.type === 'cell') {
+    } else if (
+      item.type === 'cell' ||
+      item.type === 'page'
+    ) {
       label.classList.add('form-item--link')
       const icon = document.createElement('i')
       icon.className = 'iconfont icon-arrow_right'
       label.appendChild(icon)
       label.addEventListener('click', () => {
-        invoke('itemClick', item)
+        const { name } = item
+        switch (name) {
+          case 'backgroundImage':
+            invoke('chooseBgImg')
+            break
+          case 'clearBackgroundImage':
+            invoke('clearBgImg')
+            break
+          case 'reset':
+            reset()
+            break
+          default:
+            invoke('itemClick', item)
+        }
       })
     } else {
       const input = document.createElement("input")
@@ -547,6 +703,11 @@ input[type='checkbox'][role='switch']:checked::before {
         input.type = 'checkbox'
         input.role = 'switch'
         input.checked = value
+        if (item.name === 'useICloud') {
+          input.addEventListener('change', (e) => {
+            invoke('moveSettings', e.target.checked)
+          })
+        }
       }
       if (item.type === 'number') {
         input.inputMode = 'decimal'
@@ -565,9 +726,38 @@ input[type='checkbox'][role='switch']:checked::before {
       });
       label.appendChild(input);
     }
-    fragment.appendChild(label);
+    return label
   }
-  document.getElementById('form').appendChild(fragment)
+
+  const createList = (list, title) => {
+    const fragment = document.createDocumentFragment()
+
+    let elBody;
+    for (const item of list) {
+      if (item.type === 'group') {
+        const grouped = createList(item.items, item.label)
+        fragment.appendChild(grouped)
+      } else {
+        if (!elBody) {
+          const groupDiv = fragment.appendChild(document.createElement('div'))
+          groupDiv.className = 'list'
+          if (title) {
+            const elTitle = groupDiv.appendChild(document.createElement('div'))
+            elTitle.className = 'list__header'
+            elTitle.textContent = title
+          }
+          elBody = groupDiv.appendChild(document.createElement('div'))
+          elBody.className = 'list__body'
+        }
+        const label = createFormItem(item)
+        elBody.appendChild(label)
+      }
+    }
+    return fragment
+  }
+
+  const fragment = createList(formItems)
+  document.getElementById('settings').appendChild(fragment)
 
   for (const btn of document.querySelectorAll('.preview')) {
     btn.addEventListener('click', (e) => {
@@ -576,35 +766,39 @@ input[type='checkbox'][role='switch']:checked::before {
       const icon = e.currentTarget.querySelector('.iconfont')
       const className = icon.className
       icon.className = 'iconfont icon-loading'
-      const listener = (event) => {
-        const { code } = event.detail
-        if (code === 'previewStart') {
+      invoke(
+        'preview',
+        e.currentTarget.dataset.size,
+        () => {
           target.classList.remove('loading')
           icon.className = className
-          window.removeEventListener('JWeb', listener);
         }
-      }
-      window.addEventListener('JWeb', listener)
-      invoke('preview', e.currentTarget.dataset.size)
+      )
     })
   }
 
-  const reset = () => {
-    for (const item of formItems) {
-      const el = document.querySelector(\`.form-item__input[name="\${item.name}"]\`)
-      formData[item.name] = item.default
-      if (item.type === 'switch') {
-        el.checked = item.default
+  const setFieldValue = (name, value) => {
+    const input = document.querySelector(\`.form-item__input[name="\${name}"]\`)
+    if (!input) return
+    if (input.type === 'checkbox') {
+      input.checked = value
+    } else {
+      input.value = value
+    }
+  }
+
+  const reset = (items = formItems) => {
+    for (const item of items) {
+      if (item.type === 'group') {
+        reset(item.items)
+      } else if (item.type === 'page') {
+        continue;
       } else {
-        el && (el.value = item.default)
+        setFieldValue(item.name, item.default)
       }
     }
     invoke('removeSettings', formData)
   }
-  document.getElementById('reset').addEventListener('click', () => reset())
-
-  document.getElementById('chooseBgImg')
-    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`;
 
   const html =
@@ -615,159 +809,210 @@ input[type='checkbox'][role='switch']:checked::before {
     <style>${style}</style>
   </head>
   <body>
-  <div class="list">
-    <div class="list__header">${i18n(['Common', '通用'])}</div>
-    <form class="list__body" action="javascript:void(0);">
-      <label class="form-item">
-        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
-        <input name="useICloud" type="checkbox" role="switch">
-      </label>
-      <label id="chooseBgImg" class="form-item form-item--link">
-        <div>${i18n(['Background image', '背景图'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-      <label id='reset' class="form-item form-item--link">
-        <div>${i18n(['Reset', '重置'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-    </form>
-  </div>
-  <div class="list">
-    <div class="list__header">${i18n(['Settings', '设置'])}</div>
-    <form id="form" class="list__body" action="javascript:void(0);"></form>
-  </div>
-  <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
-  </div>
-  <footer>
-    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
-  </footer>
-    <script>${js}</script>
+  ${head || ''}
+  <section id="settings"></section>
+  ${isFirstPage ? (previewsHTML + copyrightHTML) : ''}
+  <script>${js}</script>
   </body>
 </html>`;
 
   const webView = new WebView();
-  await webView.loadHTML(html, homePage);
+  const methods = {
+    async preview (data) {
+      const widget = await getWidget({ settings, family: data });
+      widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
+    },
+    safari (data) {
+      Safari.openInApp(data, true);
+    },
+    changeSettings (data) {
+      Object.assign(settings, data);
+      writeSettings(settings, { useICloud: settings.useICloud });
+    },
+    moveSettings (data) {
+      settings.useICloud = data;
+      moveSettings(data, settings);
+    },
+    removeSettings (data) {
+      Object.assign(settings, data);
+      clearBgImg();
+      removeSettings(settings);
+    },
+    chooseBgImg (data) {
+      chooseBgImg();
+    },
+    clearBgImg () {
+      clearBgImg();
+    },
+    async itemClick (data) {
+      if (data.type === 'page') {
+        // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
+        const item = (() => {
+          const find = (items) => {
+            for (const el of items) {
+              if (el.name === data.name) return el
+
+              if (el.type === 'group') {
+                const r = find(el.items);
+                if (r) return r
+              }
+            }
+            return null
+          };
+          return find(formItems)
+        })();
+        await present(item, false, { settings });
+      } else {
+        await onItemClick?.(data, { settings });
+      }
+    },
+    native (data) {
+      onWebEvent?.(data);
+    }
+  };
+  await loadHTML(
+    webView,
+    { html, baseURL: homePage },
+    { methods }
+  );
 
   const clearBgImg = () => {
+    const { backgroundImage } = settings;
     delete settings.backgroundImage;
-    const fm = FileManager.local();
-    if (fm.fileExists(imgPath)) {
-      fm.remove(imgPath);
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      fm.remove(backgroundImage);
     }
+    writeSettings(settings, { useICloud: settings.useICloud });
+    toast(i18n(['Cleared success!', '背景已清除']));
   };
 
   const chooseBgImg = async () => {
-    const { option } = await presentSheet({
-      options: [
-        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
-        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
-      ],
-      cancelText: i18n(['Cancel', '取消'])
-    });
-    switch (option?.key) {
-      case 'choose': {
-        try {
-          const image = await Photos.fromLibrary();
-          cache.writeImage('bg.png', image);
-          settings.backgroundImage = imgPath;
-          writeSettings(settings, { useICloud: settings.useICloud });
-        } catch (e) {}
-        break
-      }
-      case 'clear':
-        clearBgImg();
-        writeSettings(settings, { useICloud: settings.useICloud });
-        break
+    try {
+      const image = await Photos.fromLibrary();
+      cache.writeImage('bg.png', image);
+      const imgPath = fm.joinPath(cache.cacheDirectory, 'bg.png');
+      settings.backgroundImage = imgPath;
+      writeSettings(settings, { useICloud: settings.useICloud });
+    } catch (e) {
+      console.log('[info] 用户取消选择图片');
     }
   };
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err);
-      throw err
-    });
-    const { code, data } = event;
-    switch (code) {
-      case 'preview': {
-        const widget = await render({ settings, family: data });
-        const { backgroundImage } = settings;
-        if (backgroundImage) {
-          widget.backgroundImage = FileManager.local().readImage(backgroundImage);
-        }
-        webView.evaluateJavaScript(
-          'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
-          false
-        );
-        widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
-        break
-      }
-      case 'safari':
-        Safari.openInApp(data, true);
-        break
-      case 'changeSettings':
-        settings = { ...settings, ...data };
-        writeSettings(data, { useICloud: settings.useICloud });
-        break
-      case 'moveSettings':
-        settings.useICloud = data;
-        moveSettings(data, settings);
-        break
-      case 'removeSettings':
-        settings = { ...settings, ...data };
-        clearBgImg();
-        removeSettings(settings);
-        break
-      case 'chooseBgImg':
-        await chooseBgImg();
-        break
-      case 'itemClick':
-        onItemClick?.(data);
-        break
-    }
-    injectListener();
-  };
-
-  injectListener().catch((e) => {
-    console.error(e);
-    throw e
-  });
   webView.present();
   // ======= web end =========
 };
 
-if (typeof require === 'undefined') require = importModule;
+/**
+ * @param {Options} options
+ */
+const withSettings = async (options) => {
+  const { formItems, onItemClick, ...restOptions } = options;
+  return present({
+    formItems: [
+      {
+        label: i18n(['Common', '通用']),
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Sync with iCloud', 'iCloud 同步']),
+            type: 'switch',
+            name: 'useICloud',
+            default: false
+          },
+          {
+            label: i18n(['Background', '背景']),
+            type: 'page',
+            name: 'background',
+            formItems: [
+              {
+                label: i18n(['Background', '背景']),
+                type: 'group',
+                items: [
+                  {
+                    name: 'backgroundColorLight',
+                    type: 'color',
+                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    default: '#ffffff'
+                  },
+                  {
+                    name: 'backgroundColorDark',
+                    type: 'color',
+                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    default: '#242426'
+                  },
+                  {
+                    label: i18n(['Background image', '背景图']),
+                    type: 'cell',
+                    name: 'backgroundImage'
+                  }
+                ]
+              },
+              {
+                type: 'group',
+                items: [
+                  {
+                    label: i18n(['Clear background image', '清除背景图']),
+                    type: 'cell',
+                    name: 'clearBackgroundImage'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: i18n(['Reset', '重置']),
+            type: 'cell',
+            name: 'reset'
+          }
+        ]
+      },
+      {
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Export settings', '导出配置']),
+            type: 'cell',
+            name: 'export'
+          },
+          {
+            label: i18n(['Import settings', '导入配置']),
+            type: 'cell',
+            name: 'import'
+          }
+        ]
+      },
+      {
+        label: i18n(['Settings', '设置']),
+        type: 'group',
+        items: formItems
+      }
+    ],
+    onItemClick: (item, ...args) => {
+      const { name } = item;
+      if (name === 'export') {
+        exportSettings();
+      }
+      if (name === 'import') {
+        importSettings().catch((err) => {
+          console.error(err);
+          throw err
+        });
+      }
+      onItemClick?.(item, ...args);
+    },
+    ...restOptions
+  }, true)
+};
 
 let conf = {
   /** wap.10010hb.net */
-  Authorization: '',
-  /** act.10010.com API cookie  */
-  actionCookie: ''
+  Authorization: ''
 };
 const preference = {
   textColorLight: '#222222',
-  textColorDark: '#ffffff',
-  /** 签到时间 */
-  checkInAfter: '12:12',
-  disabledCheckIn: false
+  textColorDark: '#ffffff'
 };
-if (!conf.actionCookie) {
+if (!conf.Authorization) {
   try {
     conf = importModule/* ignore */('Config')['10010']();
   } catch (e) {
@@ -775,7 +1020,6 @@ if (!conf.actionCookie) {
   }
 }
 const cache = useCache();
-const Cookie = conf.actionCookie;
 const ringStackSize = 61; // 圆环大小
 const ringTextSize = 14; // 圆环中心文字大小
 const creditTextSize = 21; // 话费文本大小
@@ -803,27 +1047,15 @@ const hbHeaders = {
 };
 
 const createWidget = async () => {
-  const { disabledCheckIn } = preference;
   const data = await getData();
   const { balenceData, flowData, voiceData, _state } = data;
-  let signState = 1;
-  if (!disabledCheckIn && Cookie) {
-    const { state } = await daySign().catch((e) => {
-      return { state: -1 }
-    });
-    signState = state;
-  }
   const widget = new ListWidget();
   widget.setPadding(16, 16, 16, 16);
   widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'));
 
   const status = _state === 'expired'
     ? 'failed' // 余额信息请求失败，检查授权信息是否有效
-    : signState === -1
-      ? 'warning' // 签到失败，检查 act.10010.com Cookie 是否有效
-      : signState === 0
-        ? 'waiting' // 等待签到
-        : 'success'; // 一切正常并已签到
+    : 'success';
   addStatusDot(widget, status);
   await addLogo(widget);
   await renderBalance(widget, balenceData.amount);
@@ -972,47 +1204,6 @@ function drawArc (deg, fillColor, strokeColor) {
 }
 
 /**
- * 每日签到
- * @returns {Promise<{ state: 0 | 1 }>}
- */
-const daySign = async () => {
-  const cachePath = 'daySign.json';
-  const cacheSignData = cache.readJSON(cachePath);
-  const { at } = cacheSignData || {};
-  const signed = at && isToday(new Date(at));
-  // 已签到
-  if (signed) return cacheSignData
-
-  const { checkInAfter } = preference;
-  const checkInDate = new Date();
-  checkInDate.setHours(...(checkInAfter.split(':')));
-  // 未到用户设置的最早签到时间
-  if (Date.now() < checkInDate.getTime()) {
-    return { state: 0 }
-  }
-
-  const url = 'https://act.10010.com/SigninApp/signin/daySign';
-  const req = new Request(url);
-  req.headers = {
-    'User-Agent': 'ChinaUnicom4.x/1.0 CFNetwork/1220.1 Darwin/20.3.0',
-    cookie: Cookie,
-    Host: 'act.10010.com'
-  };
-  const data = await req.loadJSON();
-  if (data.status === '0000' || (data.msg || '').includes('已经签到')) {
-    cache.writeJSON(cachePath, {
-      ...data,
-      at: new Date().toISOString(),
-      state: 1
-    });
-    return data
-  }
-  console.warn(`[${Script.name()}]: 签到失败`);
-  console.warn(data);
-  return Promise.reject(data.msg)
-};
-
-/**
  * 湖北联通余额
  * @returns {{ amount: string }}
  */
@@ -1095,18 +1286,6 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
-    },
-    {
-      name: 'checkInAfter',
-      label: i18n(['Check in after time', '最早签到时间']),
-      type: 'time',
-      default: preference.checkInAfter
-    },
-    {
-      name: 'disabledCheckIn',
-      label: i18n(['Disabled check in', '禁用签到']),
-      type: 'switch',
-      default: preference.disabledCheckIn
     }
   ],
   render: async ({ settings }) => {

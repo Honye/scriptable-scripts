@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": [
-    "湖北联通信息展示和自动签到"
+    "湖北联通余额信息展示"
   ],
   "setting": {
     "icon-glyph": "mobile-alt",
