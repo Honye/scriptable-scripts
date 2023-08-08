@@ -1,6 +1,6 @@
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -13,15 +13,21 @@ const inject = async (webView, options) => {
    * @param {string} code
    * @param {*} data
    */
-  const sendResult = (code, data) => {
-    webView.evaluateJavaScript(
-`window.dispatchEvent(
-  new CustomEvent(
-    \`ScriptableBridge_${code}_Result\`,
-    { detail: ${JSON.stringify(data)} }
-  )
-)`
-    )
+  const sendResult = async (code, data) => {
+    const eventName = `ScriptableBridge_${code}_Result`
+    try {
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(data)} }
+          )
+        )`
+      )
+    } catch (e) {
+      console.error('[native] sendResult error:')
+      console.error(e)
+    }
   }
 
   const js =
@@ -32,59 +38,48 @@ const inject = async (webView, options) => {
   }
   window.__scriptable_bridge_queue = null
 
-  const controller = new AbortController()
-  window.addEventListener(
-    'ScriptableBridge',
-    (e) => {
-      completion(e.detail)
-      window.__scriptable_bridge_queue = []
-      controller.abort()
-    },
-    { signal: controller.signal }
-  )
   if (!window.ScriptableBridge) {
-    window.dispatchEvent(
-      new CustomEvent('ScriptableBridgeReady')
-    )
     window.ScriptableBridge = {
       invoke(name, data, callback) {
         const detail = { code: name, data }
-        if (window.__scriptable_bridge_queue) {
-          window.__scriptable_bridge_queue.push(detail)
-        } else {
-          window.dispatchEvent(
-            new CustomEvent(
-              'ScriptableBridge',
-              { detail }
-            )
-          )
-        }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
         const controller = new AbortController()
         window.addEventListener(
-          ${'`'}ScriptableBridge_${'$'}{name}_Result${'`'},
+          eventName,
           (e) => {
             callback && callback(e.detail)
+            controller.abort()
           },
           { signal: controller.signal }
         )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
       }
     }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
   }
 })()`
 
   const res = await webView.evaluateJavaScript(js, true)
+  if (!res) return inject(webView, options)
+
   const methods = options.methods || {}
-  if (Array.isArray(res)) {
-    for (const { code, data } of res) {
-      ;(async () => {
-        sendResult(code, await methods[code]?.(data))
-      })()
-    }
-  } else {
-    const { code, data } = res
-    ;(async () => {
-      sendResult(code, await methods[code]?.(data))
-    })()
+  const events = Array.isArray(res) ? res : [res]
+  for (const { code, data } of events) {
+    // TODO 同时执行多次 webView.evaluateJavaScript 存在问题
+    // ;(async () => {
+    //   sendResult(code, await methods[code]?.(data))
+    // })()
+    await sendResult(code, await methods[code]?.(data))
   }
   inject(webView, options)
 }
