@@ -1,35 +1,56 @@
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.0.1
+ * @version 1.0.2
  * @author Honye
  */
 
 /**
- * @param {WebView} webView
- * @param {*} options
+ * @typedef Options
+ * @property {Record<string, () => void>} methods
  */
-const inject = async (webView, options) => {
+
+const sendResult = (() => {
+  let sending = false
+  /** @type {{ code: string; data: any }[]} */
+  const list = []
+
   /**
+   * @param {WebView} webView
    * @param {string} code
-   * @param {*} data
+   * @param {any} data
    */
-  const sendResult = async (code, data) => {
-    const eventName = `ScriptableBridge_${code}_Result`
-    try {
+  return async (webView, code, data) => {
+    if (sending) return
+
+    sending = true
+    list.push({ code, data })
+    const arr = list.splice(0, list.length)
+    for (const { code, data } of arr) {
+      const eventName = `ScriptableBridge_${code}_Result`
+      const res = data instanceof Error ? { err: data.message } : data
       await webView.evaluateJavaScript(
         `window.dispatchEvent(
           new CustomEvent(
             '${eventName}',
-            { detail: ${JSON.stringify(data)} }
+            { detail: ${JSON.stringify(res)} }
           )
         )`
       )
-    } catch (e) {
-      console.error('[native] sendResult error:')
-      console.error(e)
+    }
+    if (list.length) {
+      const { code, data } = list.shift()
+      sendResult(webView, code, data)
+    } else {
+      sending = false
     }
   }
+})()
 
+/**
+ * @param {WebView} webView
+ * @param {Options} options
+ */
+const inject = async (webView, options) => {
   const js =
 `(() => {
   const queue = window.__scriptable_bridge_queue
@@ -74,20 +95,27 @@ const inject = async (webView, options) => {
 
   const methods = options.methods || {}
   const events = Array.isArray(res) ? res : [res]
-  for (const { code, data } of events) {
-    // TODO 同时执行多次 webView.evaluateJavaScript 存在问题
-    // ;(async () => {
-    //   sendResult(code, await methods[code]?.(data))
-    // })()
-    await sendResult(code, await methods[code]?.(data))
-  }
+  // 同时执行多次 webView.evaluateJavaScript Scriptable 存在问题
+  // 可能是因为 JavaScript 是单线程导致的
+  const sendTasks = events.map(({ code, data }) => {
+    return (() => {
+      try {
+        return Promise.resolve(methods[code](data))
+      } catch (e) {
+        return Promise.reject(e)
+      }
+    })()
+      .then((res) => sendResult(webView, code, res))
+      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+  })
+  await Promise.all(sendTasks)
   inject(webView, options)
 }
 
 /**
  * @param {WebView} webView
  * @param {string} url
- * @param {*} options
+ * @param {Options} options
  */
 const loadURL = async (webView, url, options = {}) => {
   await webView.loadURL(url)
@@ -99,7 +127,7 @@ const loadURL = async (webView, url, options = {}) => {
  * @param {object} args
  * @param {string} args.html
  * @param {string} [args.baseURL]
- * @param {*} options
+ * @param {Options} options
  */
 const loadHTML = async (webView, args, options = {}) => {
   const { html, baseURL } = args
