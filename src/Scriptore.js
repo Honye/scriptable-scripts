@@ -1,3 +1,6 @@
+if (typeof require === 'undefined') require = importModule
+const { loadURL } = require('./Bridge.module')
+
 const filePath = module.filename
 const appRoot = filePath.substring(0, filePath.lastIndexOf('/'))
 const iCloudManager = FileManager.iCloud()
@@ -21,12 +24,6 @@ const i18n = (langs) => {
     langs.others = langs.others || langs.en
   }
   return langs[language] || langs.others
-}
-
-async function genAlert (message) {
-  const _alert = new Alert()
-  _alert.message = message
-  return _alert.presentAlert()
 }
 
 /**
@@ -97,7 +94,7 @@ async function installByURL (url, options = {}) {
  * @param {boolean} [options.update = false]
  */
 const installScript = async (script, options = {}) => {
-  const { name, files, dependencies = {} } = script
+  const { files, dependencies = {} } = script
   const { update = false } = options
   /** @type {Promise[]} */
   const promises = []
@@ -118,32 +115,15 @@ const installScript = async (script, options = {}) => {
     )
   }
   await Promise.all(promises)
-    .then(() => {
-      genAlert(i18n([
-          `${name} installed success`,
-          `${name} 安装成功`
-      ]))
-    })
     .catch((e) => console.warn(e))
-  notifyWeb('install-success', script)
+  return script
 }
 
 const webView = new WebView()
 
-const notifyWeb = (code, data) => {
-  webView.evaluateJavaScript(
-    `window.dispatchEvent(
-      new CustomEvent('JWeb', {
-        detail: { code: '${code}', data: ${JSON.stringify(data)} }
-      })
-    )`,
-    false
-  )
-}
-
 const methods = {
-  async install (data) {
-    await installScript(data)
+  install (data) {
+    return installScript(data)
   },
   getInstalled () {
     const contents = fs.listContents(appRoot)
@@ -170,7 +150,7 @@ const methods = {
         })
       )`
     )
-    return map
+    return list
   },
   async updateScript (data) {
     await installScript(data, { update: true })
@@ -180,30 +160,6 @@ const methods = {
   }
 }
 
-const injectListener = async () => {
-  /** @type {{ code: string; data: any }} */
-  const event = await webView.evaluateJavaScript(
-    `(() => {
-      const controller = new AbortController()
-      const listener = (e) => {
-        completion(e.detail)
-        controller.abort()
-      }
-      window.addEventListener(
-        'JBridge',
-        listener,
-        { signal: controller.signal }
-      )
-    })()`,
-    true
-  )
-  const { code, data } = event
-  await methods[code]?.(data)
-  injectListener()
-}
-
-await webView.loadURL(url)
-
-injectListener().catch((e) => console.error(e))
+await loadURL(webView, url, { methods })
 
 webView.present(true)

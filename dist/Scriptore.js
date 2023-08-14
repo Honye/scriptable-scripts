@@ -4,9 +4,133 @@
 /**
  * Scriptable scripts store
  *
- * @version 0.2.1
+ * @version 1.0.0
  * @author Honye
  */
+
+/**
+ * @file Scriptable WebView JSBridge native SDK
+ * @version 1.0.2
+ * @author Honye
+ */
+
+/**
+ * @typedef Options
+ * @property {Record<string, () => void>} methods
+ */
+
+const sendResult = (() => {
+  let sending = false;
+  /** @type {{ code: string; data: any }[]} */
+  const list = [];
+
+  /**
+   * @param {WebView} webView
+   * @param {string} code
+   * @param {any} data
+   */
+  return async (webView, code, data) => {
+    if (sending) return
+
+    sending = true;
+    list.push({ code, data });
+    const arr = list.splice(0, list.length);
+    for (const { code, data } of arr) {
+      const eventName = `ScriptableBridge_${code}_Result`;
+      const res = data instanceof Error ? { err: data.message } : data;
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(res)} }
+          )
+        )`
+      );
+    }
+    if (list.length) {
+      const { code, data } = list.shift();
+      sendResult(webView, code, data);
+    } else {
+      sending = false;
+    }
+  }
+})();
+
+/**
+ * @param {WebView} webView
+ * @param {Options} options
+ */
+const inject = async (webView, options) => {
+  const js =
+`(() => {
+  const queue = window.__scriptable_bridge_queue
+  if (queue && queue.length) {
+    completion(queue)
+  }
+  window.__scriptable_bridge_queue = null
+
+  if (!window.ScriptableBridge) {
+    window.ScriptableBridge = {
+      invoke(name, data, callback) {
+        const detail = { code: name, data }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
+        const controller = new AbortController()
+        window.addEventListener(
+          eventName,
+          (e) => {
+            callback && callback(e.detail)
+            controller.abort()
+          },
+          { signal: controller.signal }
+        )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
+      }
+    }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
+  }
+})()`;
+
+  const res = await webView.evaluateJavaScript(js, true);
+  if (!res) return inject(webView, options)
+
+  const methods = options.methods || {};
+  const events = Array.isArray(res) ? res : [res];
+  // 同时执行多次 webView.evaluateJavaScript Scriptable 存在问题
+  // 可能是因为 JavaScript 是单线程导致的
+  const sendTasks = events.map(({ code, data }) => {
+    return (() => {
+      try {
+        return Promise.resolve(methods[code](data))
+      } catch (e) {
+        return Promise.reject(e)
+      }
+    })()
+      .then((res) => sendResult(webView, code, res))
+      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+  });
+  await Promise.all(sendTasks);
+  inject(webView, options);
+};
+
+/**
+ * @param {WebView} webView
+ * @param {string} url
+ * @param {Options} options
+ */
+const loadURL = async (webView, url, options = {}) => {
+  await webView.loadURL(url);
+  inject(webView, options).catch((err) => console.error(err));
+};
 
 const filePath = module.filename;
 const appRoot = filePath.substring(0, filePath.lastIndexOf('/'));
@@ -32,12 +156,6 @@ const i18n = (langs) => {
   }
   return langs[language] || langs.others
 };
-
-async function genAlert (message) {
-  const _alert = new Alert();
-  _alert.message = message;
-  return _alert.presentAlert()
-}
 
 /**
  * download and install script from the url
@@ -107,7 +225,7 @@ async function installByURL (url, options = {}) {
  * @param {boolean} [options.update = false]
  */
 const installScript = async (script, options = {}) => {
-  const { name, files, dependencies = {} } = script;
+  const { files, dependencies = {} } = script;
   const { update = false } = options;
   /** @type {Promise[]} */
   const promises = [];
@@ -128,37 +246,19 @@ const installScript = async (script, options = {}) => {
     );
   }
   await Promise.all(promises)
-    .then(() => {
-      genAlert(i18n([
-          `${name} installed success`,
-          `${name} 安装成功`
-      ]));
-    })
     .catch((e) => console.warn(e));
-  notifyWeb('install-success', script);
+  return script
 };
 
 const webView = new WebView();
 
-const notifyWeb = (code, data) => {
-  webView.evaluateJavaScript(
-    `window.dispatchEvent(
-      new CustomEvent('JWeb', {
-        detail: { code: '${code}', data: ${JSON.stringify(data)} }
-      })
-    )`,
-    false
-  );
-};
-
 const methods = {
-  async install (data) {
-    await installScript(data);
+  install (data) {
+    return installScript(data)
   },
   getInstalled () {
     const contents = fs.listContents(appRoot);
     const list = [];
-    const map = {};
     for (const name of contents) {
       if (name.match(/(.*)\.js$/)) {
         const content = fs.readString(fs.joinPath(appRoot, name));
@@ -167,10 +267,10 @@ const methods = {
           name,
           version: matches ? matches[1] : '0.0.0'
         });
-        map[name] = {
+        ({
           name,
           version: matches ? matches[1] : '0.0.0'
-        };
+        });
       }
     }
     webView.evaluateJavaScript(
@@ -180,7 +280,7 @@ const methods = {
         })
       )`
     );
-    return map
+    return list
   },
   async updateScript (data) {
     await installScript(data, { update: true });
@@ -190,30 +290,6 @@ const methods = {
   }
 };
 
-const injectListener = async () => {
-  /** @type {{ code: string; data: any }} */
-  const event = await webView.evaluateJavaScript(
-    `(() => {
-      const controller = new AbortController()
-      const listener = (e) => {
-        completion(e.detail)
-        controller.abort()
-      }
-      window.addEventListener(
-        'JBridge',
-        listener,
-        { signal: controller.signal }
-      )
-    })()`,
-    true
-  );
-  const { code, data } = event;
-  await methods[code]?.(data);
-  injectListener();
-};
-
-await webView.loadURL(url);
-
-injectListener().catch((e) => console.error(e));
+await loadURL(webView, url, { methods });
 
 webView.present(true);
