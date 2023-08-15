@@ -143,17 +143,10 @@ const methods = {
         }
       }
     }
-    webView.evaluateJavaScript(
-      `window.dispatchEvent(
-        new CustomEvent('postInstalled', {
-          detail: ${JSON.stringify(list)}
-        })
-      )`
-    )
     return list
   },
-  async updateScript (data) {
-    await installScript(data, { update: true })
+  updateScript (data) {
+    return installScript(data, { update: true })
   },
   safari (url) {
     Safari.openInApp(url, true)
