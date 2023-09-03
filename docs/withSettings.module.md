@@ -126,7 +126,7 @@ const createWidget = (text) => {
   return widget
 }
 const createSmallWidget = () => createWidget('这是小号组件')
-const createMediumWidget = () => createMediumWidget('这是中号组件')
+const createMediumWidget = () => createWidget('这是中号组件')
 
 await withSettings({
   formItems: [],
