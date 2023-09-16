@@ -1,40 +1,18 @@
-import { phoneSize } from './utils/utils'
+if (typeof require === 'undefined') require = importModule
+const { i18n, phoneSize } = require('./utils.module')
+const { withSettings } = require('./withSettings.module')
 
-const fontSize = 14
-const gap = 8
+const preference = {
+  cate: '6809637767543259144',
+  fontSize: 14,
+  /** 行间距 */
+  gap: 8,
+  tagMax: 2
+}
 const paddingVertical = 10
-const themes = {
-  dark: {
-    background: new Color('#242426', 1)
-  },
-  light: {
-    background: new Color('#ffffff', 1)
-  }
-}
-themes.system = Color.dynamic(themes.light.background, themes.dark.background)
 
-const categories = {
-  be: { id: '6809637769959178254', title: '后端' },
-  fe: { id: '6809637767543259144', title: '前端' },
-  android: { id: '6809635626879549454', title: 'Android' },
-  ios: { id: '6809635626661445640', title: 'iOS' },
-  ai: { id: '6809637773935378440', title: '人工智能' },
-  tools: { id: '6809637771511070734', title: '开发工具' },
-  coding: { id: '6809637776263217160', title: '代码人生' },
-  reading: { id: '6809637772874219534', title: '阅读' }
-}
-
-/**
- * @param {string} cateID
- */
-const getArticles = async (cateID) => {
-  const screen = Device.screenResolution()
-  const scale = Device.screenScale()
-  const phone = phoneSize(screen.height)
-  const widgetFamily = config.widgetFamily || 'medium'
-  const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale
-  const limit = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
-
+const getArticles = async () => {
+  const { cate } = preference
   const url = 'https://api.juejin.cn/recommend_api/v1/article/recommend_cate_feed'
   const req = new Request(url)
   req.method = 'POST'
@@ -43,22 +21,28 @@ const getArticles = async (cateID) => {
   }
   req.body = JSON.stringify({
     id_type: 2,
-    cate_id: cateID,
+    cate_id: cate,
     sort_type: 200,
     cursor: '0',
-    limit
+    limit: 20
   })
   const res = await req.loadJSON()
   return res
 }
 
 const createWidget = (data) => {
+  const { fontSize, gap, tagMax } = preference
+  const screen = Device.screenResolution()
+  const scale = Device.screenScale()
+  const phone = phoneSize(screen.height)
+  const { widgetFamily } = config
+  const height = (widgetFamily === 'medium' ? phone.small : phone[widgetFamily]) / scale
+  const limit = Math.floor((height - paddingVertical * 2 + gap) / (fontSize + gap))
   const { data: articles } = data
   const widget = new ListWidget()
-  widget.backgroundColor = themes.system
   const paddingY = paddingVertical - (gap / 2)
-  widget.setPadding(paddingY, 12, paddingY, 12)
-  for (const [, article] of articles.entries()) {
+  widget.setPadding(paddingY, 12, paddingY, 4)
+  for (const article of articles.slice(0, limit)) {
     const { article_info: info, tags } = article
     const stackArticle = widget.addStack()
     stackArticle.url = `https://juejin.cn/post/${info.article_id}`
@@ -71,14 +55,16 @@ const createWidget = (data) => {
     const stackTags = stackArticle.addStack()
     stackTags.centerAlignContent()
     stackTags.spacing = 3
-    for (const tag of tags.slice(0, 2)) {
+    for (const tag of tags.slice(0, tagMax)) {
       addTag(stackTags, tag)
     }
+    stackArticle.addSpacer()
   }
   return widget
 }
 
 const addTag = (widget, tag) => {
+  const { fontSize } = preference
   const stack = widget.addStack()
   stack.backgroundColor = new Color(tag.color)
   stack.centerAlignContent()
@@ -91,21 +77,49 @@ const addTag = (widget, tag) => {
   textTag.font = Font.lightSystemFont(fontSize * 0.7)
 }
 
-const main = async () => {
-  let cateID = categories.fe.id
-  if (config.runsInWidget) {
-    const [cate] = (args.widgetParameter || '').split(',').map(text => text.trim())
-    if (cate) {
-      cateID = categories[cate] ? categories[cate].id : cate
+await withSettings({
+  formItems: [
+    {
+      label: i18n(['Category', '分类']),
+      name: 'cate',
+      type: 'select',
+      options: [
+        { label: i18n(['Frond-End', '前端']), value: '6809637767543259144' },
+        { label: i18n(['Back-End', '后端']), value: '6809637769959178254' },
+        { label: i18n(['Android', '安卓']), value: '6809635626879549454' },
+        { label: 'iOS', value: '6809635626661445640' },
+        { label: i18n(['AI', '人工智能']), value: '6809637773935378440' },
+        { label: i18n(['Tools', '开发工具']), value: '6809637771511070734' },
+        { label: i18n(['Coding', '代码人生']), value: '6809637776263217160' },
+        { label: i18n(['Reading', '阅读']), value: '6809637772874219534' }
+      ],
+      default: preference.cate
+    },
+    {
+      label: i18n(['Text size', '字体大小']),
+      name: 'fontSize',
+      type: 'number',
+      default: preference.fontSize
+    },
+    {
+      label: i18n(['Line Spacing', '行间距']),
+      name: 'gap',
+      type: 'number',
+      default: preference.gap
+    },
+    {
+      label: i18n(['Tag max count', '标签最大数量']),
+      name: 'tagMax',
+      type: 'number',
+      default: preference.tagMax
     }
+  ],
+  render: async ({ family, settings }) => {
+    family && (config.widgetFamily = family)
+    Object.assign(preference, settings)
+    const { cate } = preference
+    const data = await getArticles(cate)
+    const widget = createWidget(data)
+    return widget
   }
-  const data = await getArticles(cateID)
-  const widget = createWidget(data)
-  if (config.runsInApp) {
-    widget.presentMedium()
-  }
-  Script.setWidget(widget)
-  Script.complete()
-}
-
-await main()
+})
