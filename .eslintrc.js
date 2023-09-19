@@ -36,6 +36,7 @@ module.exports = {
     Point: 'readonly',
     QuickLook: 'readonly',
     Rect: 'readonly',
+    Reminder: 'readonly',
     Safari: 'readonly',
     Request: 'readonly',
     Script: 'readonly',
