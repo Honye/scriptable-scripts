@@ -2,46 +2,9 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.2.0
+ * @version 1.3.0
  * @author Honye
  */
-
-/**
- * @param {object} options
- * @param {string} [options.title]
- * @param {string} [options.message]
- * @param {Array<{ title: string; [key: string]: any }>} options.options
- * @param {boolean} [options.showCancel = true]
- * @param {string} [options.cancelText = 'Cancel']
- */
-const presentSheet = async (options) => {
-  options = {
-    showCancel: true,
-    cancelText: 'Cancel',
-    ...options
-  };
-  const alert = new Alert();
-  if (options.title) {
-    alert.title = options.title;
-  }
-  if (options.message) {
-    alert.message = options.message;
-  }
-  if (!options.options) {
-    throw new Error('The "options" property of the parameter cannot be empty')
-  }
-  for (const option of options.options) {
-    alert.addAction(option.title);
-  }
-  if (options.showCancel) {
-    alert.addCancelAction(options.cancelText);
-  }
-  const value = await alert.presentSheet();
-  return {
-    value,
-    option: options.options[value]
-  }
-};
 
 /**
  * Thanks @mzeryck
@@ -397,7 +360,7 @@ const useFileManager = (options = {}) => {
 const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
- * @param {ListWidget | WidgetStack} stack
+ * @param {WidgetStack} stack
  * @param {object} options
  * @param {number} [options.column] column count
  * @param {number | [number, number]} [options.gap]
@@ -631,6 +594,133 @@ function getDiZhi (ly) {
 }
 
 /**
+ * @file Scriptable WebView JSBridge native SDK
+ * @version 1.0.2
+ * @author Honye
+ */
+
+/**
+ * @typedef Options
+ * @property {Record<string, () => void>} methods
+ */
+
+const sendResult = (() => {
+  let sending = false;
+  /** @type {{ code: string; data: any }[]} */
+  const list = [];
+
+  /**
+   * @param {WebView} webView
+   * @param {string} code
+   * @param {any} data
+   */
+  return async (webView, code, data) => {
+    if (sending) return
+
+    sending = true;
+    list.push({ code, data });
+    const arr = list.splice(0, list.length);
+    for (const { code, data } of arr) {
+      const eventName = `ScriptableBridge_${code}_Result`;
+      const res = data instanceof Error ? { err: data.message } : data;
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(res)} }
+          )
+        )`
+      );
+    }
+    if (list.length) {
+      const { code, data } = list.shift();
+      sendResult(webView, code, data);
+    } else {
+      sending = false;
+    }
+  }
+})();
+
+/**
+ * @param {WebView} webView
+ * @param {Options} options
+ */
+const inject = async (webView, options) => {
+  const js =
+`(() => {
+  const queue = window.__scriptable_bridge_queue
+  if (queue && queue.length) {
+    completion(queue)
+  }
+  window.__scriptable_bridge_queue = null
+
+  if (!window.ScriptableBridge) {
+    window.ScriptableBridge = {
+      invoke(name, data, callback) {
+        const detail = { code: name, data }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
+        const controller = new AbortController()
+        window.addEventListener(
+          eventName,
+          (e) => {
+            callback && callback(e.detail)
+            controller.abort()
+          },
+          { signal: controller.signal }
+        )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
+      }
+    }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
+  }
+})()`;
+
+  const res = await webView.evaluateJavaScript(js, true);
+  if (!res) return inject(webView, options)
+
+  const methods = options.methods || {};
+  const events = Array.isArray(res) ? res : [res];
+  // 同时执行多次 webView.evaluateJavaScript Scriptable 存在问题
+  // 可能是因为 JavaScript 是单线程导致的
+  const sendTasks = events.map(({ code, data }) => {
+    return (() => {
+      try {
+        return Promise.resolve(methods[code](data))
+      } catch (e) {
+        return Promise.reject(e)
+      }
+    })()
+      .then((res) => sendResult(webView, code, res))
+      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+  });
+  await Promise.all(sendTasks);
+  inject(webView, options);
+};
+
+/**
+ * @param {WebView} webView
+ * @param {object} args
+ * @param {string} args.html
+ * @param {string} [args.baseURL]
+ * @param {Options} options
+ */
+const loadHTML = async (webView, args, options = {}) => {
+  const { html, baseURL } = args;
+  await webView.loadHTML(html, baseURL);
+  inject(webView, options).catch((err) => console.error(err));
+};
+
+/**
  * 轻松实现桌面组件可视化配置
  *
  * - 颜色选择器及更多表单控件
@@ -638,26 +728,85 @@ function getDiZhi (ly) {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.2.2
+ * @version 1.4.1
  * @author Honye
  */
+const fm = FileManager.local();
+const fileName = 'settings.json';
+
+const toast = (message) => {
+  const notification = new Notification();
+  notification.title = Script.name();
+  notification.body = message;
+  notification.schedule();
+};
+
+const isUseICloud = () => {
+  const ifm = useFileManager({ useICloud: true });
+  const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
+  return fm.fileExists(filePath)
+};
+
+/** 查看配置文件可导出分享 */
+const exportSettings = () => {
+  const scopedFM = useFileManager({ useICloud: isUseICloud() });
+  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+  if (fm.isFileStoredIniCloud(filePath)) {
+    fm.downloadFileFromiCloud(filePath);
+  }
+  if (fm.fileExists(filePath)) {
+    QuickLook.present(filePath);
+  } else {
+    const alert = new Alert();
+    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
+    alert.addCancelAction(i18n(['OK', '好的']));
+    alert.present();
+  }
+};
+
+const importSettings = async () => {
+  const alert1 = new Alert();
+  alert1.message = i18n([
+    'Will replace existing configuration',
+    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
+  ]);
+  alert1.addAction(i18n(['Import', '导入']));
+  alert1.addCancelAction(i18n(['Cancel', '取消']));
+  const i = await alert1.present();
+  if (i === -1) return
+
+  const pathList = await DocumentPicker.open(['public.json']);
+  for (const path of pathList) {
+    const fileName = fm.fileName(path, true);
+    const scopedFM = useFileManager({ useICloud: isUseICloud() });
+    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
+    if (fm.fileExists(destPath)) {
+      fm.remove(destPath);
+    }
+    const i = destPath.lastIndexOf('/');
+    const directory = destPath.substring(0, i);
+    if (!fm.fileExists(directory)) {
+      fm.createDirectory(directory, true);
+    }
+    fm.copy(path, destPath);
+  }
+  const alert = new Alert();
+  alert.message = i18n(['Imported success', '导入成功']);
+  alert.addAction(i18n(['Restart', '重新运行']));
+  await alert.present();
+  const callback = new CallbackURL('scriptable:///run');
+  callback.addParameter('scriptName', Script.name());
+  callback.open();
+};
 
 /**
  * @returns {Promise<Settings>}
  */
 const readSettings = async () => {
-  const localFM = useFileManager();
-  let settings = localFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use local settings');
-    return settings
-  }
-
-  const iCloudFM = useFileManager({ useICloud: true });
-  settings = iCloudFM.readJSON('settings.json');
-  if (settings) {
-    console.log('[info] use iCloud settings');
-  }
+  const useICloud = isUseICloud();
+  console.log(`[info] use ${useICloud ? 'iCloud' : 'local'} settings`);
+  const fm = useFileManager({ useICloud });
+  const settings = fm.readJSON(fileName);
   return settings
 };
 
@@ -667,16 +816,13 @@ const readSettings = async () => {
  */
 const writeSettings = async (data, { useICloud }) => {
   const fm = useFileManager({ useICloud });
-  fm.writeJSON('settings.json', data);
+  fm.writeJSON(fileName, data);
 };
 
 const removeSettings = async (settings) => {
   const cache = useFileManager({ useICloud: settings.useICloud });
-  FileManager.local().remove(
-    FileManager.local().joinPath(
-      cache.cacheDirectory,
-      'settings.json'
-    )
+  fm.remove(
+    fm.joinPath(cache.cacheDirectory, fileName)
   );
 };
 
@@ -684,21 +830,16 @@ const moveSettings = (useICloud, data) => {
   const localFM = useFileManager();
   const iCloudFM = useFileManager({ useICloud: true });
   const [i, l] = [
-    FileManager.local().joinPath(
-      iCloudFM.cacheDirectory,
-      'settings.json'
-    ),
-    FileManager.local().joinPath(
-      localFM.cacheDirectory,
-      'settings.json'
-    )
+    fm.joinPath(iCloudFM.cacheDirectory, fileName),
+    fm.joinPath(localFM.cacheDirectory, fileName)
   ];
   try {
+    // 移动文件需要创建父文件夹，写入操作会自动创建文件夹
     writeSettings(data, { useICloud });
     if (useICloud) {
-      FileManager.local().remove(l);
+      if (fm.fileExists(l)) fm.remove(l);
     } else {
-      FileManager.iCloud().remove(i);
+      if (fm.fileExists(i)) fm.remove(i);
     }
   } catch (e) {
     console.error(e);
@@ -706,49 +847,103 @@ const moveSettings = (useICloud, data) => {
 };
 
 /**
- * @typedef {object} FormItem
+ * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {string} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ *  - HTML <input> type 属性
+ *  - `'cell'`: 可点击的
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
 /**
- * @typedef {Record<string, unknown>} Settings
- * @property {boolean} useICloud
- * @property {string} [backgroundImage]
+ * @typedef {Pick<NormalFormItem, 'label'|'name'> & { type: 'group', items: FormItem[] }} GroupFormItem
  */
 /**
- * @param {object} options
- * @param {FormItem[]} [options.formItems]
- * @param {(data: {
- *  settings: Settings;
- *  family?: 'small'|'medium'|'large';
- * }) => Promise<ListWidget>} options.render
- * @param {string} [options.homePage]
- * @param {(item: FormItem) => void} [options.onItemClick]
- * @returns {Promise<ListWidget|undefined>} 在 Widget 中运行时返回 ListWidget，其它无返回
+ * @typedef {Omit<NormalFormItem, 'type'> & { type: 'page' } & Pick<Options, 'formItems'|'onItemClick'>} PageFormItem 单独的页面
  */
-const withSettings = async (options) => {
+/**
+ * @typedef {NormalFormItem|GroupFormItem|PageFormItem} FormItem
+ */
+/**
+ * @typedef {object} CommonSettings
+ * @property {boolean} useICloud
+ * @property {string} [backgroundImage] 背景图路径
+ * @property {string} [backgroundColorLight]
+ * @property {string} [backgroundColorDark]
+ */
+/**
+ * @typedef {CommonSettings & Record<string, unknown>} Settings
+ */
+/**
+ * @typedef {object} Options
+ * @property {(data: {
+ *  settings: Settings;
+ *  family?: typeof config.widgetFamily;
+ * }) => ListWidget | Promise<ListWidget>} render
+ * @property {string} [head] 顶部插入 HTML
+ * @property {FormItem[]} [formItems]
+ * @property {(item: FormItem) => void} [onItemClick]
+ * @property {string} [homePage] 右上角分享菜单地址
+ * @property {(data: any) => void} [onWebEvent]
+ */
+/**
+ * @template T
+ * @typedef {T extends infer O ? {[K in keyof O]: O[K]} : never} Expand
+ */
+
+const previewsHTML =
+`<div class="actions">
+  <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
+  <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
+  <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
+</div>`;
+
+const copyrightHTML =
+`<footer>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+</footer>`;
+
+/**
+ * @param {Expand<Options>} options
+ * @param {boolean} [isFirstPage]
+ * @param {object} [others]
+ * @param {Settings} [others.settings]
+ * @returns {Promise<ListWidget|undefined>} 仅在 Widget 中运行时返回 ListWidget
+ */
+const present = async (options, isFirstPage, others = {}) => {
   const {
     formItems = [],
     onItemClick,
     render,
-    homePage = 'https://www.imarkr.com'
+    head,
+    homePage = 'https://www.imarkr.com',
+    onWebEvent
   } = options;
   const cache = useCache();
 
-  let settings = await readSettings() || {};
-  const imgPath = FileManager.local().joinPath(
-    cache.cacheDirectory,
-    'bg.png'
-  );
+  const settings = others.settings || await readSettings() || {};
+
+  /**
+   * @param {Parameters<Options['render']>[0]} param
+   */
+  const getWidget = async (param) => {
+    const widget = await render(param);
+    const { backgroundImage, backgroundColorLight, backgroundColorDark } = settings;
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      widget.backgroundImage = fm.readImage(backgroundImage);
+    }
+    if (!widget.backgroundColor || backgroundColorLight || backgroundColorDark) {
+      widget.backgroundColor = Color.dynamic(
+        new Color(backgroundColorLight || '#ffffff'),
+        new Color(backgroundColorDark || '#242426')
+      );
+    }
+    return widget
+  };
 
   if (config.runsInWidget) {
-    const widget = await render({ settings });
-    if (settings.backgroundImage) {
-      widget.backgroundImage = FileManager.local().readImage(imgPath);
-    }
+    const widget = await getWidget({ settings });
     Script.setWidget(widget);
     return widget
   }
@@ -875,6 +1070,7 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .copyright {
   margin: 15px;
+  margin-inline: 18px;
   font-size: 12px;
   color: #86868b;
 }
@@ -907,33 +1103,24 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
-}`;
+}
+`;
 
   const js =
 `(() => {
-  const settings = ${JSON.stringify(settings)}
+  const settings = ${JSON.stringify({
+    ...settings,
+    useICloud: isUseICloud()
+  })}
   const formItems = ${JSON.stringify(formItems)}
-  
-  window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+
+  window.invoke = (code, data, cb) => {
+    ScriptableBridge.invoke(code, data, cb)
   }
-  
-  const iCloudInput = document.querySelector('input[name="useICloud"]')
-  iCloudInput.checked = settings.useICloud
-  iCloudInput
-    .addEventListener('change', (e) => {
-      invoke('moveSettings', e.target.checked)
-    })
-  
+
   const formData = {};
 
-  const fragment = document.createDocumentFragment()
-  for (const item of formItems) {
+  const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
@@ -958,13 +1145,29 @@ input[type='checkbox'][role='switch']:checked::before {
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
-    } else if (item.type === 'cell') {
+    } else if (
+      item.type === 'cell' ||
+      item.type === 'page'
+    ) {
       label.classList.add('form-item--link')
       const icon = document.createElement('i')
       icon.className = 'iconfont icon-arrow_right'
       label.appendChild(icon)
       label.addEventListener('click', () => {
-        invoke('itemClick', item)
+        const { name } = item
+        switch (name) {
+          case 'backgroundImage':
+            invoke('chooseBgImg')
+            break
+          case 'clearBackgroundImage':
+            invoke('clearBgImg')
+            break
+          case 'reset':
+            reset()
+            break
+          default:
+            invoke('itemClick', item)
+        }
       })
     } else {
       const input = document.createElement("input")
@@ -978,6 +1181,11 @@ input[type='checkbox'][role='switch']:checked::before {
         input.type = 'checkbox'
         input.role = 'switch'
         input.checked = value
+        if (item.name === 'useICloud') {
+          input.addEventListener('change', (e) => {
+            invoke('moveSettings', e.target.checked)
+          })
+        }
       }
       if (item.type === 'number') {
         input.inputMode = 'decimal'
@@ -996,9 +1204,38 @@ input[type='checkbox'][role='switch']:checked::before {
       });
       label.appendChild(input);
     }
-    fragment.appendChild(label);
+    return label
   }
-  document.getElementById('form').appendChild(fragment)
+
+  const createList = (list, title) => {
+    const fragment = document.createDocumentFragment()
+
+    let elBody;
+    for (const item of list) {
+      if (item.type === 'group') {
+        const grouped = createList(item.items, item.label)
+        fragment.appendChild(grouped)
+      } else {
+        if (!elBody) {
+          const groupDiv = fragment.appendChild(document.createElement('div'))
+          groupDiv.className = 'list'
+          if (title) {
+            const elTitle = groupDiv.appendChild(document.createElement('div'))
+            elTitle.className = 'list__header'
+            elTitle.textContent = title
+          }
+          elBody = groupDiv.appendChild(document.createElement('div'))
+          elBody.className = 'list__body'
+        }
+        const label = createFormItem(item)
+        elBody.appendChild(label)
+      }
+    }
+    return fragment
+  }
+
+  const fragment = createList(formItems)
+  document.getElementById('settings').appendChild(fragment)
 
   for (const btn of document.querySelectorAll('.preview')) {
     btn.addEventListener('click', (e) => {
@@ -1007,35 +1244,39 @@ input[type='checkbox'][role='switch']:checked::before {
       const icon = e.currentTarget.querySelector('.iconfont')
       const className = icon.className
       icon.className = 'iconfont icon-loading'
-      const listener = (event) => {
-        const { code } = event.detail
-        if (code === 'previewStart') {
+      invoke(
+        'preview',
+        e.currentTarget.dataset.size,
+        () => {
           target.classList.remove('loading')
           icon.className = className
-          window.removeEventListener('JWeb', listener);
         }
-      }
-      window.addEventListener('JWeb', listener)
-      invoke('preview', e.currentTarget.dataset.size)
+      )
     })
   }
 
-  const reset = () => {
-    for (const item of formItems) {
-      const el = document.querySelector(\`.form-item__input[name="\${item.name}"]\`)
-      formData[item.name] = item.default
-      if (item.type === 'switch') {
-        el.checked = item.default
+  const setFieldValue = (name, value) => {
+    const input = document.querySelector(\`.form-item__input[name="\${name}"]\`)
+    if (!input) return
+    if (input.type === 'checkbox') {
+      input.checked = value
+    } else {
+      input.value = value
+    }
+  }
+
+  const reset = (items = formItems) => {
+    for (const item of items) {
+      if (item.type === 'group') {
+        reset(item.items)
+      } else if (item.type === 'page') {
+        continue;
       } else {
-        el && (el.value = item.default)
+        setFieldValue(item.name, item.default)
       }
     }
     invoke('removeSettings', formData)
   }
-  document.getElementById('reset').addEventListener('click', () => reset())
-
-  document.getElementById('chooseBgImg')
-    .addEventListener('click', () => invoke('chooseBgImg'))
 })()`;
 
   const html =
@@ -1046,144 +1287,200 @@ input[type='checkbox'][role='switch']:checked::before {
     <style>${style}</style>
   </head>
   <body>
-  <div class="list">
-    <div class="list__header">${i18n(['Common', '通用'])}</div>
-    <form class="list__body" action="javascript:void(0);">
-      <label class="form-item">
-        <div>${i18n(['Sync with iCloud', 'iCloud 同步'])}</div>
-        <input name="useICloud" type="checkbox" role="switch">
-      </label>
-      <label id="chooseBgImg" class="form-item form-item--link">
-        <div>${i18n(['Background image', '背景图'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-      <label id='reset' class="form-item form-item--link">
-        <div>${i18n(['Reset', '重置'])}</div>
-        <i class="iconfont icon-arrow_right"></i>
-      </label>
-    </form>
-  </div>
-  <div class="list">
-    <div class="list__header">${i18n(['Settings', '设置'])}</div>
-    <form id="form" class="list__body" action="javascript:void(0);"></form>
-  </div>
-  <div class="actions">
-    <button class="preview" data-size="small"><i class="iconfont icon-yingyongzhongxin"></i>${i18n(['Small', '预览小号'])}</button>
-    <button class="preview" data-size="medium"><i class="iconfont icon-daliebiao"></i>${i18n(['Medium', '预览中号'])}</button>
-    <button class="preview" data-size="large"><i class="iconfont icon-dantupailie"></i>${i18n(['Large', '预览大号'])}</button>
-  </div>
-  <footer>
-    <div class="copyright">Copyright © 2022 <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a> All rights reserved.</div>
-  </footer>
-    <script>${js}</script>
+  ${head || ''}
+  <section id="settings"></section>
+  ${isFirstPage ? (previewsHTML + copyrightHTML) : ''}
+  <script>${js}</script>
   </body>
 </html>`;
 
   const webView = new WebView();
-  await webView.loadHTML(html, homePage);
+  const methods = {
+    async preview (data) {
+      const widget = await getWidget({ settings, family: data });
+      widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
+    },
+    safari (data) {
+      Safari.openInApp(data, true);
+    },
+    changeSettings (data) {
+      Object.assign(settings, data);
+      writeSettings(settings, { useICloud: settings.useICloud });
+    },
+    moveSettings (data) {
+      settings.useICloud = data;
+      moveSettings(data, settings);
+    },
+    removeSettings (data) {
+      Object.assign(settings, data);
+      clearBgImg();
+      removeSettings(settings);
+    },
+    chooseBgImg (data) {
+      chooseBgImg();
+    },
+    clearBgImg () {
+      clearBgImg();
+    },
+    async itemClick (data) {
+      if (data.type === 'page') {
+        // `data` 经传到 HTML 后丢失了不可序列化的数据，因为需要从源数据查找
+        const item = (() => {
+          const find = (items) => {
+            for (const el of items) {
+              if (el.name === data.name) return el
+
+              if (el.type === 'group') {
+                const r = find(el.items);
+                if (r) return r
+              }
+            }
+            return null
+          };
+          return find(formItems)
+        })();
+        await present(item, false, { settings });
+      } else {
+        await onItemClick?.(data, { settings });
+      }
+    },
+    native (data) {
+      onWebEvent?.(data);
+    }
+  };
+  await loadHTML(
+    webView,
+    { html, baseURL: homePage },
+    { methods }
+  );
 
   const clearBgImg = () => {
+    const { backgroundImage } = settings;
     delete settings.backgroundImage;
-    const fm = FileManager.local();
-    if (fm.fileExists(imgPath)) {
-      fm.remove(imgPath);
+    if (backgroundImage && fm.fileExists(backgroundImage)) {
+      fm.remove(backgroundImage);
     }
+    writeSettings(settings, { useICloud: settings.useICloud });
+    toast(i18n(['Cleared success!', '背景已清除']));
   };
 
   const chooseBgImg = async () => {
-    const { option } = await presentSheet({
-      options: [
-        { key: 'choose', title: i18n(['Choose photo', '选择图片']) },
-        { key: 'clear', title: i18n(['Clear background image', '清除背景图']) }
-      ],
-      cancelText: i18n(['Cancel', '取消'])
-    });
-    switch (option?.key) {
-      case 'choose': {
-        try {
-          const image = await Photos.fromLibrary();
-          cache.writeImage('bg.png', image);
-          settings.backgroundImage = imgPath;
-          writeSettings(settings, { useICloud: settings.useICloud });
-        } catch (e) {}
-        break
-      }
-      case 'clear':
-        clearBgImg();
-        writeSettings(settings, { useICloud: settings.useICloud });
-        break
+    try {
+      const image = await Photos.fromLibrary();
+      cache.writeImage('bg.png', image);
+      const imgPath = fm.joinPath(cache.cacheDirectory, 'bg.png');
+      settings.backgroundImage = imgPath;
+      writeSettings(settings, { useICloud: settings.useICloud });
+    } catch (e) {
+      console.log('[info] 用户取消选择图片');
     }
   };
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err);
-      throw err
-    });
-    const { code, data } = event;
-    switch (code) {
-      case 'preview': {
-        const widget = await render({ settings, family: data });
-        const { backgroundImage } = settings;
-        if (backgroundImage) {
-          widget.backgroundImage = FileManager.local().readImage(backgroundImage);
-        }
-        webView.evaluateJavaScript(
-          'window.dispatchEvent(new CustomEvent(\'JWeb\', { detail: { code: \'previewStart\' } }))',
-          false
-        );
-        widget[`present${data.replace(data[0], data[0].toUpperCase())}`]();
-        break
-      }
-      case 'safari':
-        Safari.openInApp(data, true);
-        break
-      case 'changeSettings':
-        settings = { ...settings, ...data };
-        writeSettings(settings, { useICloud: settings.useICloud });
-        break
-      case 'moveSettings':
-        settings.useICloud = data;
-        moveSettings(data, settings);
-        break
-      case 'removeSettings':
-        settings = { ...settings, ...data };
-        clearBgImg();
-        removeSettings(settings);
-        break
-      case 'chooseBgImg':
-        await chooseBgImg();
-        break
-      case 'itemClick':
-        onItemClick?.(data);
-        break
-    }
-    injectListener();
-  };
-
-  injectListener().catch((e) => {
-    console.error(e);
-    throw e
-  });
   webView.present();
   // ======= web end =========
 };
 
-if (typeof require === 'undefined') require = importModule;
+/**
+ * @param {Options} options
+ */
+const withSettings = async (options) => {
+  const { formItems, onItemClick, ...restOptions } = options;
+  return present({
+    formItems: [
+      {
+        label: i18n(['Common', '通用']),
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Sync with iCloud', 'iCloud 同步']),
+            type: 'switch',
+            name: 'useICloud',
+            default: false
+          },
+          {
+            label: i18n(['Background', '背景']),
+            type: 'page',
+            name: 'background',
+            formItems: [
+              {
+                label: i18n(['Background', '背景']),
+                type: 'group',
+                items: [
+                  {
+                    name: 'backgroundColorLight',
+                    type: 'color',
+                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    default: '#ffffff'
+                  },
+                  {
+                    name: 'backgroundColorDark',
+                    type: 'color',
+                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    default: '#242426'
+                  },
+                  {
+                    label: i18n(['Background image', '背景图']),
+                    type: 'cell',
+                    name: 'backgroundImage'
+                  }
+                ]
+              },
+              {
+                type: 'group',
+                items: [
+                  {
+                    label: i18n(['Clear background image', '清除背景图']),
+                    type: 'cell',
+                    name: 'clearBackgroundImage'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: i18n(['Reset', '重置']),
+            type: 'cell',
+            name: 'reset'
+          }
+        ]
+      },
+      {
+        type: 'group',
+        items: [
+          {
+            label: i18n(['Export settings', '导出配置']),
+            type: 'cell',
+            name: 'export'
+          },
+          {
+            label: i18n(['Import settings', '导入配置']),
+            type: 'cell',
+            name: 'import'
+          }
+        ]
+      },
+      {
+        label: i18n(['Settings', '设置']),
+        type: 'group',
+        items: formItems
+      }
+    ],
+    onItemClick: (item, ...args) => {
+      const { name } = item;
+      if (name === 'export') {
+        exportSettings();
+      }
+      if (name === 'import') {
+        importSettings().catch((err) => {
+          console.error(err);
+          throw err
+        });
+      }
+      onItemClick?.(item, ...args);
+    },
+    ...restOptions
+  }, true)
+};
 
 const preference = {
   themeColor: '#ff0000',
@@ -1191,7 +1488,10 @@ const preference = {
   textColorDark: '#ffffff',
   weekendColor: '#8e8e93',
   weekendColorDark: '#8e8e93',
-  symbolName: 'flag.fill'
+  symbolName: 'flag.fill',
+  eventMax: 3,
+  eventFontSize: 13,
+  includesReminder: false
 };
 const $12Animals = {
   子: '鼠',
@@ -1438,6 +1738,98 @@ const addDay = async (
   }
 };
 
+/**
+ * @param {WidgetStack} stack
+ * @param {CalendarEvent | Reminder} event
+ */
+const addEvent = (stack, event) => {
+  const { eventFontSize } = preference;
+  const row = stack.addStack();
+  row.layoutHorizontally();
+  row.centerAlignContent();
+  row.size = new Size(-1, 28);
+  const line = row.addStack();
+  line.layoutVertically();
+  line.size = new Size(2.4, -1);
+  line.cornerRadius = 1.2;
+  line.backgroundColor = event.calendar.color;
+  line.addSpacer();
+
+  row.addSpacer(8);
+  const content = row.addStack();
+  content.layoutVertically();
+  const title = content.addText(event.title);
+  title.font = Font.systemFont(eventFontSize);
+  const dateFormat = new Intl.DateTimeFormat([], {
+    month: '2-digit',
+    day: '2-digit'
+  }).format;
+  const timeFormat = new Intl.DateTimeFormat([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format;
+  const items = [];
+  const eventDate = event.startDate || event.dueDate;
+  if (isToday(eventDate)) {
+    items.push(i18n(['Today', '今天']));
+  } else {
+    items.push(dateFormat(eventDate));
+  }
+  if (!event.isAllDay || event.dueDateIncludesTime) items.push(timeFormat(eventDate));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startDayDate = new Date(eventDate);
+  startDayDate.setHours(0, 0, 0, 0);
+  const diff = (startDayDate - today) / (24 * 3600000);
+  if (diff > 0) items.push(`T+${Math.round(diff)}`);
+  const date = content.addText(items.join(' '));
+  date.font = Font.systemFont(eventFontSize * 12 / 13);
+  date.textColor = Color.gray();
+  row.addSpacer();
+};
+
+const getReminders = async () => {
+  const calendars = await Calendar.forReminders();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  today.setHours(0, 0, 0, -1);
+  const reminders = await Reminder.incompleteDueBetween(today, later7Date, calendars);
+  return reminders
+};
+
+const getEvents = async () => {
+  const calendars = await Calendar.forEvents();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  const events = await CalendarEvent.between(today, later7Date, calendars);
+  return events
+};
+
+/**
+ * @param {WidgetStack} stack
+ */
+const addEvents = async (stack) => {
+  const { eventMax, includesReminder } = preference;
+  const promises = [getEvents()];
+  if (includesReminder) {
+    promises.push(getReminders());
+  }
+  const eventsList = await Promise.all(promises);
+  const _events = eventsList.flat().sort(
+    (a, b) => (a.startDate || a.dueDate) - (b.startDate || b.dueDate)
+  );
+  const list = stack.addStack();
+  list.layoutVertically();
+  for (const event of _events.slice(0, eventMax)) {
+    list.addSpacer(4);
+    addEvent(list, event);
+  }
+  return list
+};
+
 const createWidget = async () => {
   const phone = phoneSize();
   const scale = Device.screenScale();
@@ -1460,11 +1852,16 @@ const createWidget = async () => {
       : Color.dynamic(lightColor, darkColor);
   widget.setPadding(12, 15, 12, 15);
   addTitle(widget);
-  await addCalendar(widget, {
+  const row = widget.addStack();
+  await addCalendar(row, {
     itemWidth,
     gap: is7Rows ? [columnGap, rowGap - 1] : [columnGap, rowGap],
     addDay
   });
+  if (family === 'medium') {
+    row.addSpacer(10);
+    await addEvents(row);
+  }
   return widget
 };
 
@@ -1476,6 +1873,31 @@ const {
   weekendColorDark,
   symbolName
 } = preference;
+const eventSettings = {
+  name: 'event',
+  type: 'group',
+  label: i18n(['Event', '事件']),
+  items: [
+    {
+      name: 'eventFontSize',
+      type: 'number',
+      label: i18n(['Text size', '字体大小']),
+      default: preference.eventFontSize
+    },
+    {
+      name: 'eventMax',
+      type: 'number',
+      label: i18n(['Max count', '最大显示数量']),
+      default: preference.eventMax
+    },
+    {
+      name: 'includesReminder',
+      type: 'switch',
+      label: i18n(['Show reminders', '显示提醒事项']),
+      default: preference.includesReminder
+    }
+  ]
+};
 const widget = await withSettings({
   formItems: [
     {
@@ -1512,7 +1934,8 @@ const widget = await withSettings({
       name: 'symbolName',
       label: i18n(['Calendar SFSymbol icon', '事件 SFSymbol 图标']),
       default: symbolName
-    }
+    },
+    eventSettings
   ],
   render: async ({ family, settings }) => {
     if (family) {

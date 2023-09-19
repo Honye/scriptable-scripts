@@ -1,8 +1,8 @@
 if (typeof require === 'undefined') require = importModule
-const { i18n, phoneSize, tintedImage, isSameDay, isToday } = importModule('utils.module')
-const { useGrid } = importModule('widgets.module')
+const { i18n, phoneSize, tintedImage, isSameDay, isToday } = require('./utils.module')
+const { useGrid } = require('./widgets.module')
 const { sloarToLunar } = require('./lunar.module')
-const { withSettings } = importModule('withSettings.module')
+const { withSettings } = require('./withSettings.module')
 
 const preference = {
   themeColor: '#ff0000',
@@ -10,7 +10,10 @@ const preference = {
   textColorDark: '#ffffff',
   weekendColor: '#8e8e93',
   weekendColorDark: '#8e8e93',
-  symbolName: 'flag.fill'
+  symbolName: 'flag.fill',
+  eventMax: 3,
+  eventFontSize: 13,
+  includesReminder: false
 }
 const $12Animals = {
   子: '鼠',
@@ -257,6 +260,98 @@ const addDay = async (
   }
 }
 
+/**
+ * @param {WidgetStack} stack
+ * @param {CalendarEvent | Reminder} event
+ */
+const addEvent = (stack, event) => {
+  const { eventFontSize } = preference
+  const row = stack.addStack()
+  row.layoutHorizontally()
+  row.centerAlignContent()
+  row.size = new Size(-1, 28)
+  const line = row.addStack()
+  line.layoutVertically()
+  line.size = new Size(2.4, -1)
+  line.cornerRadius = 1.2
+  line.backgroundColor = event.calendar.color
+  line.addSpacer()
+
+  row.addSpacer(8)
+  const content = row.addStack()
+  content.layoutVertically()
+  const title = content.addText(event.title)
+  title.font = Font.systemFont(eventFontSize)
+  const dateFormat = new Intl.DateTimeFormat([], {
+    month: '2-digit',
+    day: '2-digit'
+  }).format
+  const timeFormat = new Intl.DateTimeFormat([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format
+  const items = []
+  const eventDate = event.startDate || event.dueDate
+  if (isToday(eventDate)) {
+    items.push(i18n(['Today', '今天']))
+  } else {
+    items.push(dateFormat(eventDate))
+  }
+  if (!event.isAllDay || event.dueDateIncludesTime) items.push(timeFormat(eventDate))
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startDayDate = new Date(eventDate)
+  startDayDate.setHours(0, 0, 0, 0)
+  const diff = (startDayDate - today) / (24 * 3600000)
+  if (diff > 0) items.push(`T+${Math.round(diff)}`)
+  const date = content.addText(items.join(' '))
+  date.font = Font.systemFont(eventFontSize * 12 / 13)
+  date.textColor = Color.gray()
+  row.addSpacer()
+}
+
+const getReminders = async () => {
+  const calendars = await Calendar.forReminders()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000)
+  today.setHours(0, 0, 0, -1)
+  const reminders = await Reminder.incompleteDueBetween(today, later7Date, calendars)
+  return reminders
+}
+
+const getEvents = async () => {
+  const calendars = await Calendar.forEvents()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000)
+  const events = await CalendarEvent.between(today, later7Date, calendars)
+  return events
+}
+
+/**
+ * @param {WidgetStack} stack
+ */
+const addEvents = async (stack) => {
+  const { eventMax, includesReminder } = preference
+  const promises = [getEvents()]
+  if (includesReminder) {
+    promises.push(getReminders())
+  }
+  const eventsList = await Promise.all(promises)
+  const _events = eventsList.flat().sort(
+    (a, b) => (a.startDate || a.dueDate) - (b.startDate || b.dueDate)
+  )
+  const list = stack.addStack()
+  list.layoutVertically()
+  for (const event of _events.slice(0, eventMax)) {
+    list.addSpacer(4)
+    addEvent(list, event)
+  }
+  return list
+}
+
 const createWidget = async () => {
   const phone = phoneSize()
   const scale = Device.screenScale()
@@ -279,11 +374,16 @@ const createWidget = async () => {
       : Color.dynamic(lightColor, darkColor)
   widget.setPadding(12, 15, 12, 15)
   addTitle(widget)
-  await addCalendar(widget, {
+  const row = widget.addStack()
+  await addCalendar(row, {
     itemWidth,
     gap: is7Rows ? [columnGap, rowGap - 1] : [columnGap, rowGap],
     addDay
   })
+  if (family === 'medium') {
+    row.addSpacer(10)
+    await addEvents(row)
+  }
   return widget
 }
 
@@ -295,6 +395,31 @@ const {
   weekendColorDark,
   symbolName
 } = preference
+const eventSettings = {
+  name: 'event',
+  type: 'group',
+  label: i18n(['Event', '事件']),
+  items: [
+    {
+      name: 'eventFontSize',
+      type: 'number',
+      label: i18n(['Text size', '字体大小']),
+      default: preference.eventFontSize
+    },
+    {
+      name: 'eventMax',
+      type: 'number',
+      label: i18n(['Max count', '最大显示数量']),
+      default: preference.eventMax
+    },
+    {
+      name: 'includesReminder',
+      type: 'switch',
+      label: i18n(['Show reminders', '显示提醒事项']),
+      default: preference.includesReminder
+    }
+  ]
+}
 const widget = await withSettings({
   formItems: [
     {
@@ -331,7 +456,8 @@ const widget = await withSettings({
       name: 'symbolName',
       label: i18n(['Calendar SFSymbol icon', '事件 SFSymbol 图标']),
       default: symbolName
-    }
+    },
+    eventSettings
   ],
   render: async ({ family, settings }) => {
     if (family) {
