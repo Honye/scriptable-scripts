@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.3.0
+ * @version 1.4.0
  * @author Honye
  */
 
@@ -1491,7 +1491,9 @@ const preference = {
   symbolName: 'flag.fill',
   eventMax: 3,
   eventFontSize: 13,
-  includesReminder: false
+  includesReminder: false,
+  /** @type {'calendar_events'|'events_calendar'} */
+  layout: 'calendar_events'
 };
 const $12Animals = {
   子: '鼠',
@@ -1831,6 +1833,7 @@ const addEvents = async (stack) => {
 };
 
 const createWidget = async () => {
+  const { layout } = preference;
   const phone = phoneSize();
   const scale = Device.screenScale();
   const family = config.widgetFamily;
@@ -1853,14 +1856,26 @@ const createWidget = async () => {
   widget.setPadding(12, 15, 12, 15);
   addTitle(widget);
   const row = widget.addStack();
-  await addCalendar(row, {
-    itemWidth,
-    gap: is7Rows ? [columnGap, rowGap - 1] : [columnGap, rowGap],
-    addDay
-  });
+  const actions = [
+    () =>
+      addCalendar(row, {
+        itemWidth,
+        gap: is7Rows ? [columnGap, rowGap - 1] : [columnGap, rowGap],
+        addDay
+      })
+  ];
   if (family === 'medium') {
-    row.addSpacer(10);
-    await addEvents(row);
+    if (layout === 'calendar_events') {
+      actions.push(() => addEvents(row));
+    } else {
+      actions.unshift(() => addEvents(row));
+    }
+  }
+  for (const [i, action] of actions.entries()) {
+    if (layout === 'calendar_events' && i > 0) {
+      row.addSpacer(10);
+    }
+    await action();
   }
   return widget
 };
@@ -1876,7 +1891,7 @@ const {
 const eventSettings = {
   name: 'event',
   type: 'group',
-  label: i18n(['Event', '事件']),
+  label: i18n(['Events', '事件']),
   items: [
     {
       name: 'eventFontSize',
@@ -1895,6 +1910,16 @@ const eventSettings = {
       type: 'switch',
       label: i18n(['Show reminders', '显示提醒事项']),
       default: preference.includesReminder
+    },
+    {
+      name: 'layout',
+      type: 'select',
+      label: i18n(['Content placement', '排列方式']),
+      options: [
+        { label: i18n(['Calendar-Events', '日历-事件']), value: 'calendar_events' },
+        { label: i18n(['Events-Calendar', '事件-日历']), value: 'events_calendar' }
+      ],
+      default: preference.layout
     }
   ]
 };
