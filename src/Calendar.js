@@ -300,7 +300,8 @@ const addEvent = (stack, event) => {
   } else {
     items.push(dateFormat(eventDate))
   }
-  if (!event.isAllDay || event.dueDateIncludesTime) items.push(timeFormat(eventDate))
+  // Don't use `!isAllDay`, Reminder does not have `isAllDay` attribute
+  if (event.isAllDay === false || event.dueDateIncludesTime) items.push(timeFormat(eventDate))
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const startDayDate = new Date(eventDate)
