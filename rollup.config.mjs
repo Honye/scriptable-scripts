@@ -1,8 +1,9 @@
 import path from 'path'
 import glob from 'glob'
 import serve from 'rollup-plugin-serve'
-import { version } from './package.json'
+import pkg from './package.json' assert { type: 'json' }
 
+const { version } = pkg
 console.info(`Scriptable Template v${version}\r\n`)
 
 const config = {
@@ -93,6 +94,10 @@ for (const filename of files) {
               return `import ${imported.replace(/:/g, ' as ')} from "./${moduleName}"`
             }
           )
+            .replace(
+              /(?:let|const)\s*{([\s\S]*?)\}\s*=\s*(?:importModule|require)\('(.*?)'\)/,
+              "import {$1} from '$2'"
+            )
         }
       }
     ]

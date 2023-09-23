@@ -3,8 +3,9 @@ lockfileVersion: 5.4
 specifiers:
   '@babel/core': ^7.14.0
   '@babel/eslint-parser': ^7.13.14
+  '@babel/plugin-syntax-import-assertions': ^7.22.5
   '@babel/plugin-syntax-top-level-await': ^7.12.13
-  '@types/node': ^17.0.23
+  '@types/node': ^18.14.6
   '@types/scriptable-ios': ^1.7.0
   eslint: ^7.26.0
   eslint-config-standard: ^16.0.2
@@ -12,14 +13,15 @@ specifiers:
   eslint-plugin-node: ^11.1.0
   eslint-plugin-promise: ^4.3.1
   glob: ^7.2.0
-  rollup: ^2.45.2
-  rollup-plugin-serve: ^1.1.0
+  rollup: ^3.29.2
+  rollup-plugin-serve: ^2.0.2
 
 devDependencies:
   '@babel/core': 7.18.13
   '@babel/eslint-parser': 7.18.9_yvyxucxu4syjjccj52qfaafshm
+  '@babel/plugin-syntax-import-assertions': 7.22.5_@babel+core@7.18.13
   '@babel/plugin-syntax-top-level-await': 7.14.5_@babel+core@7.18.13
-  '@types/node': 17.0.45
+  '@types/node': 18.17.18
   '@types/scriptable-ios': 1.7.0
   eslint: 7.32.0
   eslint-config-standard: 16.0.3_x4ksp4i5em7khivw5kkmm7swui
@@ -27,8 +29,8 @@ devDependencies:
   eslint-plugin-node: 11.1.0_eslint@7.32.0
   eslint-plugin-promise: 4.3.1
   glob: 7.2.3
-  rollup: 2.79.0
-  rollup-plugin-serve: 1.1.0
+  rollup: 3.29.2
+  rollup-plugin-serve: 2.0.2
 
 packages:
 
@@ -165,6 +167,11 @@ packages:
     engines: {node: '>=6.9.0'}
     dev: true
 
+  /@babel/helper-plugin-utils/7.22.5:
+    resolution: {integrity: sha512-uLls06UVKgFG9QD4OeFYLEGteMIAa5kpTPcFL28yuCIIzsf6ZyKZMllKVOCZFhiZ5ptnwX4mtKdWCBE/uT4amg==}
+    engines: {node: '>=6.9.0'}
+    dev: true
+
   /@babel/helper-simple-access/7.18.6:
     resolution: {integrity: sha512-iNpIgTgyAvDQpDj76POqg+YEt8fPxx3yaNBg3S30dxNKm2SWfYhD0TGrK/Eu9wHpUW63VQU894TsTg+GLbUa1g==}
     engines: {node: '>=6.9.0'}
@@ -220,6 +227,16 @@ packages:
     hasBin: true
     dependencies:
       '@babel/types': 7.18.13
+    dev: true
+
+  /@babel/plugin-syntax-import-assertions/7.22.5_@babel+core@7.18.13:
+    resolution: {integrity: sha512-rdV97N7KqsRzeNGoWUOK6yUsWarLjE5Su/Snk9IYPU9CwkWHs4t+rTGOvffTR8XGkJMTAdLfO0xVnXm8wugIJg==}
+    engines: {node: '>=6.9.0'}
+    peerDependencies:
+      '@babel/core': ^7.0.0-0
+    dependencies:
+      '@babel/core': 7.18.13
+      '@babel/helper-plugin-utils': 7.22.5
     dev: true
 
   /@babel/plugin-syntax-top-level-await/7.14.5_@babel+core@7.18.13:
@@ -342,8 +359,8 @@ packages:
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
     dev: true
 
-  /@types/node/17.0.45:
-    resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
+  /@types/node/18.17.18:
+    resolution: {integrity: sha512-/4QOuy3ZpV7Ya1GTRz5CYSz3DgkKpyUptXuQ5PPce7uuyJAOR7r9FhkmxJfvcNUXyklbC63a+YvB3jxy7s9ngw==}
     dev: true
 
   /@types/scriptable-ios/1.7.0:
@@ -932,8 +949,8 @@ packages:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
     dev: true
 
-  /fsevents/2.3.2:
-    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+  /fsevents/2.3.3:
+    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
     requiresBuild: true
@@ -1427,19 +1444,19 @@ packages:
       glob: 7.2.3
     dev: true
 
-  /rollup-plugin-serve/1.1.0:
-    resolution: {integrity: sha512-pYkSsuA0/psKqhhictkJw1c2klya5b+LlCvipWqI9OE1aG2M97mRumZCbBlry5CMEOzYBBgSDgd1694sNbmyIw==}
+  /rollup-plugin-serve/2.0.2:
+    resolution: {integrity: sha512-ALqyTbPhlf7FZ5RzlbDvMYvbKuCHWginJkTo6dMsbgji/a78IbsXox+pC83HENdkTRz8OXrTj+aShp3+3ratpg==}
     dependencies:
       mime: 3.0.0
       opener: 1.5.2
     dev: true
 
-  /rollup/2.79.0:
-    resolution: {integrity: sha512-x4KsrCgwQ7ZJPcFA/SUu6QVcYlO7uRLfLAy0DSA4NS2eG8japdbpM50ToH7z4iObodRYOJ0soneF0iaQRJ6zhA==}
-    engines: {node: '>=10.0.0'}
+  /rollup/3.29.2:
+    resolution: {integrity: sha512-CJouHoZ27v6siztc21eEQGo0kIcE5D1gVPA571ez0mMYb25LGYGKnVNXpEj5MGlepmDWGXNjDB5q7uNiPHC11A==}
+    engines: {node: '>=14.18.0', npm: '>=8.0.0'}
     hasBin: true
     optionalDependencies:
-      fsevents: 2.3.2
+      fsevents: 2.3.3
     dev: true
 
   /safe-buffer/5.1.2:
