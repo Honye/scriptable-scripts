@@ -268,6 +268,7 @@ const addDay = async (
  */
 const addEvent = (stack, event) => {
   const { eventFontSize } = preference
+  const { color } = event.calendar
   const row = stack.addStack()
   row.layoutHorizontally()
   row.centerAlignContent()
@@ -276,14 +277,15 @@ const addEvent = (stack, event) => {
   line.layoutVertically()
   line.size = new Size(2.4, -1)
   line.cornerRadius = 1.2
-  line.backgroundColor = event.calendar.color
+  line.backgroundColor = color
   line.addSpacer()
 
-  row.addSpacer(8)
+  row.addSpacer(6)
   const content = row.addStack()
   content.layoutVertically()
   const title = content.addText(event.title)
-  title.font = Font.systemFont(eventFontSize)
+  title.font = Font.boldSystemFont(eventFontSize)
+  title.textColor = color
   const dateFormat = new Intl.DateTimeFormat([], {
     month: '2-digit',
     day: '2-digit'
