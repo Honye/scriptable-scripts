@@ -4,7 +4,7 @@
 /**
  * 湖北联通余额信息展示
  *
- * @version 1.1.0
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -145,36 +145,57 @@ const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.1.0-beta
+ * @version 1.0.2
  * @author Honye
  */
 
 /**
- * @param {WebView} webView
- * @param {*} options
+ * @typedef Options
+ * @property {Record<string, () => void>} methods
  */
-const inject = async (webView, options) => {
+
+const sendResult = (() => {
+  let sending = false;
+  /** @type {{ code: string; data: any }[]} */
+  const list = [];
+
   /**
+   * @param {WebView} webView
    * @param {string} code
-   * @param {*} data
+   * @param {any} data
    */
-  const sendResult = async (code, data) => {
-    const eventName = `ScriptableBridge_${code}_Result`;
-    try {
+  return async (webView, code, data) => {
+    if (sending) return
+
+    sending = true;
+    list.push({ code, data });
+    const arr = list.splice(0, list.length);
+    for (const { code, data } of arr) {
+      const eventName = `ScriptableBridge_${code}_Result`;
+      const res = data instanceof Error ? { err: data.message } : data;
       await webView.evaluateJavaScript(
         `window.dispatchEvent(
           new CustomEvent(
             '${eventName}',
-            { detail: ${JSON.stringify(data)} }
+            { detail: ${JSON.stringify(res)} }
           )
         )`
       );
-    } catch (e) {
-      console.error('[native] sendResult error:');
-      console.error(e);
     }
-  };
+    if (list.length) {
+      const { code, data } = list.shift();
+      sendResult(webView, code, data);
+    } else {
+      sending = false;
+    }
+  }
+})();
 
+/**
+ * @param {WebView} webView
+ * @param {Options} options
+ */
+const inject = async (webView, options) => {
   const js =
 `(() => {
   const queue = window.__scriptable_bridge_queue
@@ -219,13 +240,20 @@ const inject = async (webView, options) => {
 
   const methods = options.methods || {};
   const events = Array.isArray(res) ? res : [res];
-  for (const { code, data } of events) {
-    // TODO 同时执行多次 webView.evaluateJavaScript 存在问题
-    // ;(async () => {
-    //   sendResult(code, await methods[code]?.(data))
-    // })()
-    await sendResult(code, await methods[code]?.(data));
-  }
+  // 同时执行多次 webView.evaluateJavaScript Scriptable 存在问题
+  // 可能是因为 JavaScript 是单线程导致的
+  const sendTasks = events.map(({ code, data }) => {
+    return (() => {
+      try {
+        return Promise.resolve(methods[code](data))
+      } catch (e) {
+        return Promise.reject(e)
+      }
+    })()
+      .then((res) => sendResult(webView, code, res))
+      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+  });
+  await Promise.all(sendTasks);
   inject(webView, options);
 };
 
@@ -234,7 +262,7 @@ const inject = async (webView, options) => {
  * @param {object} args
  * @param {string} args.html
  * @param {string} [args.baseURL]
- * @param {*} options
+ * @param {Options} options
  */
 const loadHTML = async (webView, args, options = {}) => {
   const { html, baseURL } = args;
@@ -250,9 +278,10 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.2
+ * @version 1.4.1
  * @author Honye
  */
+
 const fm = FileManager.local();
 const fileName = 'settings.json';
 
@@ -1004,21 +1033,12 @@ const withSettings = async (options) => {
   }, true)
 };
 
-let conf = {
-  /** wap.10010hb.net */
-  Authorization: ''
-};
 const preference = {
   textColorLight: '#222222',
-  textColorDark: '#ffffff'
+  textColorDark: '#ffffff',
+  authorization: ''
 };
-if (!conf.Authorization) {
-  try {
-    conf = importModule/* ignore */('Config')['10010']();
-  } catch (e) {
-    console.error(e);
-  }
-}
+
 const cache = useCache();
 const ringStackSize = 61; // 圆环大小
 const ringTextSize = 14; // 圆环中心文字大小
@@ -1040,10 +1060,21 @@ const canvas = new DrawContext();
 const canvWidth = 18;
 const canvRadius = 80;
 
-const hbHeaders = {
-  zx: '12',
-  Authorization: conf.Authorization,
-  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001f2e) NetType/4G Language/en'
+const hbHeaders = () => {
+  let { authorization } = preference;
+  if (!authorization) {
+    try {
+      const conf = importModule/* ignore */('Config')['10010']();
+      authorization = conf.Authorization;
+    } catch (e) {
+      console.warn('Not set Authorization');
+    }
+  }
+  return {
+    zx: '12',
+    Authorization: authorization,
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001f2e) NetType/4G Language/en'
+  }
 };
 
 const createWidget = async () => {
@@ -1209,7 +1240,7 @@ function drawArc (deg, fillColor, strokeColor) {
  */
 const getBalence = async () => {
   const request = new Request('https://wap.10010hb.net/zinfo/front/user/findFeePackage');
-  request.headers = hbHeaders;
+  request.headers = hbHeaders();
   request.method = 'POST';
   const res = await request.loadJSON();
   if (res.success) {
@@ -1221,7 +1252,7 @@ const getBalence = async () => {
 /** 套餐余额 */
 const getPackageLeft = async () => {
   const request = new Request('https://wap.10010hb.net/zinfo/front/user/findLeftPackage');
-  request.headers = hbHeaders;
+  request.headers = hbHeaders();
   request.method = 'POST';
   const res = await request.loadJSON();
   if (res.success) {
@@ -1286,6 +1317,12 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
+    },
+    {
+      name: 'authorization',
+      label: 'Authorization',
+      type: 'text',
+      default: preference.authorization
     }
   ],
   render: async ({ settings }) => {

@@ -2,21 +2,12 @@ if (typeof require === 'undefined') require = importModule
 const { withSettings } = require('./withSettings.module')
 const { getImage, i18n, useCache } = require('./utils.module')
 
-let conf = {
-  /** wap.10010hb.net */
-  Authorization: ''
-}
 const preference = {
   textColorLight: '#222222',
-  textColorDark: '#ffffff'
+  textColorDark: '#ffffff',
+  authorization: ''
 }
-if (!conf.Authorization) {
-  try {
-    conf = importModule/* ignore */('Config')['10010']()
-  } catch (e) {
-    console.error(e)
-  }
-}
+
 const cache = useCache()
 const ringStackSize = 61 // 圆环大小
 const ringTextSize = 14 // 圆环中心文字大小
@@ -38,10 +29,21 @@ const canvas = new DrawContext()
 const canvWidth = 18
 const canvRadius = 80
 
-const hbHeaders = {
-  zx: '12',
-  Authorization: conf.Authorization,
-  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001f2e) NetType/4G Language/en'
+const hbHeaders = () => {
+  let { authorization } = preference
+  if (!authorization) {
+    try {
+      const conf = importModule/* ignore */('Config')['10010']()
+      authorization = conf.Authorization
+    } catch (e) {
+      console.warn('Not set Authorization')
+    }
+  }
+  return {
+    zx: '12',
+    Authorization: authorization,
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001f2e) NetType/4G Language/en'
+  }
 }
 
 const createWidget = async () => {
@@ -207,7 +209,7 @@ function drawArc (deg, fillColor, strokeColor) {
  */
 const getBalence = async () => {
   const request = new Request('https://wap.10010hb.net/zinfo/front/user/findFeePackage')
-  request.headers = hbHeaders
+  request.headers = hbHeaders()
   request.method = 'POST'
   const res = await request.loadJSON()
   if (res.success) {
@@ -219,7 +221,7 @@ const getBalence = async () => {
 /** 套餐余额 */
 const getPackageLeft = async () => {
   const request = new Request('https://wap.10010hb.net/zinfo/front/user/findLeftPackage')
-  request.headers = hbHeaders
+  request.headers = hbHeaders()
   request.method = 'POST'
   const res = await request.loadJSON()
   if (res.success) {
@@ -284,6 +286,12 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
+    },
+    {
+      name: 'authorization',
+      label: 'Authorization',
+      type: 'text',
+      default: preference.authorization
     }
   ],
   render: async ({ settings }) => {
