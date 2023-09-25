@@ -1,4 +1,5 @@
-import path from 'path'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import glob from 'glob'
 import serve from 'rollup-plugin-serve'
 import pkg from './package.json' assert { type: 'json' }
@@ -18,6 +19,7 @@ const config = {
 }
 
 const files = glob.sync(config.input, { ignore: config.exclude || [] })
+/** @type {import('rollup').RollupOptions[]} */
 const modules = []
 
 for (const filename of files) {
@@ -26,7 +28,9 @@ for (const filename of files) {
     const [, suffix] = matches.splice(1)
     let conf = {}
     try {
-      conf = require(path.resolve(filename.replace(new RegExp(`${suffix}$`), '.json')))
+      const confPath = path.resolve(filename.replace(new RegExp(`${suffix}$`), '.json'))
+      const confModule = await import(pathToFileURL(confPath), { assert: { type: 'json' } })
+      conf = confModule.default
     } catch (e) {}
     const annotations = []
     if (conf.description) {
@@ -104,6 +108,7 @@ for (const filename of files) {
 
     modules.push({
       input: filename,
+      context: 'this',
       output: {
         banner: banners.join('\n'),
         file: path.join(
