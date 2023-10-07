@@ -81,12 +81,24 @@ const addStatusDot = (widget, status) => {
   iconStatus.tintColor = colors[status]
 }
 
+const getLogo = async () => {
+  const url = 'https://jun.fly.dev/imgs/chinaunicom.png'
+  const path = 'chinaunicom.png'
+  const cached = cache.readImage(path)
+  if (cached) {
+    return cached
+  }
+
+  const image = await getImage(url)
+  cache.writeImage(path, image)
+  return image
+}
+
 /** 联通 Logo 显示 */
 const addLogo = async (widget) => {
-  const cuIconUrl = 'https://jun.fly.dev/imgs/chinaunicom.png'
   const headerStack = widget.addStack()
   headerStack.addSpacer()
-  const logo = headerStack.addImage(await getImage(cuIconUrl))
+  const logo = headerStack.addImage(await getLogo())
   logo.imageSize = new Size(393 * 0.25, 118 * 0.25)
   headerStack.addSpacer()
   widget.addSpacer()
