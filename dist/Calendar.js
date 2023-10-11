@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.4.2
+ * @version 1.4.3
  * @author Honye
  */
 
@@ -1828,6 +1828,9 @@ const addEvents = async (stack) => {
     (a, b) => (a.startDate || a.dueDate) - (b.startDate || b.dueDate)
   );
   const list = stack.addStack();
+  const holder = stack.addStack();
+  holder.layoutHorizontally();
+  holder.addSpacer();
   list.layoutVertically();
   for (const event of _events.slice(0, eventMax)) {
     list.addSpacer(4);
