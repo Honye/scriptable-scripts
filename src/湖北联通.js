@@ -5,7 +5,8 @@ const { getImage, i18n, useCache } = require('./utils.module')
 const preference = {
   textColorLight: '#222222',
   textColorDark: '#ffffff',
-  authorization: ''
+  authorization: '',
+  isShowFreeFlow: false
 }
 
 const cache = useCache()
@@ -248,6 +249,7 @@ const getData = async () => {
     const { addupInfoList } = packageLeft
     const flowData = { left: 0, total: 0 }
     const voiceData = { left: 0, total: 0 }
+    const { isShowFreeFlow } = preference
     for (const item of addupInfoList) {
       // 语音
       if (item.elemtype === '1') {
@@ -255,10 +257,18 @@ const getData = async () => {
         voiceData.total += Number(item.addupupper)
       }
       // 流量
-      if (item.elemtype === '3') {
-        flowData.left += Number(item.xcanusevalue)
-        flowData.total += Number(item.addupupper)
+      if (isShowFreeFlow) {
+        if (item.elemtype === '3') {
+          flowData.left += Number(item.xcanusevalue)
+          flowData.total += Number(item.addupupper)
+        }
+      } else {
+        if (item.elemtype === '3' && item.resourcetype != '13') {
+          flowData.left += Number(item.xcanusevalue)
+          flowData.total += Number(item.addupupper)
+        }
       }
+      
     }
 
     const data = {
@@ -304,6 +314,12 @@ await withSettings({
       label: 'Authorization',
       type: 'text',
       default: preference.authorization
+    },
+    {
+      name: 'isShowFreeFlow',
+      label: i18n(['Show Free Flow', '显示免流包']),
+      type: 'switch',
+      default: preference.isShowFreeFlow
     }
   ],
   render: async ({ settings }) => {
