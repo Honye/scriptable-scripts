@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.4.3
+ * @version 1.4.4
  * @author Honye
  */
 
@@ -1483,6 +1483,106 @@ const withSettings = async (options) => {
   }, true)
 };
 
+/**
+ * @param {string} hex
+ */
+const hexToRGBA = (hex) => {
+  const red = Number.parseInt(hex.substr(-6, 2), 16);
+  const green = Number.parseInt(hex.substr(-4, 2), 16);
+  const blue = Number.parseInt(hex.substr(-2, 2), 16);
+  let alpha = 1;
+
+  if (hex.length >= 8) {
+    Number.parseInt(hex.substr(-8, 2), 16);
+    Number.parseInt(hex.substr(-6, 2), 16);
+    Number.parseInt(hex.substr(-4), 2);
+    const number = Number.parseInt(hex.substr(-2, 2), 16);
+    alpha = Number.parseFloat((number / 255).toFixed(3));
+  }
+  return { red, green, blue, alpha }
+};
+
+const _RGBToHex = (r, g, b) => {
+  r = r.toString(16);
+  g = g.toString(16);
+  b = b.toString(16);
+
+  if (r.length === 1) { r = '0' + r; }
+  if (g.length === 1) { g = '0' + g; }
+  if (b.length === 1) { b = '0' + b; }
+
+  return '#' + r + g + b
+};
+
+const RGBToHSL = (r, g, b) => {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+
+  const cmin = Math.min(r, g, b);
+  const cmax = Math.max(r, g, b);
+  const delta = cmax - cmin;
+  let h = 0;
+  let s = 0;
+  let l = 0;
+
+  if (delta === 0) {
+    h = 0;
+  } else if (cmax === r) {
+    h = ((g - b) / delta) % 6;
+  } else if (cmax === g) {
+    h = (b - r) / delta + 2;
+  } else {
+    h = (r - g) / delta + 4;
+  }
+  h = Math.round(h * 60);
+  if (h < 0) {
+    h += 360;
+  }
+
+  l = (cmax + cmin) / 2;
+  s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  s = +(s * 100).toFixed(1);
+  l = +(l * 100).toFixed(1);
+  return { h, s, l }
+};
+
+const _HSLToRGB = (h, s, l) => {
+  // Must be fractions of 1
+  s /= 100;
+  l /= 100;
+
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (h >= 0 && h < 60) {
+    r = c; g = x; b = 0;
+  } else if (h >= 60 && h < 120) {
+    r = x; g = c; b = 0;
+  } else if (h >= 120 && h < 180) {
+    r = 0; g = c; b = x;
+  } else if (h >= 180 && h < 240) {
+    r = 0; g = x; b = c;
+  } else if (h >= 240 && h < 300) {
+    r = x; g = 0; b = c;
+  } else if (h >= 300 && h < 360) {
+    r = c; g = 0; b = x;
+  }
+  r = Math.round((r + m) * 255);
+  g = Math.round((g + m) * 255);
+  b = Math.round((b + m) * 255);
+  return { r, g, b }
+};
+
+const lightenDarkenColor = (hsl, amount) => {
+  const rgb = _HSLToRGB(hsl.h, hsl.s, hsl.l + amount);
+  const hex = _RGBToHex(rgb.r, rgb.g, rgb.b);
+  return hex
+};
+
 const preference = {
   themeColor: '#ff0000',
   textColor: '#222222',
@@ -1493,6 +1593,7 @@ const preference = {
   eventMax: 3,
   eventFontSize: 13,
   includesReminder: false,
+  eventDays: 7,
   /** @type {'calendar_events'|'events_calendar'} */
   layout: 'calendar_events'
 };
@@ -1764,7 +1865,11 @@ const addEvent = (stack, event) => {
   content.layoutVertically();
   const title = content.addText(event.title);
   title.font = Font.boldSystemFont(eventFontSize);
-  title.textColor = color;
+  const rgba = hexToRGBA(color.hex);
+  const hsl = RGBToHSL(rgba.red, rgba.green, rgba.blue);
+  const lightColor = hsl.l > 30 ? new Color(lightenDarkenColor(hsl, 30 - hsl.l)) : color;
+  const darkColor = hsl.l < 60 ? new Color(lightenDarkenColor(hsl, 60 - hsl.l)) : color;
+  title.textColor = Color.dynamic(lightColor, darkColor);
   const dateFormat = new Intl.DateTimeFormat([], {
     month: '2-digit',
     day: '2-digit'
@@ -1796,20 +1901,22 @@ const addEvent = (stack, event) => {
 };
 
 const getReminders = async () => {
+  const { eventDays } = preference;
   const calendars = await Calendar.forReminders();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  const later7Date = new Date(today.getTime() + eventDays * 24 * 3600000);
   today.setHours(0, 0, 0, -1);
   const reminders = await Reminder.incompleteDueBetween(today, later7Date, calendars);
   return reminders
 };
 
 const getEvents = async () => {
+  const { eventDays } = preference;
   const calendars = await Calendar.forEvents();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  const later7Date = new Date(today.getTime() + eventDays * 24 * 3600000);
   const events = await CalendarEvent.between(today, later7Date, calendars);
   return events
 };
@@ -1917,6 +2024,12 @@ const eventSettings = {
       type: 'switch',
       label: i18n(['Show reminders', '显示提醒事项']),
       default: preference.includesReminder
+    },
+    {
+      name: 'eventDays',
+      type: 'number',
+      label: i18n(['Days limit', '天数限制']),
+      default: preference.eventDays
     },
     {
       name: 'layout',

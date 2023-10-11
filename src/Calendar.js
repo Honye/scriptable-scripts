@@ -3,6 +3,7 @@ const { i18n, phoneSize, tintedImage, isSameDay, isToday } = require('./utils.mo
 const { useGrid } = require('./widgets.module')
 const { sloarToLunar } = require('./lunar.module')
 const { withSettings } = require('./withSettings.module')
+const { hexToRGBA, RGBToHSL, lightenDarkenColor } = require('./color.module')
 
 const preference = {
   themeColor: '#ff0000',
@@ -14,6 +15,7 @@ const preference = {
   eventMax: 3,
   eventFontSize: 13,
   includesReminder: false,
+  eventDays: 7,
   /** @type {'calendar_events'|'events_calendar'} */
   layout: 'calendar_events'
 }
@@ -285,7 +287,11 @@ const addEvent = (stack, event) => {
   content.layoutVertically()
   const title = content.addText(event.title)
   title.font = Font.boldSystemFont(eventFontSize)
-  title.textColor = color
+  const rgba = hexToRGBA(color.hex)
+  const hsl = RGBToHSL(rgba.red, rgba.green, rgba.blue)
+  const lightColor = hsl.l > 30 ? new Color(lightenDarkenColor(hsl, 30 - hsl.l)) : color
+  const darkColor = hsl.l < 60 ? new Color(lightenDarkenColor(hsl, 60 - hsl.l)) : color
+  title.textColor = Color.dynamic(lightColor, darkColor)
   const dateFormat = new Intl.DateTimeFormat([], {
     month: '2-digit',
     day: '2-digit'
@@ -317,20 +323,22 @@ const addEvent = (stack, event) => {
 }
 
 const getReminders = async () => {
+  const { eventDays } = preference
   const calendars = await Calendar.forReminders()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000)
+  const later7Date = new Date(today.getTime() + eventDays * 24 * 3600000)
   today.setHours(0, 0, 0, -1)
   const reminders = await Reminder.incompleteDueBetween(today, later7Date, calendars)
   return reminders
 }
 
 const getEvents = async () => {
+  const { eventDays } = preference
   const calendars = await Calendar.forEvents()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000)
+  const later7Date = new Date(today.getTime() + eventDays * 24 * 3600000)
   const events = await CalendarEvent.between(today, later7Date, calendars)
   return events
 }
@@ -438,6 +446,12 @@ const eventSettings = {
       type: 'switch',
       label: i18n(['Show reminders', '显示提醒事项']),
       default: preference.includesReminder
+    },
+    {
+      name: 'eventDays',
+      type: 'number',
+      label: i18n(['Days limit', '天数限制']),
+      default: preference.eventDays
     },
     {
       name: 'layout',
