@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.4.3
+ * @version 1.4.4
  * @author Honye
  */
 
@@ -1491,6 +1491,7 @@ const preference = {
   weekendColorDark: '#8e8e93',
   symbolName: 'flag.fill',
   eventMax: 3,
+  eventMaxDays: 7,
   eventFontSize: 13,
   includesReminder: false,
   /** @type {'calendar_events'|'events_calendar'} */
@@ -1796,20 +1797,22 @@ const addEvent = (stack, event) => {
 };
 
 const getReminders = async () => {
+  const { eventMaxDays } = preference;
   const calendars = await Calendar.forReminders();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  const later7Date = new Date(today.getTime() + eventMaxDays * 24 * 3600000);
   today.setHours(0, 0, 0, -1);
   const reminders = await Reminder.incompleteDueBetween(today, later7Date, calendars);
   return reminders
 };
 
 const getEvents = async () => {
+  const { eventMaxDays } = preference;
   const calendars = await Calendar.forEvents();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const later7Date = new Date(today.getTime() + 7 * 24 * 3600000);
+  const later7Date = new Date(today.getTime() + eventMaxDays * 24 * 3600000);
   const events = await CalendarEvent.between(today, later7Date, calendars);
   return events
 };
@@ -1911,6 +1914,12 @@ const eventSettings = {
       type: 'number',
       label: i18n(['Max count', '最大显示数量']),
       default: preference.eventMax
+    },
+    {
+      name: 'eventMaxDays',
+      type: 'number',
+      label: i18n(['Max days', '最大事件天数']),
+      default: preference.eventMaxDays
     },
     {
       name: 'includesReminder',
