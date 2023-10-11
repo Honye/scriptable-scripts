@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
 /**
- * @version 1.4.4
+ * @version 1.4.5
  * @author Honye
  */
 
@@ -591,6 +591,23 @@ function getDiZhi (ly) {
   let diZhiKey = (ly - 3) % 12;
   if (diZhiKey === 0) diZhiKey = 12;
   return diZhi[diZhiKey - 1]
+}
+
+// 事件颜色换算，浅色换深色
+function getDarkerColor(color, factor = 0.6) {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+    return 'Invalid color';
+  }
+
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+
+  const darkerR = Math.max(Math.floor(r * factor), 0);
+  const darkerG = Math.max(Math.floor(g * factor), 0);
+  const darkerB = Math.max(Math.floor(b * factor), 0);
+
+  return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
 }
 
 /**
@@ -1765,7 +1782,8 @@ const addEvent = (stack, event) => {
   content.layoutVertically();
   const title = content.addText(event.title);
   title.font = Font.boldSystemFont(eventFontSize);
-  title.textColor = color;
+  const darkerColor = getDarkerColor(`#${color.hex}`);
+  title.textColor = Color.dynamic(new Color(darkerColor), color);
   const dateFormat = new Intl.DateTimeFormat([], {
     month: '2-digit',
     day: '2-digit'
