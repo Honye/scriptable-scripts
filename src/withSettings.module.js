@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.1
+ * @version 1.5.0
  * @author Honye
  */
 
@@ -384,6 +384,20 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
+  input {
+    background-color: rgb(58, 57, 57);
+    color: var(--color-primary);
+  }
+  input[type='checkbox'][role='switch'] {
+    background-color: rgb(56, 56, 60);
+  }
+  input[type='checkbox'][role='switch']::before {
+    background-color: rgb(206, 206, 206);
+  }
+  select {
+    background-color: rgb(82, 82, 82);
+    border: none;
+  }
 }
 `
 
@@ -399,7 +413,7 @@ input[type='checkbox'][role='switch']:checked::before {
     ScriptableBridge.invoke(code, data, cb)
   }
 
-  const formData = {};
+  const formData = {}
 
   const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
@@ -409,20 +423,34 @@ input[type='checkbox'][role='switch']:checked::before {
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
-    if (item.type === 'select') {
+    if (/^(select|multi-select)$/.test(item.type)) {
       const select = document.createElement('select')
       select.className = 'form-item__input'
       select.name = item.name
-      select.value = value
-      for (const opt of (item.options || [])) {
-        const option = document.createElement('option')
-        option.value = opt.value
-        option.innerText = opt.label
-        option.selected = value === opt.value
-        select.appendChild(option)
+      select.multiple = item.type === 'multi-select'
+      const map = (options, parent) => {
+        for (const opt of (options || [])) {
+          if (opt.children?.length) {
+            const elGroup = document.createElement('optgroup')
+            elGroup.label = opt.label
+            map(opt.children, elGroup)
+            parent.appendChild(elGroup)
+          } else {
+            const option = document.createElement('option')
+            option.value = opt.value
+            option.innerText = opt.label
+            option.selected = Array.isArray(value) ? value.includes(opt.value) : (value === opt.value)
+            parent.appendChild(option)
+          }
+        }
       }
-      select.addEventListener('change', (e) => {
-        formData[item.name] = e.target.value
+      map(item.options || [], select)
+      select.addEventListener('change', ({ target }) => {
+        let { value } = target
+        if (item.type === 'multi-select') {
+          value = Array.from(target.selectedOptions).map(({ value }) => value)
+        }
+        formData[item.name] = value
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
