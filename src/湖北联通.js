@@ -5,6 +5,7 @@ const { getImage, i18n, useCache } = require('./utils.module')
 const preference = {
   textColorLight: '#222222',
   textColorDark: '#ffffff',
+  packages: [],
   authorization: ''
 }
 
@@ -248,7 +249,9 @@ const getData = async () => {
     const { addupInfoList } = packageLeft
     const flowData = { left: 0, total: 0 }
     const voiceData = { left: 0, total: 0 }
-    for (const item of addupInfoList) {
+    const { packages } = preference
+    const list = addupInfoList.filter((item) => packages.includes(item.feepolicyid))
+    for (const item of list) {
       // 语音
       if (item.elemtype === '1') {
         voiceData.left += Number(item.xcanusevalue)
@@ -285,6 +288,22 @@ const getData = async () => {
   }
 }
 
+const { addupInfoList } = await getPackageLeft()
+const cellularOptions = []
+const voiceOptions = []
+for (const item of addupInfoList) {
+  const { elemtype, feepolicyid, feepolicyname } = item
+  const option = { label: feepolicyname, value: feepolicyid }
+  if (elemtype === '1') {
+    // 语音
+    voiceOptions.push(option)
+  }
+  if (elemtype === '3') {
+    // 流量
+    cellularOptions.push(option)
+  }
+}
+
 await withSettings({
   formItems: [
     {
@@ -298,6 +317,22 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
+    },
+    {
+      name: 'packages',
+      label: i18n(['Packages', '套餐']),
+      type: 'multi-select',
+      options: [
+        {
+          label: '流量',
+          children: cellularOptions
+        },
+        {
+          label: '语音',
+          children: voiceOptions
+        }
+      ],
+      default: preference.packages
     },
     {
       name: 'authorization',

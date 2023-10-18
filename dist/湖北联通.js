@@ -4,7 +4,7 @@
 /**
  * 湖北联通余额信息展示
  *
- * @version 1.2.1
+ * @version 1.3.0
  * @author Honye
  */
 
@@ -278,7 +278,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.1
+ * @version 1.5.0
  * @author Honye
  */
 
@@ -654,6 +654,20 @@ input[type='checkbox'][role='switch']:checked::before {
     background: #000;
     color: #fff;
   }
+  input {
+    background-color: rgb(58, 57, 57);
+    color: var(--color-primary);
+  }
+  input[type='checkbox'][role='switch'] {
+    background-color: rgb(56, 56, 60);
+  }
+  input[type='checkbox'][role='switch']::before {
+    background-color: rgb(206, 206, 206);
+  }
+  select {
+    background-color: rgb(82, 82, 82);
+    border: none;
+  }
 }
 `;
 
@@ -669,7 +683,7 @@ input[type='checkbox'][role='switch']:checked::before {
     ScriptableBridge.invoke(code, data, cb)
   }
 
-  const formData = {};
+  const formData = {}
 
   const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
@@ -679,20 +693,34 @@ input[type='checkbox'][role='switch']:checked::before {
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
-    if (item.type === 'select') {
+    if (/^(select|multi-select)$/.test(item.type)) {
       const select = document.createElement('select')
       select.className = 'form-item__input'
       select.name = item.name
-      select.value = value
-      for (const opt of (item.options || [])) {
-        const option = document.createElement('option')
-        option.value = opt.value
-        option.innerText = opt.label
-        option.selected = value === opt.value
-        select.appendChild(option)
+      select.multiple = item.type === 'multi-select'
+      const map = (options, parent) => {
+        for (const opt of (options || [])) {
+          if (opt.children?.length) {
+            const elGroup = document.createElement('optgroup')
+            elGroup.label = opt.label
+            map(opt.children, elGroup)
+            parent.appendChild(elGroup)
+          } else {
+            const option = document.createElement('option')
+            option.value = opt.value
+            option.innerText = opt.label
+            option.selected = Array.isArray(value) ? value.includes(opt.value) : (value === opt.value)
+            parent.appendChild(option)
+          }
+        }
       }
-      select.addEventListener('change', (e) => {
-        formData[item.name] = e.target.value
+      map(item.options || [], select)
+      select.addEventListener('change', ({ target }) => {
+        let { value } = target
+        if (item.type === 'multi-select') {
+          value = Array.from(target.selectedOptions).map(({ value }) => value)
+        }
+        formData[item.name] = value
         invoke('changeSettings', formData)
       })
       label.appendChild(select)
@@ -1036,6 +1064,7 @@ const withSettings = async (options) => {
 const preference = {
   textColorLight: '#222222',
   textColorDark: '#ffffff',
+  packages: [],
   authorization: ''
 };
 
@@ -1279,7 +1308,9 @@ const getData = async () => {
     const { addupInfoList } = packageLeft;
     const flowData = { left: 0, total: 0 };
     const voiceData = { left: 0, total: 0 };
-    for (const item of addupInfoList) {
+    const { packages } = preference;
+    const list = addupInfoList.filter((item) => packages.includes(item.feepolicyid));
+    for (const item of list) {
       // 语音
       if (item.elemtype === '1') {
         voiceData.left += Number(item.xcanusevalue);
@@ -1316,6 +1347,22 @@ const getData = async () => {
   }
 };
 
+const { addupInfoList } = await getPackageLeft();
+const cellularOptions = [];
+const voiceOptions = [];
+for (const item of addupInfoList) {
+  const { elemtype, feepolicyid, feepolicyname } = item;
+  const option = { label: feepolicyname, value: feepolicyid };
+  if (elemtype === '1') {
+    // 语音
+    voiceOptions.push(option);
+  }
+  if (elemtype === '3') {
+    // 流量
+    cellularOptions.push(option);
+  }
+}
+
 await withSettings({
   formItems: [
     {
@@ -1329,6 +1376,22 @@ await withSettings({
       label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
       type: 'color',
       default: preference.textColorDark
+    },
+    {
+      name: 'packages',
+      label: i18n(['Packages', '套餐']),
+      type: 'multi-select',
+      options: [
+        {
+          label: '流量',
+          children: cellularOptions
+        },
+        {
+          label: '语音',
+          children: voiceOptions
+        }
+      ],
+      default: preference.packages
     },
     {
       name: 'authorization',
