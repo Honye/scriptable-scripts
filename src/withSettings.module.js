@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.0
+ * @version 1.5.1
  * @author Honye
  */
 
@@ -747,24 +747,38 @@ const withSettings = async (options) => {
             ]
           },
           {
+            label: i18n(['Config', '配置']),
+            type: 'page',
+            name: 'config',
+            formItems: [
+              {
+                label: i18n(['Export settings', '导出配置']),
+                type: 'cell',
+                name: 'export'
+              },
+              {
+                label: i18n(['Import settings', '导入配置']),
+                type: 'cell',
+                name: 'import'
+              }
+            ],
+            onItemClick: (item) => {
+              const { name } = item
+              if (name === 'export') {
+                exportSettings()
+              }
+              if (name === 'import') {
+                importSettings().catch((err) => {
+                  console.error(err)
+                  throw err
+                })
+              }
+            }
+          },
+          {
             label: i18n(['Reset', '重置']),
             type: 'cell',
             name: 'reset'
-          }
-        ]
-      },
-      {
-        type: 'group',
-        items: [
-          {
-            label: i18n(['Export settings', '导出配置']),
-            type: 'cell',
-            name: 'export'
-          },
-          {
-            label: i18n(['Import settings', '导入配置']),
-            type: 'cell',
-            name: 'import'
           }
         ]
       },
@@ -775,16 +789,6 @@ const withSettings = async (options) => {
       }
     ],
     onItemClick: (item, ...args) => {
-      const { name } = item
-      if (name === 'export') {
-        exportSettings()
-      }
-      if (name === 'import') {
-        importSettings().catch((err) => {
-          console.error(err)
-          throw err
-        })
-      }
       onItemClick?.(item, ...args)
     },
     ...restOptions
