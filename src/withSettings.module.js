@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.1
+ * @version 1.5.2
  * @author Honye
  */
 
@@ -285,6 +285,7 @@ button .iconfont {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  column-gap: 1em;
   font-size: 16px;
   min-height: 2em;
   padding: 0.5em 20px;
@@ -300,6 +301,14 @@ button .iconfont {
   left: 20px;
   right: 0;
   border-top: 0.5px solid var(--divider-color);
+}
+.form-item__input-wrapper {
+  flex: 1;
+  overflow: hidden;
+  text-align: right;
+}
+.form-item__input {
+  max-width: 100%;
 }
 .form-item .iconfont {
   margin-right: 4px;
@@ -424,6 +433,8 @@ input[type='checkbox'][role='switch']:checked::before {
     div.innerText = item.label;
     label.appendChild(div);
     if (/^(select|multi-select)$/.test(item.type)) {
+      const wrapper = document.createElement('div')
+      wrapper.className = 'form-item__input-wrapper'
       const select = document.createElement('select')
       select.className = 'form-item__input'
       select.name = item.name
@@ -453,7 +464,8 @@ input[type='checkbox'][role='switch']:checked::before {
         formData[item.name] = value
         invoke('changeSettings', formData)
       })
-      label.appendChild(select)
+      wrapper.appendChild(select)
+      label.appendChild(wrapper)
     } else if (
       item.type === 'cell' ||
       item.type === 'page'
