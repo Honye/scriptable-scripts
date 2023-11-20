@@ -1,29 +1,5 @@
-const widget = new ListWidget()
-
-const main = async () => {
-  if (config.runsInWidget) {
-    await render()
-    return
-  }
-
-  const actions = ['Preview', 'Update']
-  const alert = new Alert()
-  alert.message = 'Preview the widget or update the script. Update will override the whole script.'
-  for (const action of actions) {
-    alert.addAction(action)
-  }
-  alert.addCancelAction('Cancel')
-  const index = await alert.presentSheet()
-  switch (actions[index]) {
-    case 'Preview':
-      await render()
-      break
-    case 'Update':
-      await update()
-      break
-    default:
-  }
-}
+if (typeof require === 'undefined') require = importModule
+const { withSettings } = require('./withSettings.module')
 
 const render = async () => {
   const fmt = new DateFormatter()
@@ -35,22 +11,20 @@ const render = async () => {
     'User-Agent': 'api-client/0.1.3 com.douban.frodo/8.0.0'
   }
   const data = await request.loadJSON()
-  // console.log(data)
 
   const widgetFamily = config.widgetFamily
   switch (widgetFamily) {
     case 'small':
-      await renderSmall(data)
-      break
+      return renderSmall(data)
     case 'medium':
-      await renderMedium(data)
-      break
+      return renderMedium(data)
     default:
-      await renderMedium(data)
+      return renderMedium(data)
   }
 }
 
 const renderSmall = async (data) => {
+  const widget = new ListWidget()
   widget.url = data.subject.url
   widget.setPadding(8, 8, 16, 8)
   const image = await getImage(data.comment.poster)
@@ -63,15 +37,12 @@ const renderSmall = async (data) => {
   textTitle.minimumScaleFactor = 0.5
   widget.addSpacer(5)
   const stackRating = widget.addStack()
-  stackRating.addSpacer(6)
   await widgetRating(stackRating, data)
-  stackRating.addSpacer()
-  if (!config.runsInWidget) {
-    await widget.presentSmall()
-  }
+  return widget
 }
 
 const renderMedium = async (data) => {
+  const widget = new ListWidget()
   widget.url = data.subject.url
   widget.setPadding(8, 8, 16, 8)
   const image = await getImage(data.comment.poster)
@@ -84,19 +55,17 @@ const renderMedium = async (data) => {
   textTitle.textColor = Color.white()
   textTitle.lineLimit = 1
   textTitle.minimumScaleFactor = 0.5
+  stackRating.addSpacer(6)
   await widgetRating(stackRating, data)
   stackRating.addSpacer()
   widget.addSpacer(5)
   const stackContent = widget.addStack()
-  stackContent.addSpacer(6)
   const textContent = stackContent.addText(`“${data.comment.content}”`)
   textContent.font = Font.boldSystemFont(12)
   textContent.textColor = Color.white()
   textContent.lineLimit = 2
   textContent.minimumScaleFactor = 0.5
-  if (!config.runsInWidget) {
-    await widget.presentMedium()
-  }
+  return widget
 }
 
 const widgetRating = async (widget, data) => {
@@ -133,26 +102,10 @@ const shadowImage = async (image) => {
   return res
 }
 
-/** 更新脚本 */
-const update = async () => {
-  let fm = FileManager.local()
-  if (fm.isFileStoredIniCloud(module.filename)) {
-    fm = FileManager.iCloud()
+await withSettings({
+  formItems: [],
+  render: ({ family }) => {
+    family && (config.widgetFamily = family)
+    return render()
   }
-  const url = 'https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts@master/dist/Douban.js'
-  const request = new Request(url)
-  try {
-    const code = await request.loadString()
-    fm.writeString(module.filename, code)
-    const alert = new Alert()
-    alert.message = 'The code has been updated. If the script is open, close it for the change to take effect.'
-    alert.addAction('OK')
-    alert.presentAlert()
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-await main()
-Script.setWidget(widget)
-Script.complete()
+})
