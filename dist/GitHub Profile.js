@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-circle; icon-color: deep-gray;
 /**
- * @version 1.0.1
+ * @version 1.1.0
  * @author Honye
  */
 
@@ -276,7 +276,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.2
+ * @version 1.6.0
  * @author Honye
  */
 
@@ -559,6 +559,9 @@ button .iconfont {
   padding: 0.5em 20px;
   position: relative;
 }
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
+}
 .form-item--link .icon-arrow_right {
   color: #86868b;
 }
@@ -651,6 +654,11 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -675,6 +683,9 @@ input[type='checkbox'][role='switch']:checked::before {
     background-color: rgb(82, 82, 82);
     border: none;
   }
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
+  }
 }
 `;
 
@@ -697,6 +708,9 @@ input[type='checkbox'][role='switch']:checked::before {
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
@@ -998,13 +1012,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {
@@ -1091,7 +1107,11 @@ const addAvatar = async (stack, options) => {
 };
 
 const preference = {
-  user: 'Honye'
+  user: 'Honye',
+  primaryColorLight: '#333333',
+  primaryColorDark: '#ffffff',
+  secondaryColorLight: '#808080',
+  secondaryColorDark: '#808080'
 };
 
 const getProfile = async () => {
@@ -1101,7 +1121,14 @@ const getProfile = async () => {
   return await request.loadJSON()
 };
 
+/**
+ * @param {WidgetStack} container
+ */
 const addCountItem = (container, { icon, num, text }) => {
+  const {
+    primaryColorLight, primaryColorDark,
+    secondaryColorLight, secondaryColorDark
+  } = preference;
   const { widgetFamily } = config;
   let fontSize = 15;
   if (widgetFamily === 'small') { fontSize = 12; }
@@ -1110,19 +1137,24 @@ const addCountItem = (container, { icon, num, text }) => {
   const sfs = SFSymbol.named(icon);
   sfs.applyFont(Font.systemFont(fontSize));
   const $icon = stack.addImage(sfs.image);
-  $icon.tintColor = Color.gray();
+  $icon.tintColor = Color.dynamic(new Color(secondaryColorLight), new Color(secondaryColorDark));
   $icon.imageSize = new Size(fontSize, fontSize);
   const $num = stack.addText(` ${num} `);
   $num.font = Font.systemFont(fontSize);
+  $num.textColor = Color.dynamic(new Color(primaryColorLight), new Color(primaryColorDark));
   if (widgetFamily !== 'small') {
     const $text = stack.addText(text);
     $text.font = Font.systemFont(fontSize);
-    $text.textColor = Color.gray();
+    $text.textColor = Color.dynamic(new Color(secondaryColorLight), new Color(secondaryColorDark));
   }
 };
 
 const render = async () => {
-  const { user } = preference;
+  const {
+    user,
+    primaryColorLight, primaryColorDark,
+    secondaryColorLight, secondaryColorDark
+  } = preference;
   const profile = await getProfile();
 
   const { widgetFamily } = config;
@@ -1140,19 +1172,19 @@ const render = async () => {
   const headContent = head.addStack();
   headContent.layoutVertically();
   const name = headContent.addText(profile.name);
-  name.textColor = Color.dynamic(new Color('#333'), new Color('#fff'));
+  name.textColor = Color.dynamic(new Color(primaryColorLight), new Color(primaryColorDark));
   name.font = Font.mediumSystemFont(16);
   if (widgetFamily === 'small') { name.minimumScaleFactor = 0.6; }
   if (widgetFamily !== 'small') {
     headContent.addSpacer(2);
     const status = headContent.addText(profile.status);
-    status.textColor = Color.gray();
+    status.textColor = Color.dynamic(new Color(secondaryColorLight), new Color(secondaryColorDark));
   }
 
   widget.addSpacer(10);
   const bio = widget.addText(profile.bio);
   bio.minimumScaleFactor = 0.7;
-  bio.textColor = Color.dynamic(new Color('#333'), new Color('#fff'));
+  bio.textColor = Color.dynamic(new Color(primaryColorLight), new Color(primaryColorDark));
 
   widget.addSpacer();
   const counts = widget.addStack();
@@ -1179,6 +1211,41 @@ await withSettings({
       name: 'user',
       type: 'input',
       default: preference.user
+    },
+    {
+      type: 'group',
+      name: 'colors',
+      label: i18n(['Colors', '颜色']),
+      items: [
+        {
+          label: i18n(['Primary color', '主要颜色']),
+          name: 'primaryColorLight',
+          type: 'color',
+          media: '(prefers-color-scheme: light)',
+          default: preference.primaryColorLight
+        },
+        {
+          label: i18n(['Primary color', '主要颜色']),
+          name: 'primaryColorDark',
+          type: 'color',
+          media: '(prefers-color-scheme: dark)',
+          default: preference.primaryColorDark
+        },
+        {
+          label: i18n(['Secondary color', '次要颜色']),
+          name: 'secondaryColorLight',
+          type: 'color',
+          media: '(prefers-color-scheme: light)',
+          default: preference.secondaryColorLight
+        },
+        {
+          label: i18n(['Secondary color', '次要颜色']),
+          name: 'secondaryColorLight',
+          type: 'color',
+          media: '(prefers-color-scheme: dark)',
+          default: preference.secondaryColorDark
+        }
+      ]
     }
   ],
   async render ({ settings, family }) {
