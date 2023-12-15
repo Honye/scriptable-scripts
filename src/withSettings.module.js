@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.2
+ * @version 1.6.0
  * @author Honye
  */
 
@@ -291,6 +291,9 @@ button .iconfont {
   padding: 0.5em 20px;
   position: relative;
 }
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
+}
 .form-item--link .icon-arrow_right {
   color: #86868b;
 }
@@ -383,6 +386,11 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -407,6 +415,9 @@ input[type='checkbox'][role='switch']:checked::before {
     background-color: rgb(82, 82, 82);
     border: none;
   }
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
+  }
 }
 `
 
@@ -429,6 +440,9 @@ input[type='checkbox'][role='switch']:checked::before {
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
@@ -730,13 +744,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {

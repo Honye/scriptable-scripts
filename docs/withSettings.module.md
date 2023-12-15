@@ -54,6 +54,8 @@ interface NormalFormItem {
    * - `cell`: 可点击项
    */
   type: 'text' | 'number' | 'color' | 'date' | 'select' | 'cell'
+  /** 用于区分不同主题的配置 */
+  media: '(prefers-color-scheme: light)' | '(prefers-color-scheme: dark)'
   /** 默认值 */
   default?: unknown
   /**
@@ -334,6 +336,48 @@ await withSettings({
   ],
   render ({ settings }) {
     return createWidget(settings)
+  }
+})
+```
+
+示例5：区分主题配置
+
+```js
+const { withSettings } = importModule('withSettings.module')
+
+const preference = {
+  colorLight: '#333333',
+  colorDark: '#ffffff'
+}
+
+const createWidget = () => {
+  const { colorLight, colorDark } = preference
+  const widget = new ListWidget()
+  const text = widget.addText('Hello World!')
+  text.textColor = Color.dynamic(new Color(colorLight), new Color(colorDark))
+  return widget
+}
+
+await withSettings({
+  formItems: [
+    {
+      label: '文字颜色', // 日间颜色
+      name: 'colorLight',
+      type: 'color',
+      media: '(prefers-color-scheme: light)',
+      default: preference.colorLight
+    },
+    {
+      label: '文字颜色', // 夜间颜色
+      name: 'colorDark',
+      type: 'color',
+      media: '(prefers-color-scheme: dark)',
+      default: preference.colorDark
+    }
+  ],
+  render ({ settings }) {
+    Object.assign(preference, settings)
+    return createWidget()
   }
 })
 ```
