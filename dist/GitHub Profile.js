@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-circle; icon-color: deep-gray;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -1176,13 +1176,14 @@ await withSettings({
   formItems: [
     {
       label: i18n(['User', '用户名']),
-      prop: 'user',
+      name: 'user',
       type: 'input',
       default: preference.user
     }
   ],
   async render ({ settings, family }) {
     config.widgetFamily = family ?? config.widgetFamily;
+    Object.assign(preference, settings);
     return await render()
   }
 });

@@ -88,13 +88,14 @@ await withSettings({
   formItems: [
     {
       label: i18n(['User', '用户名']),
-      prop: 'user',
+      name: 'user',
       type: 'input',
       default: preference.user
     }
   ],
   async render ({ settings, family }) {
     config.widgetFamily = family ?? config.widgetFamily
+    Object.assign(preference, settings)
     return await render()
   }
 })
