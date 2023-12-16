@@ -300,26 +300,30 @@ const main = async () => {
       },
       {
         name: 'lightColor',
-        label: i18n(['Text color (light)', '文字颜色（白天）']),
+        label: i18n(['Text color', '文字颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: light)',
         default: preference.lightColor
       },
       {
         name: 'darkColor',
-        label: i18n(['Text color (dark)', '文字颜色（夜间）']),
+        label: i18n(['Text color', '文字颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: dark)',
         default: preference.darkColor
       },
       {
         name: 'indexLightColor',
-        label: i18n(['Index color (light)', '序号颜色（白天）']),
+        label: i18n(['Index color', '序号颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: light)',
         default: preference.indexLightColor
       },
       {
         name: 'indexDarkColor',
-        label: i18n(['Index color (dark)', '序号颜色（夜间）']),
+        label: i18n(['Index color', '序号颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: dark)',
         default: preference.indexDarkColor
       },
       {

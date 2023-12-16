@@ -4,7 +4,7 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.3.0
+ * @version 2.4.0
  * @author Honye
  */
 
@@ -439,9 +439,10 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.1
+ * @version 1.6.0
  * @author Honye
  */
+
 const fm = FileManager.local();
 const fileName = 'settings.json';
 
@@ -564,6 +565,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -715,10 +717,14 @@ button .iconfont {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  column-gap: 1em;
   font-size: 16px;
   min-height: 2em;
   padding: 0.5em 20px;
   position: relative;
+}
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
 }
 .form-item--link .icon-arrow_right {
   color: #86868b;
@@ -730,6 +736,14 @@ button .iconfont {
   left: 20px;
   right: 0;
   border-top: 0.5px solid var(--divider-color);
+}
+.form-item__input-wrapper {
+  flex: 1;
+  overflow: hidden;
+  text-align: right;
+}
+.form-item__input {
+  max-width: 100%;
 }
 .form-item .iconfont {
   margin-right: 4px;
@@ -804,6 +818,11 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -813,6 +832,23 @@ input[type='checkbox'][role='switch']:checked::before {
   body {
     background: #000;
     color: #fff;
+  }
+  input {
+    background-color: rgb(58, 57, 57);
+    color: var(--color-primary);
+  }
+  input[type='checkbox'][role='switch'] {
+    background-color: rgb(56, 56, 60);
+  }
+  input[type='checkbox'][role='switch']::before {
+    background-color: rgb(206, 206, 206);
+  }
+  select {
+    background-color: rgb(82, 82, 82);
+    border: none;
+  }
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
   }
 }
 `;
@@ -829,33 +865,53 @@ input[type='checkbox'][role='switch']:checked::before {
     ScriptableBridge.invoke(code, data, cb)
   }
 
-  const formData = {};
+  const formData = {}
 
   const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
-    if (item.type === 'select') {
+    if (/^(select|multi-select)$/.test(item.type)) {
+      const wrapper = document.createElement('div')
+      wrapper.className = 'form-item__input-wrapper'
       const select = document.createElement('select')
       select.className = 'form-item__input'
       select.name = item.name
-      select.value = value
-      for (const opt of (item.options || [])) {
-        const option = document.createElement('option')
-        option.value = opt.value
-        option.innerText = opt.label
-        option.selected = value === opt.value
-        select.appendChild(option)
+      select.multiple = item.type === 'multi-select'
+      const map = (options, parent) => {
+        for (const opt of (options || [])) {
+          if (opt.children?.length) {
+            const elGroup = document.createElement('optgroup')
+            elGroup.label = opt.label
+            map(opt.children, elGroup)
+            parent.appendChild(elGroup)
+          } else {
+            const option = document.createElement('option')
+            option.value = opt.value
+            option.innerText = opt.label
+            option.selected = Array.isArray(value) ? value.includes(opt.value) : (value === opt.value)
+            parent.appendChild(option)
+          }
+        }
       }
-      select.addEventListener('change', (e) => {
-        formData[item.name] = e.target.value
+      map(item.options || [], select)
+      select.addEventListener('change', ({ target }) => {
+        let { value } = target
+        if (item.type === 'multi-select') {
+          value = Array.from(target.selectedOptions).map(({ value }) => value)
+        }
+        formData[item.name] = value
         invoke('changeSettings', formData)
       })
-      label.appendChild(select)
+      wrapper.appendChild(select)
+      label.appendChild(wrapper)
     } else if (
       item.type === 'cell' ||
       item.type === 'page'
@@ -1120,13 +1176,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {
@@ -1149,24 +1207,38 @@ const withSettings = async (options) => {
             ]
           },
           {
+            label: i18n(['Config', '配置']),
+            type: 'page',
+            name: 'config',
+            formItems: [
+              {
+                label: i18n(['Export settings', '导出配置']),
+                type: 'cell',
+                name: 'export'
+              },
+              {
+                label: i18n(['Import settings', '导入配置']),
+                type: 'cell',
+                name: 'import'
+              }
+            ],
+            onItemClick: (item) => {
+              const { name } = item;
+              if (name === 'export') {
+                exportSettings();
+              }
+              if (name === 'import') {
+                importSettings().catch((err) => {
+                  console.error(err);
+                  throw err
+                });
+              }
+            }
+          },
+          {
             label: i18n(['Reset', '重置']),
             type: 'cell',
             name: 'reset'
-          }
-        ]
-      },
-      {
-        type: 'group',
-        items: [
-          {
-            label: i18n(['Export settings', '导出配置']),
-            type: 'cell',
-            name: 'export'
-          },
-          {
-            label: i18n(['Import settings', '导入配置']),
-            type: 'cell',
-            name: 'import'
           }
         ]
       },
@@ -1177,16 +1249,6 @@ const withSettings = async (options) => {
       }
     ],
     onItemClick: (item, ...args) => {
-      const { name } = item;
-      if (name === 'export') {
-        exportSettings();
-      }
-      if (name === 'import') {
-        importSettings().catch((err) => {
-          console.error(err);
-          throw err
-        });
-      }
       onItemClick?.(item, ...args);
     },
     ...restOptions
@@ -1539,26 +1601,30 @@ const main = async () => {
       },
       {
         name: 'lightColor',
-        label: i18n(['Text color (light)', '文字颜色（白天）']),
+        label: i18n(['Text color', '文字颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: light)',
         default: preference.lightColor
       },
       {
         name: 'darkColor',
-        label: i18n(['Text color (dark)', '文字颜色（夜间）']),
+        label: i18n(['Text color', '文字颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: dark)',
         default: preference.darkColor
       },
       {
         name: 'indexLightColor',
-        label: i18n(['Index color (light)', '序号颜色（白天）']),
+        label: i18n(['Index color', '序号颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: light)',
         default: preference.indexLightColor
       },
       {
         name: 'indexDarkColor',
-        label: i18n(['Index color (dark)', '序号颜色（夜间）']),
+        label: i18n(['Index color', '序号颜色']),
         type: 'color',
+        media: '(prefers-color-scheme: dark)',
         default: preference.indexDarkColor
       },
       {
