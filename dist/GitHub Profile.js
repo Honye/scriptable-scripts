@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: user-circle; icon-color: deep-gray;
 /**
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -402,6 +402,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -1197,8 +1198,8 @@ const render = async () => {
   counts.addSpacer(12);
   addCountItem(counts, {
     icon: 'star',
-    num: profile.stars,
-    text: 'stars'
+    num: profile.total_stargazer_count,
+    text: 'stargazers'
   });
 
   return widget

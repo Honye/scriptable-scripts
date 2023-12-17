@@ -94,8 +94,8 @@ const render = async () => {
   counts.addSpacer(12)
   addCountItem(counts, {
     icon: 'star',
-    num: profile.stars,
-    text: 'stars'
+    num: profile.total_stargazer_count,
+    text: 'stargazers'
   })
 
   return widget
