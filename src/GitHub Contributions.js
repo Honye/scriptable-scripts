@@ -1,11 +1,10 @@
 if (typeof require === 'undefined') require = importModule
-const { addAvatar, useGrid } = importModule('widgets.module')
+const { addAvatar, useGrid } = require('./widgets.module')
 const { phoneSize, useCache, getImage, i18n } = require('./utils.module')
-const { hexToRGBA, RGBToHSL, lightenDarkenColor } = importModule('color.module')
-const { withSettings } = importModule('withSettings.module')
+const { hexToRGBA, RGBToHSL, lightenDarkenColor } = require('./color.module')
+const { withSettings } = require('./withSettings.module')
 
 let user = 'Honye'
-let theme = 'system'
 let useOfficial = true
 const officialColors = [
   ['#9be9a8', '#0e4429'],
@@ -20,14 +19,6 @@ const halloweenColors = [
   ['#03001c', '#fddf68']
 ]
 let themeColor = '#9be9a8'
-const themes = {
-  dark: {
-    background: new Color('#242426')
-  },
-  light: {
-    background: new Color('#ffffff')
-  }
-}
 
 const gap = { x: 3, y: 2 }
 
@@ -61,11 +52,8 @@ const isHalloween = () => {
 
 const render = async () => {
   if (config.runsInWidget) {
-    [
-      user = user,
-      theme = theme
-    ] = (args.widgetParameter || '')
-      .split(',')
+    [user = user] = (args.widgetParameter || '')
+      .split(';')
       .map(item => item.trim() || undefined)
   }
 
@@ -74,15 +62,12 @@ const render = async () => {
   const { widgetFamily } = config
   const columns = widgetFamily === 'small' ? 9 : 20
   const widgetWidth = size[widgetFamily === 'large' ? 'medium' : widgetFamily] / scale
-  const rectWidth = (widgetWidth - 24 - gap.x * (columns - 1)) / columns
+  const widgetHeight = size[widgetFamily === 'medium' ? 'small' : widgetFamily] / scale
+  let rectWidth = (widgetWidth - 24 - gap.x * (columns - 1)) / columns
+  const rectHeight = (widgetHeight - 54 - gap.y * 6) / 7
+  rectWidth = Math.min(rectWidth, rectHeight)
   const widget = new ListWidget()
   widget.url = `https://github.com/${user}`
-  widget.backgroundColor = theme === 'system'
-    ? Color.dynamic(
-      themes.light.background,
-      themes.dark.background
-    )
-    : themes[theme].background
 
   const {
     avatar,
@@ -97,8 +82,6 @@ const render = async () => {
   const countText = `${resp.contributions_count} contributions`
   const latestDate = new Date(contributions.slice(-1)[0].date.replace(/-/g, '/'))
   const sliceCount = columns * 7 - 7 + latestDate.getDay() + 1
-  const colorsData = contributions
-    .slice(-sliceCount).map((item) => item.level)
 
   const head = widget.addStack()
   head.layoutHorizontally()
@@ -151,61 +134,48 @@ const render = async () => {
     rect.size = new Size(rectWidth, rectWidth)
     rect.cornerRadius = 2
     const color = colors[level]
-    rect.backgroundColor = theme === 'system'
-      ? (Array.isArray(color)
-          ? Color.dynamic(new Color(color[0]), new Color(color[1]))
-          : new Color(color)
-        )
-      : new Color(colors[theme][level], 1)
+    rect.backgroundColor =
+      Array.isArray(color)
+        ? Color.dynamic(new Color(color[0]), new Color(color[1]))
+        : new Color(color)
   }
 
-  for (const [, level] of colorsData.entries()) {
-    await add((stack) => addItem(stack, level))
+  const length = contributions.length
+  for (let i = length - sliceCount; i < length; i++) {
+    await add((stack) => addItem(stack, contributions[i].level))
   }
-
   return widget
 }
 
-const main = async () => {
-  const widget = await withSettings({
-    formItems: [
-      {
-        name: 'user',
-        label: i18n(['User name', '用户名']),
-        type: 'text',
-        default: user
-      },
-      {
-        name: 'useOfficial',
-        label: i18n(['Official theme', '使用官方主题']),
-        type: 'switch',
-        default: useOfficial
-      },
-      {
-        name: 'themeColor',
-        label: i18n(['Theme color', '自定义主题色']),
-        type: 'color',
-        default: themeColor
-      }
-    ],
-    render: async ({ family, settings }) => {
-      if (family) {
-        config.widgetFamily = family
-      }
-      user = settings.user || user
-      themeColor = settings.themeColor || themeColor
-      useOfficial = settings.useOfficial ?? useOfficial
-      const widget = await render()
-        .catch((e) => {
-          console.error(e)
-          throw e
-        })
-      return widget
+await withSettings({
+  formItems: [
+    {
+      name: 'user',
+      label: i18n(['User name', '用户名']),
+      type: 'text',
+      default: user
+    },
+    {
+      name: 'useOfficial',
+      label: i18n(['Official theme', '使用官方主题']),
+      type: 'switch',
+      default: useOfficial
+    },
+    {
+      name: 'themeColor',
+      label: i18n(['Theme color', '自定义主题色']),
+      type: 'color',
+      default: themeColor
     }
-  })
-  if (config.runsInWidget) {
-    Script.setWidget(widget)
+  ],
+  render: async ({ family, settings }) => {
+    if (family) {
+      config.widgetFamily = family
+    }
+    user = settings.user || user
+    themeColor = settings.themeColor || themeColor
+    useOfficial = settings.useOfficial ?? useOfficial
+    const widget = await render()
+    return widget
   }
-}
-
-await main()
+})
