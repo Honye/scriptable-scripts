@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.0
+ * @version 1.6.1
  * @author Honye
  */
 
@@ -26,58 +26,6 @@ const isUseICloud = () => {
   const ifm = useFileManager({ useICloud: true })
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName)
   return fm.fileExists(filePath)
-}
-
-/** 查看配置文件可导出分享 */
-const exportSettings = () => {
-  const scopedFM = useFileManager({ useICloud: isUseICloud() })
-  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName)
-  if (fm.isFileStoredIniCloud(filePath)) {
-    fm.downloadFileFromiCloud(filePath)
-  }
-  if (fm.fileExists(filePath)) {
-    QuickLook.present(filePath)
-  } else {
-    const alert = new Alert()
-    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改'])
-    alert.addCancelAction(i18n(['OK', '好的']))
-    alert.present()
-  }
-}
-
-const importSettings = async () => {
-  const alert1 = new Alert()
-  alert1.message = i18n([
-    'Will replace existing configuration',
-    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
-  ])
-  alert1.addAction(i18n(['Import', '导入']))
-  alert1.addCancelAction(i18n(['Cancel', '取消']))
-  const i = await alert1.present()
-  if (i === -1) return
-
-  const pathList = await DocumentPicker.open(['public.json'])
-  for (const path of pathList) {
-    const fileName = fm.fileName(path, true)
-    const scopedFM = useFileManager({ useICloud: isUseICloud() })
-    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName)
-    if (fm.fileExists(destPath)) {
-      fm.remove(destPath)
-    }
-    const i = destPath.lastIndexOf('/')
-    const directory = destPath.substring(0, i)
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true)
-    }
-    fm.copy(path, destPath)
-  }
-  const alert = new Alert()
-  alert.message = i18n(['Imported success', '导入成功'])
-  alert.addAction(i18n(['Restart', '重新运行']))
-  await alert.present()
-  const callback = new CallbackURL('scriptable:///run')
-  callback.addParameter('scriptName', Script.name())
-  callback.open()
 }
 
 /**
@@ -134,6 +82,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -773,35 +722,6 @@ const withSettings = async (options) => {
                 ]
               }
             ]
-          },
-          {
-            label: i18n(['Config', '配置']),
-            type: 'page',
-            name: 'config',
-            formItems: [
-              {
-                label: i18n(['Export settings', '导出配置']),
-                type: 'cell',
-                name: 'export'
-              },
-              {
-                label: i18n(['Import settings', '导入配置']),
-                type: 'cell',
-                name: 'import'
-              }
-            ],
-            onItemClick: (item) => {
-              const { name } = item
-              if (name === 'export') {
-                exportSettings()
-              }
-              if (name === 'import') {
-                importSettings().catch((err) => {
-                  console.error(err)
-                  throw err
-                })
-              }
-            }
           },
           {
             label: i18n(['Reset', '重置']),
