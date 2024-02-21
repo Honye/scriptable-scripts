@@ -1,0 +1,7 @@
+#!name=Scriptable Gallery @Honye
+#!desc=Scriptable scripts gallery
+[Script]
+ScriptableGallery = type=http-response,script-path=https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts/scripts/gallery.js,pattern=https\:\/\/gallery\.scriptable\.app,max-size=131072,requires-body=true,timeout=10,script-update-interval=0,tag=Scriptable
+
+[MITM]
+hostname = %INSERT% gallery.scriptable.app
