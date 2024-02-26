@@ -1,7 +1,3 @@
-/* 应用快捷方式
-    - 日历
-    - 支付宝扫码、收/付款、健康码
-    - 微信扫码 */
 if (typeof require === 'undefined') require = importModule
 const { withSettings } = importModule('withSettings.module')
 const { sloarToLunar } = require('lunar.module')
@@ -9,10 +5,6 @@ const { generateSlices, getConfig, hasConfig, removeConfig, transparent } = requ
 const { i18n, presentSheet } = require('./utils.module')
 const { useGrid } = require('./widgets.module')
 
-const preference = {
-  lightBgColor: '#b18cf1',
-  darkBgColor: '#e63b7a'
-}
 const shortcuts = [
   {
     symbol: 'qrcode.viewfinder',
@@ -31,8 +23,8 @@ const shortcuts = [
   },
   {
     symbol: 'location.viewfinder',
-    title: '健康码',
-    url: 'alipays://platformapi/startapp?appId=20000067&url=https%3A%2F%2F68687564.h5app.alipay.com%2Fwww%2Findex.html'
+    title: '公交',
+    url: 'iosamap://realtimeBus/home'
   }
 ]
 const $12Animals = {
@@ -100,6 +92,7 @@ const addDate = (container) => {
   stackDate.url = 'calshow://'
   stackDate.layoutVertically()
   const dateFormatter = new DateFormatter()
+  dateFormatter.locale = 'zh'
   dateFormatter.dateFormat = 'yyyy年MM月 E'
   const textDay = centerH(stackDate, (stack) => {
     return stack.addText(
@@ -145,11 +138,8 @@ const addShortcuts = async (widget) => {
 }
 
 const createWidget = async () => {
-  const { lightBgColor, darkBgColor } = preference
-
   const widget = new ListWidget()
   widget.setPadding(8, 0, 8, 8)
-  widget.backgroundColor = Color.dynamic(new Color(lightBgColor), new Color(darkBgColor))
   const noBgConfig = await getConfig(Script.name())
   if (noBgConfig) {
     widget.backgroundImage = await transparent(Script.name())
@@ -168,18 +158,6 @@ const createWidget = async () => {
 
 await withSettings({
   formItems: [
-    {
-      name: 'lightBgColor',
-      label: i18n(['Background color (light)', '背景色（白天）']),
-      type: 'color',
-      default: preference.lightBgColor
-    },
-    {
-      name: 'darkBgColor',
-      label: i18n(['Background color (dark)', '背景色（夜间）']),
-      type: 'color',
-      default: preference.darkBgColor
-    },
     {
       name: 'transparentBg',
       label: i18n(['Transparent background', '透明背景']),
@@ -228,7 +206,6 @@ await withSettings({
   },
   render: async ({ family, settings }) => {
     config.widgetFamily = family ?? config.widgetFamily
-    Object.assign(preference, settings)
     const widget = await createWidget()
     return widget
   }
