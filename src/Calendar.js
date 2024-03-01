@@ -476,25 +476,29 @@ const widget = await withSettings({
     {
       name: 'textColor',
       type: 'color',
-      label: i18n(['Text color (light)', '文字颜色（白天）']),
+      label: i18n(['Text color', '文字颜色']),
+      media: '(prefers-color-scheme: light)',
       default: textColor
     },
     {
       name: 'textColorDark',
       type: 'color',
-      label: i18n(['Text color (dark)', '文字颜色（夜晚）']),
+      label: i18n(['Text color', '文字颜色']),
+      media: '(prefers-color-scheme: dark)',
       default: textColorDark
     },
     {
       name: 'weekendColor',
       type: 'color',
-      label: i18n(['Weekend color (light)', '周末文字颜色（白天）']),
+      label: i18n(['Weekend color', '周末文字颜色']),
+      media: '(prefers-color-scheme: light)',
       default: weekendColor
     },
     {
       name: 'weekendColorDark',
       type: 'color',
-      label: i18n(['Weekend color (dark)', '周末文字颜色（夜晚）']),
+      label: i18n(['Weekend color', '周末文字颜色']),
+      media: '(prefers-color-scheme: dark)',
       default: weekendColorDark
     },
     {

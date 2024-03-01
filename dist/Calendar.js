@@ -1,8 +1,8 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: calendar-alt; icon-color: orange;
-/**
- * @version 1.4.4
+/**!
+ * @version 1.4.5
  * @author Honye
  */
 
@@ -728,7 +728,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.4.1
+ * @version 1.6.1
  * @author Honye
  */
 
@@ -746,58 +746,6 @@ const isUseICloud = () => {
   const ifm = useFileManager({ useICloud: true });
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
-};
-
-/** 查看配置文件可导出分享 */
-const exportSettings = () => {
-  const scopedFM = useFileManager({ useICloud: isUseICloud() });
-  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-  if (fm.isFileStoredIniCloud(filePath)) {
-    fm.downloadFileFromiCloud(filePath);
-  }
-  if (fm.fileExists(filePath)) {
-    QuickLook.present(filePath);
-  } else {
-    const alert = new Alert();
-    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
-    alert.addCancelAction(i18n(['OK', '好的']));
-    alert.present();
-  }
-};
-
-const importSettings = async () => {
-  const alert1 = new Alert();
-  alert1.message = i18n([
-    'Will replace existing configuration',
-    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
-  ]);
-  alert1.addAction(i18n(['Import', '导入']));
-  alert1.addCancelAction(i18n(['Cancel', '取消']));
-  const i = await alert1.present();
-  if (i === -1) return
-
-  const pathList = await DocumentPicker.open(['public.json']);
-  for (const path of pathList) {
-    const fileName = fm.fileName(path, true);
-    const scopedFM = useFileManager({ useICloud: isUseICloud() });
-    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-    if (fm.fileExists(destPath)) {
-      fm.remove(destPath);
-    }
-    const i = destPath.lastIndexOf('/');
-    const directory = destPath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.copy(path, destPath);
-  }
-  const alert = new Alert();
-  alert.message = i18n(['Imported success', '导入成功']);
-  alert.addAction(i18n(['Restart', '重新运行']));
-  await alert.present();
-  const callback = new CallbackURL('scriptable:///run');
-  callback.addParameter('scriptName', Script.name());
-  callback.open();
 };
 
 /**
@@ -854,6 +802,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media] 用于区分不同主题的配置
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -1005,10 +954,14 @@ button .iconfont {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  column-gap: 1em;
   font-size: 16px;
   min-height: 2em;
   padding: 0.5em 20px;
   position: relative;
+}
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
 }
 .form-item--link .icon-arrow_right {
   color: #86868b;
@@ -1020,6 +973,14 @@ button .iconfont {
   left: 20px;
   right: 0;
   border-top: 0.5px solid var(--divider-color);
+}
+.form-item__input-wrapper {
+  flex: 1;
+  overflow: hidden;
+  text-align: right;
+}
+.form-item__input {
+  max-width: 100%;
 }
 .form-item .iconfont {
   margin-right: 4px;
@@ -1094,6 +1055,11 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -1103,6 +1069,23 @@ input[type='checkbox'][role='switch']:checked::before {
   body {
     background: #000;
     color: #fff;
+  }
+  input {
+    background-color: rgb(58, 57, 57);
+    color: var(--color-primary);
+  }
+  input[type='checkbox'][role='switch'] {
+    background-color: rgb(56, 56, 60);
+  }
+  input[type='checkbox'][role='switch']::before {
+    background-color: rgb(206, 206, 206);
+  }
+  select {
+    background-color: rgb(82, 82, 82);
+    border: none;
+  }
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
   }
 }
 `;
@@ -1119,33 +1102,53 @@ input[type='checkbox'][role='switch']:checked::before {
     ScriptableBridge.invoke(code, data, cb)
   }
 
-  const formData = {};
+  const formData = {}
 
   const createFormItem = (item) => {
     const value = settings[item.name] ?? item.default ?? null
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
-    if (item.type === 'select') {
+    if (/^(select|multi-select)$/.test(item.type)) {
+      const wrapper = document.createElement('div')
+      wrapper.className = 'form-item__input-wrapper'
       const select = document.createElement('select')
       select.className = 'form-item__input'
       select.name = item.name
-      select.value = value
-      for (const opt of (item.options || [])) {
-        const option = document.createElement('option')
-        option.value = opt.value
-        option.innerText = opt.label
-        option.selected = value === opt.value
-        select.appendChild(option)
+      select.multiple = item.type === 'multi-select'
+      const map = (options, parent) => {
+        for (const opt of (options || [])) {
+          if (opt.children?.length) {
+            const elGroup = document.createElement('optgroup')
+            elGroup.label = opt.label
+            map(opt.children, elGroup)
+            parent.appendChild(elGroup)
+          } else {
+            const option = document.createElement('option')
+            option.value = opt.value
+            option.innerText = opt.label
+            option.selected = Array.isArray(value) ? value.includes(opt.value) : (value === opt.value)
+            parent.appendChild(option)
+          }
+        }
       }
-      select.addEventListener('change', (e) => {
-        formData[item.name] = e.target.value
+      map(item.options || [], select)
+      select.addEventListener('change', ({ target }) => {
+        let { value } = target
+        if (item.type === 'multi-select') {
+          value = Array.from(target.selectedOptions).map(({ value }) => value)
+        }
+        formData[item.name] = value
         invoke('changeSettings', formData)
       })
-      label.appendChild(select)
+      wrapper.appendChild(select)
+      label.appendChild(wrapper)
     } else if (
       item.type === 'cell' ||
       item.type === 'page'
@@ -1410,13 +1413,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {
@@ -1446,37 +1451,12 @@ const withSettings = async (options) => {
         ]
       },
       {
-        type: 'group',
-        items: [
-          {
-            label: i18n(['Export settings', '导出配置']),
-            type: 'cell',
-            name: 'export'
-          },
-          {
-            label: i18n(['Import settings', '导入配置']),
-            type: 'cell',
-            name: 'import'
-          }
-        ]
-      },
-      {
         label: i18n(['Settings', '设置']),
         type: 'group',
         items: formItems
       }
     ],
     onItemClick: (item, ...args) => {
-      const { name } = item;
-      if (name === 'export') {
-        exportSettings();
-      }
-      if (name === 'import') {
-        importSettings().catch((err) => {
-          console.error(err);
-          throw err
-        });
-      }
       onItemClick?.(item, ...args);
     },
     ...restOptions
@@ -1935,7 +1915,7 @@ const addEvents = async (stack) => {
     (a, b) => (a.startDate || a.dueDate) - (b.startDate || b.dueDate)
   );
   const list = stack.addStack();
-  const holder = stack.addStack();
+  const holder = list.addStack();
   holder.layoutHorizontally();
   holder.addSpacer();
   list.layoutVertically();
@@ -2054,25 +2034,29 @@ const widget = await withSettings({
     {
       name: 'textColor',
       type: 'color',
-      label: i18n(['Text color (light)', '文字颜色（白天）']),
+      label: i18n(['Text color', '文字颜色']),
+      media: '(prefers-color-scheme: light)',
       default: textColor
     },
     {
       name: 'textColorDark',
       type: 'color',
-      label: i18n(['Text color (dark)', '文字颜色（夜晚）']),
+      label: i18n(['Text color', '文字颜色']),
+      media: '(prefers-color-scheme: dark)',
       default: textColorDark
     },
     {
       name: 'weekendColor',
       type: 'color',
-      label: i18n(['Weekend color (light)', '周末文字颜色（白天）']),
+      label: i18n(['Weekend color', '周末文字颜色']),
+      media: '(prefers-color-scheme: light)',
       default: weekendColor
     },
     {
       name: 'weekendColorDark',
       type: 'color',
-      label: i18n(['Weekend color (dark)', '周末文字颜色（夜晚）']),
+      label: i18n(['Weekend color', '周末文字颜色']),
+      media: '(prefers-color-scheme: dark)',
       default: weekendColorDark
     },
     {
