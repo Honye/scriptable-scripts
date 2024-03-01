@@ -357,7 +357,7 @@ const addEvents = async (stack) => {
     (a, b) => (a.startDate || a.dueDate) - (b.startDate || b.dueDate)
   )
   const list = stack.addStack()
-  const holder = stack.addStack()
+  const holder = list.addStack()
   holder.layoutHorizontally()
   holder.addSpacer()
   list.layoutVertically()
