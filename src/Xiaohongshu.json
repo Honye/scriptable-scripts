@@ -1,0 +1,9 @@
+{
+  "name": "Xiaohongshu",
+  "version": "1.0.0",
+  "description": "",
+  "setting": {
+    "icon-color": "red",
+    "icon-glyph": "book"
+  }
+}
