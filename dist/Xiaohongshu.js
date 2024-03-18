@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: red; icon-glyph: book;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -1044,7 +1044,7 @@ const getLogoImage = async () => {
     }
     return image
   } catch (e) {
-    const image = await getImage('https://i2.100024.xyz/2024/03/16/ndzt4i.webp');
+    const image = await getImage('https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts@master/docs/assets/logo_xhs.png');
     cache.writeImage('logo.png', image);
     return image
   }
