@@ -250,17 +250,17 @@ const getData = async () => {
     const flowData = { left: 0, total: 0 }
     const voiceData = { left: 0, total: 0 }
     const { packages } = preference
-    const list = addupInfoList.filter((item) => packages.includes(item.feepolicyid))
+    const list = addupInfoList.filter((item) => packages.includes(item.FEE_POLICY_ID))
     for (const item of list) {
       // 语音
-      if (item.elemtype === '1') {
-        voiceData.left += Number(item.xcanusevalue)
-        voiceData.total += Number(item.addupupper)
+      if (item.ELEM_TYPE === '1') {
+        voiceData.left += Number(item.X_CANUSE_VALUE)
+        voiceData.total += Number(item.ADDUP_UPPER)
       }
       // 流量
-      if (item.elemtype === '3') {
-        flowData.left += Number(item.xcanusevalue)
-        flowData.total += Number(item.addupupper)
+      if (item.ELEM_TYPE === '3') {
+        flowData.left += Number(item.X_CANUSE_VALUE)
+        flowData.total += Number(item.ADDUP_UPPER)
       }
     }
 
@@ -292,13 +292,13 @@ const { addupInfoList } = await getPackageLeft()
 const cellularOptions = []
 const voiceOptions = []
 for (const item of addupInfoList) {
-  const { elemtype, feepolicyid, feepolicyname } = item
-  const option = { label: feepolicyname, value: feepolicyid }
-  if (elemtype === '1') {
+  const { ELEM_TYPE, FEE_POLICY_ID, FEE_POLICY_NAME } = item
+  const option = { label: FEE_POLICY_NAME, value: FEE_POLICY_ID }
+  if (ELEM_TYPE === '1') {
     // 语音
     voiceOptions.push(option)
   }
-  if (elemtype === '3') {
+  if (ELEM_TYPE === '3') {
     // 流量
     cellularOptions.push(option)
   }

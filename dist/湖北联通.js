@@ -4,7 +4,7 @@
 /**
  * 湖北联通余额信息展示
  *
- * @version 1.3.1
+ * @version 1.3.2
  * @author Honye
  */
 
@@ -278,7 +278,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.2
+ * @version 1.6.1
  * @author Honye
  */
 
@@ -296,58 +296,6 @@ const isUseICloud = () => {
   const ifm = useFileManager({ useICloud: true });
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
-};
-
-/** 查看配置文件可导出分享 */
-const exportSettings = () => {
-  const scopedFM = useFileManager({ useICloud: isUseICloud() });
-  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-  if (fm.isFileStoredIniCloud(filePath)) {
-    fm.downloadFileFromiCloud(filePath);
-  }
-  if (fm.fileExists(filePath)) {
-    QuickLook.present(filePath);
-  } else {
-    const alert = new Alert();
-    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
-    alert.addCancelAction(i18n(['OK', '好的']));
-    alert.present();
-  }
-};
-
-const importSettings = async () => {
-  const alert1 = new Alert();
-  alert1.message = i18n([
-    'Will replace existing configuration',
-    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
-  ]);
-  alert1.addAction(i18n(['Import', '导入']));
-  alert1.addCancelAction(i18n(['Cancel', '取消']));
-  const i = await alert1.present();
-  if (i === -1) return
-
-  const pathList = await DocumentPicker.open(['public.json']);
-  for (const path of pathList) {
-    const fileName = fm.fileName(path, true);
-    const scopedFM = useFileManager({ useICloud: isUseICloud() });
-    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-    if (fm.fileExists(destPath)) {
-      fm.remove(destPath);
-    }
-    const i = destPath.lastIndexOf('/');
-    const directory = destPath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.copy(path, destPath);
-  }
-  const alert = new Alert();
-  alert.message = i18n(['Imported success', '导入成功']);
-  alert.addAction(i18n(['Restart', '重新运行']));
-  await alert.present();
-  const callback = new CallbackURL('scriptable:///run');
-  callback.addParameter('scriptName', Script.name());
-  callback.open();
 };
 
 /**
@@ -404,6 +352,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -561,6 +510,9 @@ button .iconfont {
   padding: 0.5em 20px;
   position: relative;
 }
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
+}
 .form-item--link .icon-arrow_right {
   color: #86868b;
 }
@@ -653,6 +605,11 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
     --divider-color: rgba(84,84,88,0.65);
@@ -677,6 +634,9 @@ input[type='checkbox'][role='switch']:checked::before {
     background-color: rgb(82, 82, 82);
     border: none;
   }
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
+  }
 }
 `;
 
@@ -699,6 +659,9 @@ input[type='checkbox'][role='switch']:checked::before {
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
@@ -1000,13 +963,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {
@@ -1027,35 +992,6 @@ const withSettings = async (options) => {
                 ]
               }
             ]
-          },
-          {
-            label: i18n(['Config', '配置']),
-            type: 'page',
-            name: 'config',
-            formItems: [
-              {
-                label: i18n(['Export settings', '导出配置']),
-                type: 'cell',
-                name: 'export'
-              },
-              {
-                label: i18n(['Import settings', '导入配置']),
-                type: 'cell',
-                name: 'import'
-              }
-            ],
-            onItemClick: (item) => {
-              const { name } = item;
-              if (name === 'export') {
-                exportSettings();
-              }
-              if (name === 'import') {
-                importSettings().catch((err) => {
-                  console.error(err);
-                  throw err
-                });
-              }
-            }
           },
           {
             label: i18n(['Reset', '重置']),
@@ -1325,17 +1261,17 @@ const getData = async () => {
     const flowData = { left: 0, total: 0 };
     const voiceData = { left: 0, total: 0 };
     const { packages } = preference;
-    const list = addupInfoList.filter((item) => packages.includes(item.feepolicyid));
+    const list = addupInfoList.filter((item) => packages.includes(item.FEE_POLICY_ID));
     for (const item of list) {
       // 语音
-      if (item.elemtype === '1') {
-        voiceData.left += Number(item.xcanusevalue);
-        voiceData.total += Number(item.addupupper);
+      if (item.ELEM_TYPE === '1') {
+        voiceData.left += Number(item.X_CANUSE_VALUE);
+        voiceData.total += Number(item.ADDUP_UPPER);
       }
       // 流量
-      if (item.elemtype === '3') {
-        flowData.left += Number(item.xcanusevalue);
-        flowData.total += Number(item.addupupper);
+      if (item.ELEM_TYPE === '3') {
+        flowData.left += Number(item.X_CANUSE_VALUE);
+        flowData.total += Number(item.ADDUP_UPPER);
       }
     }
 
@@ -1367,13 +1303,13 @@ const { addupInfoList } = await getPackageLeft();
 const cellularOptions = [];
 const voiceOptions = [];
 for (const item of addupInfoList) {
-  const { elemtype, feepolicyid, feepolicyname } = item;
-  const option = { label: feepolicyname, value: feepolicyid };
-  if (elemtype === '1') {
+  const { ELEM_TYPE, FEE_POLICY_ID, FEE_POLICY_NAME } = item;
+  const option = { label: FEE_POLICY_NAME, value: FEE_POLICY_ID };
+  if (ELEM_TYPE === '1') {
     // 语音
     voiceOptions.push(option);
   }
-  if (elemtype === '3') {
+  if (ELEM_TYPE === '3') {
     // 流量
     cellularOptions.push(option);
   }
