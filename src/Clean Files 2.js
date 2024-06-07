@@ -1,4 +1,6 @@
-const { i18n } = importModule('./utils.module')
+if (typeof require === 'undefined') require = importModule
+const { i18n } = require('./utils.module')
+const { loadHTML } = require('./Bridge.module')
 
 const fm = FileManager.local()
 
@@ -231,12 +233,7 @@ const presentList = async (options) => {
 
   const js =
   `window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+    ScriptableBridge.invoke(code, data)
   }
 
   const isSelectMode = () => {
@@ -277,7 +274,7 @@ const presentList = async (options) => {
           }
         } else {
           const { name } = target.dataset
-          invoke('view', target.dataset)
+          invoke('view', JSON.parse(JSON.stringify(target.dataset)))
         }
       })
     })
@@ -363,7 +360,6 @@ const presentList = async (options) => {
     <script>${js}</script>
   </body>
   </html>`
-  await webView.loadHTML(html, 'https://www.imarkr.com')
 
   const view = async (data) => {
     const { isDirectory, filePath, name } = data
@@ -433,44 +429,20 @@ const presentList = async (options) => {
     )
   }
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err)
-      throw err
-    })
-    const { code, data } = event
-    switch (code) {
-      case 'view':
-        view(data)
-        break
-      case 'remove':
-        remove(data).catch((e) => console.error(e))
-        break
-      case 'import':
-        importFiles(directory).catch((err) => console.error(err))
-        break
+  await loadHTML(
+    webView,
+    {
+      html,
+      baseURL: 'https://www.imarkr.com'
+    },
+    {
+      methods: {
+        view,
+        remove,
+        import: () => importFiles(directory)
+      }
     }
-    injectListener()
-  }
-
-  injectListener().catch((e) => {
-    console.error(e)
-    throw e
-  })
+  )
   webView.present()
 }
 

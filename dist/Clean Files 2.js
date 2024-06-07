@@ -4,7 +4,7 @@
 /**
  * Clean files
  *
- * @version 2.1.1
+ * @version 2.2.0
  * @author Honye
  */
 
@@ -24,6 +24,136 @@ const i18n = (langs) => {
     langs.others = langs.others || langs.en;
   }
   return langs[language] || langs.others
+};
+
+/**
+ * @file Scriptable WebView JSBridge native SDK
+ * @version 1.0.3
+ * @author Honye
+ */
+
+/**
+ * @typedef Options
+ * @property {Record<string, () => void>} methods
+ */
+
+const sendResult = (() => {
+  let sending = false;
+  /** @type {{ code: string; data: any }[]} */
+  const list = [];
+
+  /**
+   * @param {WebView} webView
+   * @param {string} code
+   * @param {any} data
+   */
+  return async (webView, code, data) => {
+    if (sending) return
+
+    sending = true;
+    list.push({ code, data });
+    const arr = list.splice(0, list.length);
+    for (const { code, data } of arr) {
+      const eventName = `ScriptableBridge_${code}_Result`;
+      const res = data instanceof Error ? { err: data.message } : data;
+      await webView.evaluateJavaScript(
+        `window.dispatchEvent(
+          new CustomEvent(
+            '${eventName}',
+            { detail: ${JSON.stringify(res)} }
+          )
+        )`
+      );
+    }
+    if (list.length) {
+      const { code, data } = list.shift();
+      sendResult(webView, code, data);
+    } else {
+      sending = false;
+    }
+  }
+})();
+
+/**
+ * @param {WebView} webView
+ * @param {Options} options
+ */
+const inject = async (webView, options) => {
+  const js =
+`(() => {
+  const queue = window.__scriptable_bridge_queue
+  if (queue && queue.length) {
+    completion(queue)
+  }
+  window.__scriptable_bridge_queue = null
+
+  if (!window.ScriptableBridge) {
+    window.ScriptableBridge = {
+      invoke(name, data, callback) {
+        const detail = { code: name, data }
+
+        const eventName = \`ScriptableBridge_\${name}_Result\`
+        const controller = new AbortController()
+        window.addEventListener(
+          eventName,
+          (e) => {
+            callback && callback(e.detail)
+            controller.abort()
+          },
+          { signal: controller.signal }
+        )
+
+        if (window.__scriptable_bridge_queue) {
+          window.__scriptable_bridge_queue.push(detail)
+          completion()
+        } else {
+          completion(detail)
+          window.__scriptable_bridge_queue = []
+        }
+      }
+    }
+    window.dispatchEvent(
+      new CustomEvent('ScriptableBridgeReady')
+    )
+  }
+})()`;
+
+  const res = await webView.evaluateJavaScript(js, true);
+  if (!res) return inject(webView, options)
+
+  const methods = options.methods || {};
+  const events = Array.isArray(res) ? res : [res];
+  // 同时执行多次 webView.evaluateJavaScript Scriptable 存在问题
+  // 可能是因为 JavaScript 是单线程导致的
+  const sendTasks = events.map(({ code, data }) => {
+    return (() => {
+      try {
+        return Promise.resolve(methods[code](data))
+      } catch (e) {
+        return Promise.reject(e)
+      }
+    })()
+      .then((res) => sendResult(webView, code, res))
+      .catch((e) => {
+        console.error(e);
+        sendResult(webView, code, e instanceof Error ? e : new Error(e));
+      })
+  });
+  await Promise.all(sendTasks);
+  inject(webView, options);
+};
+
+/**
+ * @param {WebView} webView
+ * @param {object} args
+ * @param {string} args.html
+ * @param {string} [args.baseURL]
+ * @param {Options} options
+ */
+const loadHTML = async (webView, args, options = {}) => {
+  const { html, baseURL } = args;
+  await webView.loadHTML(html, baseURL);
+  inject(webView, options).catch((err) => console.error(err));
 };
 
 const fm = FileManager.local();
@@ -257,12 +387,7 @@ const presentList = async (options) => {
 
   const js =
   `window.invoke = (code, data) => {
-    window.dispatchEvent(
-      new CustomEvent(
-        'JBridge',
-        { detail: { code, data } }
-      )
-    )
+    ScriptableBridge.invoke(code, data)
   }
 
   const isSelectMode = () => {
@@ -303,7 +428,7 @@ const presentList = async (options) => {
           }
         } else {
           const { name } = target.dataset
-          invoke('view', target.dataset)
+          invoke('view', JSON.parse(JSON.stringify(target.dataset)))
         }
       })
     })
@@ -389,7 +514,6 @@ const presentList = async (options) => {
     <script>${js}</script>
   </body>
   </html>`;
-  await webView.loadHTML(html, 'https://www.imarkr.com');
 
   const view = async (data) => {
     const { isDirectory, filePath, name } = data;
@@ -459,44 +583,20 @@ const presentList = async (options) => {
     );
   };
 
-  const injectListener = async () => {
-    const event = await webView.evaluateJavaScript(
-      `(() => {
-        const controller = new AbortController()
-        const listener = (e) => {
-          completion(e.detail)
-          controller.abort()
-        }
-        window.addEventListener(
-          'JBridge',
-          listener,
-          { signal: controller.signal }
-        )
-      })()`,
-      true
-    ).catch((err) => {
-      console.error(err);
-      throw err
-    });
-    const { code, data } = event;
-    switch (code) {
-      case 'view':
-        view(data);
-        break
-      case 'remove':
-        remove(data).catch((e) => console.error(e));
-        break
-      case 'import':
-        importFiles(directory).catch((err) => console.error(err));
-        break
+  await loadHTML(
+    webView,
+    {
+      html,
+      baseURL: 'https://www.imarkr.com'
+    },
+    {
+      methods: {
+        view,
+        remove,
+        import: () => importFiles(directory)
+      }
     }
-    injectListener();
-  };
-
-  injectListener().catch((e) => {
-    console.error(e);
-    throw e
-  });
+  );
   webView.present();
 };
 
