@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: fire; icon-color: orange;
 /**
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -1019,7 +1019,8 @@ const cache = useCache();
 const preference = {
   rows: 5,
   fontSize: 11,
-  showRowBg: true
+  showRowBg: true,
+  spacing: 15
 };
 
 /**
@@ -1028,7 +1029,7 @@ const preference = {
  */
 const addText = (stack, text) => {
   const w = stack.addStack();
-  w.size = new Size(48, preference.fontSize * 2.4);
+  w.size = new Size(preference.fontSize * 3, preference.fontSize * 2.4);
   w.centerAlignContent();
   w.addSpacer();
   const n = w.addText(text);
@@ -1052,10 +1053,13 @@ const addTableHead = (widget) => {
   h1.addSpacer();
   const t2 = addText(headStack, '金');
   t2.textColor = headColor;
+  headStack.addSpacer(preference.spacing);
   const t3 = addText(headStack, '银');
   t3.textColor = headColor;
+  headStack.addSpacer(preference.spacing);
   const t4 = addText(headStack, '铜');
   t4.textColor = headColor;
+  headStack.addSpacer(preference.spacing);
   const t5 = addText(headStack, '总');
   t5.textColor = headColor;
 };
@@ -1083,6 +1087,8 @@ const addTableRow = async (widget, item, i) => {
   const tr = widget.addStack();
   tr.setPadding(0, 4, 0, 4);
   tr.cornerRadius = 4;
+  const boldFont = Font.boldSystemFont(preference.fontSize);
+
   const d1 = tr.addStack();
   d1.size = new Size(-1, preference.fontSize * 2.4);
   d1.centerAlignContent();
@@ -1090,36 +1096,40 @@ const addTableRow = async (widget, item, i) => {
   stackIndex.size = new Size(preference.fontSize * 1.2, -1);
   const index = stackIndex.addText(`${i + 1}`);
   index.textColor = new Color('#8d93a6');
-  index.font = Font.boldSystemFont(preference.fontSize);
+  index.font = boldFont;
   d1.addSpacer(3);
   const image = await getFlagImage(item.nocCode, item.nocLogo);
   const flag = d1.addImage(image);
-  const flagHeight = preference.fontSize * 1.5;
+  const flagHeight = preference.fontSize * 1.4;
   const flagWidth = 100 * (flagHeight / 68);
   flag.imageSize = new Size(flagWidth, flagHeight);
   d1.addSpacer(4);
   const country = d1.addText(item.nocName);
+  country.lineLimit = 1;
   country.font = Font.systemFont(preference.fontSize);
-  d1.addSpacer();
+  tr.addSpacer();
   const g = addText(tr, item.gold);
   g.textColor = new Color('#d9a400');
-  g.font = Font.boldSystemFont(preference.fontSize);
+  g.font = boldFont;
+  tr.addSpacer(preference.spacing);
   const s = addText(tr, item.silver);
   s.textColor = new Color('#9297b8');
-  s.font = Font.boldSystemFont(preference.fontSize);
+  s.font = boldFont;
+  tr.addSpacer(preference.spacing);
   const b = addText(tr, item.bronze);
   b.textColor = new Color('#bd7e69');
-  b.font = Font.boldSystemFont(preference.fontSize);
+  b.font = boldFont;
+  tr.addSpacer(preference.spacing);
   const t = addText(tr, item.total);
-  t.font = Font.boldSystemFont(preference.fontSize);
+  t.font = boldFont;
   if (item.nocCode === 'CHN') {
     if (preference.showRowBg) {
       const l = new LinearGradient();
       l.startPoint = new Point(0, 0);
       l.endPoint = new Point(1, 0);
       l.colors = [
-        Color.dynamic(new Color('#ff0000', 0.05), new Color('#ffffff', 0.05)),
-        new Color('#ffffff', 0)
+        Color.dynamic(new Color('#ff0000', 0.05), new Color('#fff', 0.05)),
+        new Color('#fff', 0)
       ];
       l.locations = [0, 1];
       tr.backgroundGradient = l;
@@ -1173,6 +1183,12 @@ await withSettings({
       label: '中国背景',
       type: 'switch',
       default: preference.showRowBg
+    },
+    {
+      name: 'spacing',
+      label: '奖牌列间距',
+      type: 'number',
+      default: preference.spacing
     }
   ],
   render: async ({ family, settings }) => {
