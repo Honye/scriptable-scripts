@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: fire; icon-color: orange;
 /**
- * @version 1.1.1
+ * @version 1.1.2
  * @author Honye
  */
 
@@ -1020,8 +1020,11 @@ const preference = {
   rows: 5,
   fontSize: 11,
   showRowBg: true,
-  spacing: 15
+  spacing: 15,
+  showTime: false
 };
+let flagWidth = 0;
+let flagHeight = 0;
 
 /**
  * @param {WidgetStack} stack
@@ -1029,7 +1032,7 @@ const preference = {
  */
 const addText = (stack, text) => {
   const w = stack.addStack();
-  w.size = new Size(preference.fontSize * 3, preference.fontSize * 2.4);
+  w.size = new Size(preference.fontSize * 2.6, preference.fontSize * 2.4);
   w.centerAlignContent();
   w.addSpacer();
   const n = w.addText(text);
@@ -1040,17 +1043,47 @@ const addText = (stack, text) => {
 /**
  * @param {ListWidget} widget
  */
+const addRow = (widget) => {
+  const tr = widget.addStack();
+  tr.setPadding(0, 4, 0, 4);
+  tr.cornerRadius = 4;
+  return tr
+};
+
+/**
+ * @param {ListWidget} widget
+ */
 const addTableHead = (widget) => {
-  const headStack = widget.addStack();
-  headStack.setPadding(0, 4, 0, 4);
-  const h1 = headStack.addStack();
+  const headStack = addRow(widget);
+  const headColor = Color.dynamic(
+    new Color('#4b5367'),
+    new Color('#fff', 0.7)
+  );
+  const rc = headStack.addStack();
+  rc.layoutVertically();
+  const hidden = rc.addStack();
+  hidden.addStack().size = new Size(preference.fontSize * 1.3 + 3 + flagWidth, 0);
+  hidden.addSpacer();
+  const h1 = rc.addStack();
   h1.size = new Size(-1, preference.fontSize * 2.4);
   h1.centerAlignContent();
-  const headColor = new Color('#4b5367');
-  const t1 = h1.addText('排名');
-  t1.textColor = headColor;
-  t1.font = Font.systemFont(preference.fontSize);
-  h1.addSpacer();
+  if (preference.showTime) {
+    const s = h1.addImage(SFSymbol.named('clock').image);
+    s.imageSize = new Size(preference.fontSize * 0.8, preference.fontSize * 0.8);
+    h1.addSpacer(3);
+    const df = new DateFormatter();
+    df.dateFormat = 'hh:mm';
+    const t = h1.addText(df.string(new Date()));
+    t.font = Font.systemFont(preference.fontSize);
+    t.textColor = headColor;
+    t.lineLimit = 1;
+    t.minimumScaleFactor = 0.6;
+  } else {
+    const t1 = h1.addText('排名');
+    t1.textColor = headColor;
+    t1.font = Font.systemFont(preference.fontSize);
+    t1.lineLimit = 1;
+  }
   const t2 = addText(headStack, '金');
   t2.textColor = headColor;
   headStack.addSpacer(preference.spacing);
@@ -1084,30 +1117,29 @@ const getFlagImage = async (nocCode, url) => {
  * @param {number} i
  */
 const addTableRow = async (widget, item, i) => {
-  const tr = widget.addStack();
-  tr.setPadding(0, 4, 0, 4);
-  tr.cornerRadius = 4;
+  const tr = addRow(widget);
   const boldFont = Font.boldSystemFont(preference.fontSize);
 
   const d1 = tr.addStack();
   d1.size = new Size(-1, preference.fontSize * 2.4);
   d1.centerAlignContent();
   const stackIndex = d1.addStack();
-  stackIndex.size = new Size(preference.fontSize * 1.2, -1);
+  stackIndex.size = new Size(preference.fontSize * 1.3, -1);
   const index = stackIndex.addText(`${i + 1}`);
   index.textColor = new Color('#8d93a6');
   index.font = boldFont;
   d1.addSpacer(3);
   const image = await getFlagImage(item.nocCode, item.nocLogo);
   const flag = d1.addImage(image);
-  const flagHeight = preference.fontSize * 1.4;
-  const flagWidth = 100 * (flagHeight / 68);
   flag.imageSize = new Size(flagWidth, flagHeight);
-  d1.addSpacer(4);
-  const country = d1.addText(item.nocName);
-  country.lineLimit = 1;
-  country.font = Font.systemFont(preference.fontSize);
-  tr.addSpacer();
+  let country;
+  if (config.widgetFamily !== 'small') {
+    d1.addSpacer(4);
+    country = d1.addText(item.nocName);
+    country.lineLimit = 1;
+    country.font = Font.systemFont(preference.fontSize);
+  }
+  d1.addSpacer();
   const g = addText(tr, item.gold);
   g.textColor = new Color('#d9a400');
   g.font = boldFont;
@@ -1135,8 +1167,10 @@ const addTableRow = async (widget, item, i) => {
       tr.backgroundGradient = l;
     }
     const chinaRed = new Color('#ed4646');
-    country.textColor = chinaRed;
-    country.font = Font.boldSystemFont(preference.fontSize);
+    if (config.widgetFamily !== 'small') {
+      country.textColor = chinaRed;
+      country.font = Font.boldSystemFont(preference.fontSize);
+    }
     g.textColor = chinaRed;
     s.textColor = chinaRed;
     b.textColor = chinaRed;
@@ -1145,6 +1179,9 @@ const addTableRow = async (widget, item, i) => {
 };
 
 const render = async () => {
+  flagHeight = preference.fontSize * 1.2;
+  flagWidth = 100 * (flagHeight / 68);
+
   const api =
   'https://app.sports.qq.com/m/oly/medalsRank?competitionID=180000&disciplineCode=ALL&from=h5';
   const request = new Request(api);
@@ -1154,6 +1191,11 @@ const render = async () => {
 
   const widget = new ListWidget();
   widget.setPadding(8, 12, 8, 12);
+
+  if (config.widgetFamily === 'small') {
+    preference.spacing = 0;
+  }
+
   addTableHead(widget);
 
   await Promise.all(
@@ -1189,6 +1231,12 @@ await withSettings({
       label: '奖牌列间距',
       type: 'number',
       default: preference.spacing
+    },
+    {
+      name: 'showTime',
+      label: '显示时间',
+      type: 'switch',
+      default: preference.showTime
     }
   ],
   render: async ({ family, settings }) => {
