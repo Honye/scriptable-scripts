@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: fire; icon-color: orange;
 /**
- * @version 1.1.2
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -1068,11 +1068,12 @@ const addTableHead = (widget) => {
   h1.size = new Size(-1, preference.fontSize * 2.4);
   h1.centerAlignContent();
   if (preference.showTime) {
-    const s = h1.addImage(SFSymbol.named('clock').image);
-    s.imageSize = new Size(preference.fontSize * 0.8, preference.fontSize * 0.8);
+    const s = h1.addImage(SFSymbol.named('clock.arrow.circlepath').image);
+    s.tintColor = headColor;
+    s.imageSize = new Size(preference.fontSize, preference.fontSize);
     h1.addSpacer(3);
     const df = new DateFormatter();
-    df.dateFormat = 'hh:mm';
+    df.dateFormat = 'HH:mm';
     const t = h1.addText(df.string(new Date()));
     t.font = Font.systemFont(preference.fontSize);
     t.textColor = headColor;
@@ -1125,7 +1126,7 @@ const addTableRow = async (widget, item, i) => {
   d1.centerAlignContent();
   const stackIndex = d1.addStack();
   stackIndex.size = new Size(preference.fontSize * 1.3, -1);
-  const index = stackIndex.addText(`${i + 1}`);
+  const index = stackIndex.addText(item.nocGoldRank);
   index.textColor = new Color('#8d93a6');
   index.font = boldFont;
   d1.addSpacer(3);
@@ -1182,8 +1183,7 @@ const render = async () => {
   flagHeight = preference.fontSize * 1.2;
   flagWidth = 100 * (flagHeight / 68);
 
-  const api =
-  'https://app.sports.qq.com/m/oly/medalsRank?competitionID=180000&disciplineCode=ALL&from=h5';
+  const api = 'https://app.sports.qq.com/m/oly/medalsRank?competitionID=180000&disciplineCode=ALL&from=h5';
   const request = new Request(api);
   const res = await request.loadJSON();
   /** @type {any[]} */
@@ -1198,9 +1198,11 @@ const render = async () => {
 
   addTableHead(widget);
 
-  await Promise.all(
-    list.slice(0, preference.rows).map((item, i) => addTableRow(widget, item, i))
-  );
+  const i = list.findIndex(({ nocCode }) => nocCode === 'CHN');
+  const rList = i < preference.rows
+    ? list.slice(0, preference.rows)
+    : [...list.slice(0, preference.rows - 1), list[i]];
+  await Promise.all(rList.map((item, i) => addTableRow(widget, item)));
 
   return widget
 };
