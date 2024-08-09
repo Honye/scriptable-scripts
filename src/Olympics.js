@@ -20,7 +20,7 @@ let flagHeight = 0
  */
 const addText = (stack, text) => {
   const w = stack.addStack()
-  w.size = new Size(preference.fontSize * 2.6, preference.fontSize * 2.4)
+  w.size = new Size(preference.fontSize * 2.8, preference.fontSize * 2.4)
   w.centerAlignContent()
   w.addSpacer()
   const n = w.addText(text)
@@ -105,7 +105,7 @@ const getFlagImage = async (nocCode, url) => {
  * @param {*} item
  * @param {number} i
  */
-const addTableRow = async (widget, item, i) => {
+const addTableRow = async (widget, item) => {
   const tr = addRow(widget)
   const boldFont = Font.boldSystemFont(preference.fontSize)
 
