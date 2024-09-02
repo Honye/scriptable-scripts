@@ -1,6 +1,6 @@
 {
   "name": "Widget Sizes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "setting": {
     "icon-color": "blue",
     "icon-glyph": "object-group"

@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: blue; icon-glyph: object-group;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -200,6 +200,7 @@ const html =
         </div>
       </div>
       <input type="file" accept="image/*" placeholder="选择屏幕截图" />
+      <div><samp style="color:red"></samp></div>
       <pre></pre>
     </main>
     <script module>
@@ -213,22 +214,27 @@ const html =
         return div
       }
 
-      appendItem(\`屏幕分辨率：\${screen.width * devicePixelRatio}x\${screen.height * devicePixelRatio}px\`)
-
       input.addEventListener("input", (e) => {
         const file = e.target.files[0];
         const image = new Image();
         image.onload = () => {
           const width = image.width;
           const height = image.height;
-          console.log(\`屏幕像素：\${width}x\${height} px\`);
-          console.log(
-            \`设备尺寸：\${width / devicePixelRatio}x\${
-              height / devicePixelRatio
-            } pt\`
-          );
+          if (!(screen.width * devicePixelRatio === width && screen.height * devicePixelRatio === height)) {
+            document.querySelector('samp').innerText = '不同机型设备像素比不同，应使用截图的设备运行此脚本';
+          }
+          appendItem(\`屏幕分辨率：\${width}x\${height}px\`);
 
-          const ctx = new OffscreenCanvas(width, height).getContext("2d");
+          let ctx;
+          if (window.OffscreenCanvas) {
+            ctx = new OffscreenCanvas(width, height).getContext('2d');
+          } else {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            ctx = canvas.getContext('2d');
+          }
+
           ctx.drawImage(image, 0, 0);
           const imageData = ctx.getImageData(0, 0, width, height);
           const pixels = imageData.data;
@@ -307,13 +313,7 @@ const html =
             }
             if (boxies.length > 1) break;
           }
-          for (const boundingBox of boxies) {
-            const boxWidth = boundingBox.maxX - boundingBox.minX + 1;
-            const boxHeight = boundingBox.maxY - boundingBox.minY + 1;
-            console.log(
-              \`最小矩形：[\${boundingBox.minX}, \${boundingBox.minY}] \${boxWidth}x\${boxHeight} px\`
-            );
-          }
+
           const [mediumBox, largeBox] = boxies;
           const small = mediumBox.maxY - mediumBox.minY + 1;
           const medium = mediumBox.maxX - mediumBox.minX + 1;
@@ -323,21 +323,13 @@ const html =
           const top = mediumBox.minY;
           const middle = largeBox.minY;
           const bottom = top + (largeBox.minY - mediumBox.minY) * 2;
-          console.log({
-            small,
-            medium,
-            large,
-            left,
-            right,
-            top,
-            middle,
-            bottom,
-          });
 
+          pre.appendChild(document.createElement('br'));
           appendItem(\`小号尺寸：\${small}x\${small}px \${small / devicePixelRatio}x\${small / devicePixelRatio}pt\`)
           appendItem(\`中号尺寸：\${medium}x\${small}px \${medium / devicePixelRatio}x\${small / devicePixelRatio}pt\`)
           appendItem(\`大号尺寸：\${medium}x\${large}px \${medium / devicePixelRatio}x\${large / devicePixelRatio}pt\`)
 
+          pre.appendChild(document.createElement('br'));
           const code = document.createElement('code')
           code.innerText = JSON.stringify(
             { small, medium, large, left, right, top, middle, bottom },
