@@ -33,6 +33,7 @@ module.exports = {
     LinearGradient: 'readonly',
     Notification: 'readonly',
     Pasteboard: 'readonly',
+    Path: 'readonly',
     Point: 'readonly',
     QuickLook: 'readonly',
     Rect: 'readonly',
