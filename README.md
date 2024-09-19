@@ -4,6 +4,11 @@
 
 [iOS Scriptable](https://scriptable.app/) | [TestFlight](https://testflight.apple.com/join/uN1vTqxk) | [macOS Scriptable](https://scriptable.app/mac-beta/)
 
+> [!IMPORTANT]
+> **使用或改编本仓库模块拒绝收费和商用！可接受打赏形式，由用户自主选择消费，毕竟开发不易，尊重开发劳动成果**
+>
+> **本人喜欢开源，使用本仓库模块除私用外也请开源，希望我们的社区越来越壮大，越来越好**
+
 前往 <https://scriptore.imarkr.com> 查看预览和说明
 
 - Scriptable 脚本打包器，多合一方便分享传播
