@@ -48,7 +48,29 @@ const presentSheet = async (options) => {
  */
 const phoneSize = (height) => {
   const phones = {
-    /** 14 Pro Max */
+    /** 16 Pro Max */
+    2868: {
+      small: 510,
+      medium: 1092,
+      large: 1146,
+      left: 114,
+      right: 696,
+      top: 276,
+      middle: 912,
+      bottom: 1548
+    },
+    /** 16 Pro */
+    2622: {
+      small: 486,
+      medium: 1032,
+      large: 1098,
+      left: 87,
+      right: 633,
+      top: 261,
+      middle: 873,
+      bottom: 1485
+    },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     2796: {
       small: 510,
       medium: 1092,
@@ -59,7 +81,7 @@ const phoneSize = (height) => {
       middle: 918,
       bottom: 1554
     },
-    /** 14 Pro */
+    /** 16, 15 Pro, 15, 14 Pro */
     2556: {
       small: 474,
       medium: 1014,
