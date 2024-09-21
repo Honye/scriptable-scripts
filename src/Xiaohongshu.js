@@ -38,13 +38,14 @@ const fetchData = async () => {
     'User-Agent': 'discover/8.27 (iPhone; iOS 17.4; Scale/2.00) Resolution/828*1792 Version/8.27 Build/8270555 Device/(Apple Inc.;iPhone12,1) NetType/CellNetwork',
     'xy-direction': '11',
     'Accept-Language': 'en-CN;q=1, zh-Hans-CN;q=0.9',
-    shield: 'XYAAAAAQAAAAEAAABTAAAAUzUWEe4xG1IYD9/c+qCLOlKGmTtFa+lG434Me+FTQahCwIG0n8AVP53/i+Ytz8QursR+2dM1ZAw9FWKBZM6A31hp8uUtsx94LpkrZ5aD2koPQyq1',
-    'xy-platform-info': 'platform=iOS&version=8.27&build=8270555&deviceId=05541FBC-7D6B-44B9-8A7D-C4790ED3C9D1&bundle=com.xingin.discover',
-    'xy-common-params': 'app_id=ECFAAF02&build=8270555&channel=AppStore&deviceId=05541FBC-7D6B-44B9-8A7D-C4790ED3C9D1&device_fingerprint=2020111813402415850d0efad8f9e4c36e80fb5930417d0175b0e50fd1adc8&device_fingerprint1=2020111813402415850d0efad8f9e4c36e80fb5930417d0175b0e50fd1adc8&device_model=phone&fid=1608005629-0-0-eed79a78f1907a1d38d9d05dcddae6bc&gid=7d8c150e9cbc5575c2b0c5f2037957ece60f69c847359bfc77fd7966&identifier_flag=1&is_mac=0&lang=en&launch_id=732152837&platform=iOS&project_id=ECFAAF&sid=session.1698164477515785136366&t=1710460041&teenager=0&tz=Asia/Shanghai&uis=light&version=8.27',
+    shield: 'XYAAAAAQAAAAEAAABTAAAAUzUWEe4xG1IYD9/c+qCLOlKGmTtFa+lG434LeOBXRqtCwIG0n8AVP53/i+Ytz8QursR+2dM1ZAw9FWKBZM6A31hp8uUzKCEBoUmKRKKeHM3/tlWY',
+    'xy-platform-info': 'platform=iOS&version=8.54.1&build=8541126&deviceId=05541FBC-7D6B-44B9-8A7D-C4790ED3C9D1&bundle=com.xingin.discover',
+    'xy-common-params': 'app_id=ECFAAF02&build=8541126&channel=AppStore&deviceId=05541FBC-7D6B-44B9-8A7D-C4790ED3C9D1&device_fingerprint=2020111813402415850d0efad8f9e4c36e80fb5930417d0175b0e50fd1adc8&device_fingerprint1=2020111813402415850d0efad8f9e4c36e80fb5930417d0175b0e50fd1adc8&device_model=phone&fid=1608005629-0-0-eed79a78f1907a1d38d9d05dcddae6bc&gid=7c4ed0bf25ed547a1267ed41d1df9eaf51de4a284735941f77a554c8&identifier_flag=1&is_mac=0&lang=en&launch_id=748588941&overseas_channel=0&platform=iOS&project_id=ECFAAF&sid=session.1726768676545524226817&t=1726896157&teenager=0&tz=Asia/Shanghai&uis=light&version=8.54.1',
     Referer: 'https://app.xhs.cn/'
   }
   try {
     const res = await request.loadJSON()
+    console.log(res)
     const df = new DateFormatter()
     df.dateFormat = 'HH:mm'
     const timeString = df.string(new Date())
