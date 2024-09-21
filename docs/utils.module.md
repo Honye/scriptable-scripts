@@ -373,3 +373,68 @@ const { timeOffset } = importModule('utils.module')
 timeOffset(new Date('2023/08/26 23:00:00'))
 // 25 分钟前
 ```
+
+## vw
+
+小组件尺寸的百分比宽度
+
+类型：
+
+```ts
+/**
+ * @param {number} percent 0-100 的整数
+ */
+function vw(percent: number): number
+```
+
+示例：
+
+```js
+const { vw } = importModule('utils.module')
+
+// 30% 宽
+vw(30)
+```
+
+## vh
+
+小组件尺寸的百分比高度
+
+类型：
+
+```ts
+/**
+ * @param {number} percent 0-100 的整数
+ */
+function vh(percent: number): number
+```
+
+示例：
+
+```js
+const { vh } = importModule('utils.module')
+
+// 30% 高
+vh(30)
+```
+
+## vmin
+
+小组件尺寸的最小百分比尺寸。当宽比高小时，`vmin(30)` 代表 30% 的宽，当高比宽小时，`vmin(30)` 代表 30% 的高
+
+类型：
+
+```ts
+/**
+ * @param {number} percent 0-100 的整数
+ */
+function vmin(percent: number): number
+```
+
+示例：
+
+```js
+const { vmin } = importModule('utils.module')
+
+vmin(30)
+```

@@ -1,3 +1,7 @@
+/**
+ * @version 1.1.0
+ */
+
 const name = 'Utils'
 
 /**
@@ -212,6 +216,46 @@ const phoneSize = (height) => {
 }
 
 /**
+ * @param {number} num
+ */
+const vw = (num) => {
+  const family = config.widgetFamily
+  if (!family) throw new Error('`vw` only work in widget')
+  const screen = Device.screenResolution()
+  const scale = Device.screenScale()
+  const size = phoneSize(screen.height)
+  const width = size[family === 'large' ? 'medium' : family] / scale
+  return num * width / 100
+}
+
+/**
+ * @param {number} num
+ */
+const vh = (num) => {
+  const family = config.widgetFamily
+  if (!family) throw new Error('`vh` only work in widget')
+  const screen = Device.screenResolution()
+  const scale = Device.screenScale()
+  const size = phoneSize(screen.height)
+  const height = size[family === 'medium' ? 'small' : family] / scale
+  return num * height / 100
+}
+
+/**
+ * @param {number} num
+ */
+const vmin = (num, widgetFamily) => {
+  const family = widgetFamily || config.widgetFamily
+  if (!family) throw new Error('`vmin` only work in widget')
+  const screen = Device.screenResolution()
+  const scale = Device.screenScale()
+  const size = phoneSize(screen.height)
+  const width = size[family === 'large' ? 'medium' : family] / scale
+  const height = size[family === 'medium' ? 'small' : family] / scale
+  return num * Math.min(width, height) / 100
+}
+
+/**
  * download code
  * @param {object} options
  * @param {string} options.fileURL
@@ -407,7 +451,11 @@ const useFileManager = (options = {}) => {
    * @param {string} filePath
    */
   const readImage = (filePath) => {
-    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+    const fullPath = safePath(filePath)
+    if (fm.fileExists(fullPath)) {
+      return fm.readImage(fullPath)
+    }
+    return null
   }
 
   return {
@@ -478,6 +526,9 @@ module.exports = {
   name,
   i18n,
   phoneSize,
+  vw,
+  vh,
+  vmin,
   presentSheet,
   updateCode,
   getImage,
