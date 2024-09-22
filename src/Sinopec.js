@@ -153,11 +153,13 @@ const addItem = async (container, data) => {
 const createWidget = async ({ data }, { data: history }) => {
   const { provinceCheck, provinceData } = data
   if (config.widgetFamily === 'large') {
-    preference.max = 6
+    preference.max = 7
+  } else {
+    preference.max = 3
   }
+  const historyData = history.provinceData.slice().reverse()
   const widget = new ListWidget()
   widget.setPadding(0, 12, 0, 12)
-  widget.backgroundColor = Color.dynamic(new Color('#fff'), new Color('#242426'))
   const promises = []
   for (const [k, name] of names.entries()) {
     if (provinceCheck[k] === 'Y') {
@@ -177,7 +179,7 @@ const createWidget = async ({ data }, { data: history }) => {
             name,
             price: provinceData[key],
             offset: provinceData[`${key}_STATUS`],
-            history: history.provinceData.map((item) => item[key])
+            history: historyData.map((item) => item[key])
           })
         })()
       )
