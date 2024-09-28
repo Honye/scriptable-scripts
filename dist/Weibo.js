@@ -4,182 +4,60 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.4.0
+ * @version 2.4.1
  * @author Honye
  */
 
 /**
- * Thanks @mzeryck
- *
- * @param {number} [height] The screen height measured in pixels
+ * @version 1.2.0
  */
-const phoneSize = (height) => {
-  const phones = {
-    /** 14 Pro Max */
-    2796: {
-      small: 510,
-      medium: 1092,
-      large: 1146,
-      left: 99,
-      right: 681,
-      top: 282,
-      middle: 918,
-      bottom: 1554
-    },
-    /** 14 Pro */
-    2556: {
-      small: 474,
-      medium: 1014,
-      large: 1062,
-      left: 82,
-      right: 622,
-      top: 270,
-      middle: 858,
-      bottom: 1446
-    },
-    /** 13 Pro Max, 12 Pro Max */
-    2778: {
-      small: 510,
-      medium: 1092,
-      large: 1146,
-      left: 96,
-      right: 678,
-      top: 246,
-      middle: 882,
-      bottom: 1518
-    },
-    /** 13, 13 Pro, 12, 12 Pro */
-    2532: {
-      small: 474,
-      medium: 1014,
-      large: 1062,
-      left: 78,
-      right: 618,
-      top: 231,
-      middle: 819,
-      bottom: 1407
-    },
-    /** 11 Pro Max, XS Max */
-    2688: {
-      small: 507,
-      medium: 1080,
-      large: 1137,
-      left: 81,
-      right: 654,
-      top: 228,
-      middle: 858,
-      bottom: 1488
-    },
-    /** 11, XR */
-    1792: {
-      small: 338,
-      medium: 720,
-      large: 758,
-      left: 55,
-      right: 437,
-      top: 159,
-      middle: 579,
-      bottom: 999
-    },
-    /** 13 mini, 12 mini / 11 Pro, XS, X */
-    2436: {
-      small: 465,
-      medium: 987,
-      large: 1035,
-      x: {
-        left: 69,
-        right: 591,
-        top: 213,
-        middle: 783,
-        bottom: 1353
-      },
-      mini: {
-        left: 69,
-        right: 591,
-        top: 231,
-        middle: 801,
-        bottom: 1371
-      }
-    },
-    /** Plus phones */
-    2208: {
-      small: 471,
-      medium: 1044,
-      large: 1071,
-      left: 99,
-      right: 672,
-      top: 114,
-      middle: 696,
-      bottom: 1278
-    },
-    /** SE2 and 6/6S/7/8 */
-    1334: {
-      small: 296,
-      medium: 642,
-      large: 648,
-      left: 54,
-      right: 400,
-      top: 60,
-      middle: 412,
-      bottom: 764
-    },
-    /** SE1 */
-    1136: {
-      small: 282,
-      medium: 584,
-      large: 622,
-      left: 30,
-      right: 332,
-      top: 59,
-      middle: 399,
-      bottom: 399
-    },
-    /** 11 and XR in Display Zoom mode */
-    1624: {
-      small: 310,
-      medium: 658,
-      large: 690,
-      left: 46,
-      right: 394,
-      top: 142,
-      middle: 522,
-      bottom: 902
-    },
-    /** Plus in Display Zoom mode */
-    2001: {
-      small: 444,
-      medium: 963,
-      large: 972,
-      left: 81,
-      right: 600,
-      top: 90,
-      middle: 618,
-      bottom: 1146
-    }
-  };
-  height = height || Device.screenResolution().height;
-  const scale = Device.screenScale();
 
-  const phone = phones[height];
-  if (phone) {
-    return phone
-  }
+
+/**
+ * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
+ */
+const widgetSize = () => {
+  const phones = {
+    /** 16 Pro Max */
+    956: { small: 170, medium: 364, large: 382 },
+    /** 16 Pro */
+    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
+    932: { small: 170, medium: 364, large: 382 },
+    /** 13 Pro Max, 12 Pro Max */
+    926: { small: 170, medium: 364, large: 382 },
+    /** 11 Pro Max, 11, XS Max, XR */
+    896: { small: 169, medium: 360, large: 379 },
+    /** Plus phones */
+    736: { small: 157, medium: 348, large: 357 },
+    /** 16, 15 Pro, 15, 14 Pro */
+    852: { small: 158, medium: 338, large: 354 },
+    /** 13, 13 Pro, 12, 12 Pro */
+    844: { small: 158, medium: 338, large: 354 },
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
+    812: { small: 155, medium: 329, large: 345 },
+    /** SE2 and 6/6S/7/8 */
+    667: { small: 148, medium: 321, large: 324 },
+    780: { small: 155, medium: 329, large: 345 },
+    /** SE1 */
+    568: { small: 141, medium: 292, large: 311 },
+    /** iPad Pro 2 */
+    1194: { small: 155, medium: 342, extraLarge: 715.5 },
+    /** iPad 6 */
+    1024: { small: 141, medium: 305.5, extraLarge: 634.5 }
+  };
+  let { width, height } = Device.screenSize();
+  if (!Device.isInPortrait()) height = width;
+
+  if (phones[height]) return phones[height]
 
   if (config.runsInWidget) {
-    const pc = {
-      small: 164 * scale,
-      medium: 344 * scale,
-      large: 354 * scale
-    };
+    const pc = { small: 164, medium: 344, large: 344 };
     return pc
   }
 
   // in app screen fixed 375x812 pt
-  return {
-    small: 155 * scale,
-    medium: 329 * scale,
-    large: 345 * scale
-  }
+  return { small: 155, medium: 329, large: 329 }
 };
 
 /**
@@ -300,7 +178,11 @@ const useFileManager = (options = {}) => {
    * @param {string} filePath
    */
   const readImage = (filePath) => {
-    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+    const fullPath = safePath(filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readImage(fullPath)
+    }
+    return null
   };
 
   return {
@@ -439,7 +321,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.0
+ * @version 1.6.1
  * @author Honye
  */
 
@@ -457,58 +339,6 @@ const isUseICloud = () => {
   const ifm = useFileManager({ useICloud: true });
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
-};
-
-/** 查看配置文件可导出分享 */
-const exportSettings = () => {
-  const scopedFM = useFileManager({ useICloud: isUseICloud() });
-  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-  if (fm.isFileStoredIniCloud(filePath)) {
-    fm.downloadFileFromiCloud(filePath);
-  }
-  if (fm.fileExists(filePath)) {
-    QuickLook.present(filePath);
-  } else {
-    const alert = new Alert();
-    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
-    alert.addCancelAction(i18n(['OK', '好的']));
-    alert.present();
-  }
-};
-
-const importSettings = async () => {
-  const alert1 = new Alert();
-  alert1.message = i18n([
-    'Will replace existing configuration',
-    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
-  ]);
-  alert1.addAction(i18n(['Import', '导入']));
-  alert1.addCancelAction(i18n(['Cancel', '取消']));
-  const i = await alert1.present();
-  if (i === -1) return
-
-  const pathList = await DocumentPicker.open(['public.json']);
-  for (const path of pathList) {
-    const fileName = fm.fileName(path, true);
-    const scopedFM = useFileManager({ useICloud: isUseICloud() });
-    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-    if (fm.fileExists(destPath)) {
-      fm.remove(destPath);
-    }
-    const i = destPath.lastIndexOf('/');
-    const directory = destPath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.copy(path, destPath);
-  }
-  const alert = new Alert();
-  alert.message = i18n(['Imported success', '导入成功']);
-  alert.addAction(i18n(['Restart', '重新运行']));
-  await alert.present();
-  const callback = new CallbackURL('scriptable:///run');
-  callback.addParameter('scriptName', Script.name());
-  callback.open();
 };
 
 /**
@@ -1207,35 +1037,6 @@ const withSettings = async (options) => {
             ]
           },
           {
-            label: i18n(['Config', '配置']),
-            type: 'page',
-            name: 'config',
-            formItems: [
-              {
-                label: i18n(['Export settings', '导出配置']),
-                type: 'cell',
-                name: 'export'
-              },
-              {
-                label: i18n(['Import settings', '导入配置']),
-                type: 'cell',
-                name: 'import'
-              }
-            ],
-            onItemClick: (item) => {
-              const { name } = item;
-              if (name === 'export') {
-                exportSettings();
-              }
-              if (name === 'import') {
-                importSettings().catch((err) => {
-                  console.error(err);
-                  throw err
-                });
-              }
-            }
-          },
-          {
             label: i18n(['Reset', '重置']),
             type: 'cell',
             name: 'reset'
@@ -1307,7 +1108,7 @@ const useGrid = async (stack, options) => {
 const paddingVertical = 10;
 const themes = {
   light: {
-    background: new Color('#ffffff')
+    background: new Color('#fff')
   },
   dark: {
     background: new Color('#242426')
@@ -1320,11 +1121,11 @@ const preference = {
   client: 'h5',
   fontSize: 14,
   useShadow: false,
-  lightColor: '#333333',
-  darkColor: '#ffffff',
+  lightColor: '#333',
+  darkColor: '#fff',
   indexLightColor: '',
   indexDarkColor: '',
-  timeColor: '#666666',
+  timeColor: '#666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
   gap: 8,
@@ -1344,9 +1145,7 @@ const H5Page = {
 };
 
 const conf = {};
-const screen = Device.screenResolution();
-const scale = Device.screenScale();
-const phone = phoneSize(screen.height);
+const size = widgetSize();
 const cache = useCache();
 
 if (config.runsInWidget) {
@@ -1410,8 +1209,7 @@ const createWidget = async ({ data, updatedAt }) => {
     columns
   } = preference;
   const { widgetFamily } = config;
-  const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily];
-  let height = heightPX / scale;
+  let height = widgetFamily === 'medium' ? size.small : (size[widgetFamily] || size.medium);
   if (columns > 1) {
     // 当列数大于 1 时 Logo 和时间占满一行
     height -= logoSize;
@@ -1666,11 +1464,8 @@ const main = async () => {
     render: async ({ family, settings }) => {
       family && (config.widgetFamily = family);
       Object.assign(preference, settings);
-      try {
-        return await createWidget(data)
-      } catch (e) {
-        console.error(e);
-      }
+      const widget = await createWidget(data);
+      return widget
     }
   });
 

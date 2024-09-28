@@ -1,12 +1,12 @@
 if (typeof require === 'undefined') require = importModule
-const { phoneSize, getImage, useCache, hashCode, i18n } = require('./utils.module')
+const { getImage, useCache, hashCode, i18n, widgetSize } = require('./utils.module')
 const { withSettings } = require('./withSettings.module')
 const { useGrid } = require('./widgets.module')
 
 const paddingVertical = 10
 const themes = {
   light: {
-    background: new Color('#ffffff')
+    background: new Color('#fff')
   },
   dark: {
     background: new Color('#242426')
@@ -19,11 +19,11 @@ const preference = {
   client: 'h5',
   fontSize: 14,
   useShadow: false,
-  lightColor: '#333333',
-  darkColor: '#ffffff',
+  lightColor: '#333',
+  darkColor: '#fff',
   indexLightColor: '',
   indexDarkColor: '',
-  timeColor: '#666666',
+  timeColor: '#666',
   logoSize: 30,
   padding: [NaN, 12, NaN, 14],
   gap: 8,
@@ -43,9 +43,7 @@ const H5Page = {
 }
 
 const conf = {}
-const screen = Device.screenResolution()
-const scale = Device.screenScale()
-const phone = phoneSize(screen.height)
+const size = widgetSize()
 const cache = useCache()
 
 if (config.runsInWidget) {
@@ -109,8 +107,7 @@ const createWidget = async ({ data, updatedAt }) => {
     columns
   } = preference
   const { widgetFamily } = config
-  const heightPX = widgetFamily === 'medium' ? phone.small : phone[widgetFamily]
-  let height = heightPX / scale
+  let height = widgetFamily === 'medium' ? size.small : (size[widgetFamily] || size.medium)
   if (columns > 1) {
     // 当列数大于 1 时 Logo 和时间占满一行
     height -= logoSize
@@ -365,11 +362,8 @@ const main = async () => {
     render: async ({ family, settings }) => {
       family && (config.widgetFamily = family)
       Object.assign(preference, settings)
-      try {
-        return await createWidget(data)
-      } catch (e) {
-        console.error(e)
-      }
+      const widget = await createWidget(data)
+      return widget
     }
   })
 
