@@ -1,5 +1,5 @@
 /**
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 const name = 'Utils'
@@ -238,15 +238,60 @@ const phoneSize = (height) => {
 }
 
 /**
+ * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
+ */
+const widgetSize = () => {
+  const phones = {
+    /** 16 Pro Max */
+    956: { small: 170, medium: 364, large: 382 },
+    /** 16 Pro */
+    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
+    932: { small: 170, medium: 364, large: 382 },
+    /** 13 Pro Max, 12 Pro Max */
+    926: { small: 170, medium: 364, large: 382 },
+    /** 11 Pro Max, 11, XS Max, XR */
+    896: { small: 169, medium: 360, large: 379 },
+    /** Plus phones */
+    736: { small: 157, medium: 348, large: 357 },
+    /** 16, 15 Pro, 15, 14 Pro */
+    852: { small: 158, medium: 338, large: 354 },
+    /** 13, 13 Pro, 12, 12 Pro */
+    844: { small: 158, medium: 338, large: 354 },
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
+    812: { small: 155, medium: 329, large: 345 },
+    /** SE2 and 6/6S/7/8 */
+    667: { small: 148, medium: 321, large: 324 },
+    780: { small: 155, medium: 329, large: 345 },
+    /** SE1 */
+    568: { small: 141, medium: 292, large: 311 },
+    /** iPad Pro 2 */
+    1194: { small: 155, medium: 342, extraLarge: 715.5 },
+    /** iPad 6 */
+    1024: { small: 141, medium: 305.5, extraLarge: 634.5 }
+  }
+  let { width, height } = Device.screenSize()
+  if (!Device.isInPortrait()) height = width
+
+  if (phones[height]) return phones[height]
+
+  if (config.runsInWidget) {
+    const pc = { small: 164, medium: 344, large: 344 }
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return { small: 155, medium: 329, large: 329 }
+}
+
+/**
  * @param {number} num
  */
 const vw = (num) => {
   const family = config.widgetFamily
   if (!family) throw new Error('`vw` only work in widget')
-  const screen = Device.screenResolution()
-  const scale = Device.screenScale()
-  const size = phoneSize(screen.height)
-  const width = size[family === 'large' ? 'medium' : family] / scale
+  const size = widgetSize()
+  const width = size[family === 'large' ? 'medium' : family]
   return num * width / 100
 }
 
@@ -256,10 +301,8 @@ const vw = (num) => {
 const vh = (num) => {
   const family = config.widgetFamily
   if (!family) throw new Error('`vh` only work in widget')
-  const screen = Device.screenResolution()
-  const scale = Device.screenScale()
-  const size = phoneSize(screen.height)
-  const height = size[family === 'medium' ? 'small' : family] / scale
+  const size = widgetSize()
+  const height = family === 'medium' ? size.small : (size[family] || size.medium)
   return num * height / 100
 }
 
@@ -269,11 +312,9 @@ const vh = (num) => {
 const vmin = (num, widgetFamily) => {
   const family = widgetFamily || config.widgetFamily
   if (!family) throw new Error('`vmin` only work in widget')
-  const screen = Device.screenResolution()
-  const scale = Device.screenScale()
-  const size = phoneSize(screen.height)
-  const width = size[family === 'large' ? 'medium' : family] / scale
-  const height = size[family === 'medium' ? 'small' : family] / scale
+  const size = widgetSize()
+  const width = size[family === 'large' ? 'medium' : family]
+  const height = family === 'medium' ? size.small : (size[family] || size.medium)
   return num * Math.min(width, height) / 100
 }
 
@@ -548,6 +589,7 @@ module.exports = {
   name,
   i18n,
   phoneSize,
+  widgetSize,
   vw,
   vh,
   vmin,
