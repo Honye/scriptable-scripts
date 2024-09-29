@@ -4,12 +4,12 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.4.1
+ * @version 2.4.2
  * @author Honye
  */
 
 /**
- * @version 1.2.0
+ * @version 1.2.1
  */
 
 
@@ -47,7 +47,7 @@ const widgetSize = () => {
     1024: { small: 141, medium: 305.5, extraLarge: 634.5 }
   };
   let { width, height } = Device.screenSize();
-  if (!Device.isInPortrait()) height = width;
+  if (width > height) height = width;
 
   if (phones[height]) return phones[height]
 
