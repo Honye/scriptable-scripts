@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: gas-pump; icon-color: deep-brown;
 /**
- * @version 0.0.4
+ * @version 1.0.0
  * @author Honye
  */
 
@@ -46,6 +46,50 @@ const presentSheet = async (options) => {
     value,
     option: options.options[value]
   }
+};
+
+/**
+ * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
+ */
+const widgetSize = () => {
+  const phones = {
+    /** 16 Pro Max */
+    956: { small: 170, medium: 364, large: 382 },
+    /** 16 Pro */
+    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
+    932: { small: 170, medium: 364, large: 382 },
+    /** 13 Pro Max, 12 Pro Max */
+    926: { small: 170, medium: 364, large: 382 },
+    /** 11 Pro Max, 11, XS Max, XR */
+    896: { small: 169, medium: 360, large: 379 },
+    /** Plus phones */
+    736: { small: 157, medium: 348, large: 357 },
+    /** 16, 15 Pro, 15, 14 Pro */
+    852: { small: 158, medium: 338, large: 354 },
+    /** 13, 13 Pro, 12, 12 Pro */
+    844: { small: 158, medium: 338, large: 354 },
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
+    812: { small: 155, medium: 329, large: 345 },
+    /** SE2 and 6/6S/7/8 */
+    667: { small: 148, medium: 321, large: 324 },
+    /** iPad Pro 2 */
+    1194: { small: 155, medium: 342, large: 342, extraLarge: 715.5 },
+    /** iPad 6 */
+    1024: { small: 141, medium: 305.5, large: 305.5, extraLarge: 634.5 }
+  };
+  let { width, height } = Device.screenSize();
+  if (width > height) height = width;
+
+  if (phones[height]) return phones[height]
+
+  if (config.runsInWidget) {
+    const pc = { small: 164, medium: 344, large: 344 };
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return { small: 155, medium: 329, large: 329 }
 };
 
 /**
@@ -1223,8 +1267,7 @@ const initOilPrice = async () => {
  * @param {WidgetStack} container
  * @param {number[]} history
  */
-const addLineChart = async (container, history, color) => {
-  const size = new Size(100, 26);
+const addLineChart = async (container, history, { color, size }) => {
   const image = container.addImage(
     lineChart({
       data: history,
@@ -1237,21 +1280,56 @@ const addLineChart = async (container, history, color) => {
   image.imageSize = size;
 };
 
+const addTitle = (container, { name, offset }) => {
+  const color = offset > 0 ? Color.red() : Color.green();
+  const symbol = container.addText(offset > 0 ? '▲' : '▼');
+  symbol.font = Font.systemFont(14);
+  symbol.textColor = color;
+  container.addSpacer(2);
+  const n = container.addText(name);
+  n.font = Font.semiboldSystemFont(16);
+};
+
+const createSmallWidget = async (data) => {
+  const s = widgetSize();
+  const widget = new ListWidget();
+  widget.setPadding(0, 16, 0, 16);
+  const head = widget.addStack();
+  head.centerAlignContent();
+  addTitle(head, data);
+  const color = data.offset > 0 ? Color.red() : Color.green();
+  head.addSpacer();
+  const offset = head.addText(`${data.offset > 0 ? '+' : ''}${data.offset}`);
+  offset.font = Font.mediumSystemFont(16);
+  offset.textColor = color;
+  const size = new Size(
+    s.small - 32,
+    s.small - 16 - 20 - 12 - 32
+  );
+
+  widget.addSpacer(6);
+  const m = widget.addStack();
+  await addLineChart(m, data.history, { color, size });
+  widget.addSpacer(6);
+
+  const b = widget.addStack();
+  b.addSpacer();
+  const t = b.addText(`¥ ${data.price}`);
+  t.font = Font.semiboldSystemFont(20);
+  return widget
+};
+
 /**
  * @param {WidgetStack} container
  */
 const addItem = async (container, data) => {
   const stack = container.addStack();
   stack.centerAlignContent();
-  const color = data.offset > 0 ? Color.red() : Color.green();
-  const symbol = stack.addText(data.offset > 0 ? '▲' : '▼');
-  symbol.font = Font.systemFont(14);
-  symbol.textColor = color;
-  stack.addSpacer(2);
-  const name = stack.addText(data.name);
-  name.font = Font.semiboldSystemFont(16);
+  addTitle(stack, data);
   stack.addSpacer();
-  await addLineChart(stack, data.history, color);
+  const color = data.offset > 0 ? Color.red() : Color.green();
+  const size = new Size(100, 26);
+  await addLineChart(stack, data.history, { color, size });
 
   stack.addSpacer(30);
   const priceStack = stack.addStack();
@@ -1275,15 +1353,15 @@ const createWidget = async ({ data }, { data: history }) => {
     provinceCheck = areaData.areaCheck;
     provinceData = areaData.areaData;
   }
+  const historyData = (
+    history.area.length ? history.area[preference.area].areaData : history.provinceData
+  ).slice().reverse();
 
   if (config.widgetFamily === 'large') {
     preference.max = 7;
   } else {
     preference.max = 3;
   }
-  const historyData = (
-    history.area.length ? history.area[preference.area].areaData : history.provinceData
-  ).slice().reverse();
   const widget = new ListWidget();
   widget.setPadding(0, 12, 0, 12);
   const promises = [];
@@ -1298,17 +1376,23 @@ const createWidget = async ({ data }, { data: history }) => {
         AIPAOE95: 'AIPAO_GAS_E95',
         AIPAOE98: 'AIPAO_GAS_E98'
       }[k] || k);
-      promises.push(
-        (async () => {
-          widget.addSpacer();
-          await addItem(widget, {
-            name,
-            price: provinceData[key],
-            offset: provinceData[`${key}_STATUS`],
-            history: historyData.map((item) => item[key])
-          });
-        })()
-      );
+      const data = {
+        name,
+        price: provinceData[key],
+        offset: provinceData[`${key}_STATUS`],
+        history: historyData.map((item) => item[key])
+      };
+      if (config.widgetFamily === 'small') {
+        const widget = await createSmallWidget(data);
+        return widget
+      } else {
+        promises.push(
+          (async () => {
+            widget.addSpacer();
+            await addItem(widget, data);
+          })()
+        );
+      }
     }
     if (promises.length >= preference.max) break
   }
@@ -1344,10 +1428,10 @@ await withSettings({
     }
   },
   render: async ({ settings, family }) => {
-    config.widgetFamily = family;
+    family && (config.widgetFamily = family);
     Object.assign(preference, settings);
     const { data: _data } = await switchProvince({ provinceId: preference.province });
-    if (_data.area.length) {
+    if (_data.area.length && config.runsInApp) {
       const { value } = await presentSheet({
         title: i18n(['Area', '选择价区']),
         options: _data.area.map(({ areaCheck }) => ({ title: areaCheck.AREA_NAME }))
