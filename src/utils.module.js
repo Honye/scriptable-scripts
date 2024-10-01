@@ -1,5 +1,5 @@
 /**
- * @version 1.2.1
+ * @version 1.2.2
  */
 
 const name = 'Utils'
@@ -262,13 +262,10 @@ const widgetSize = () => {
     812: { small: 155, medium: 329, large: 345 },
     /** SE2 and 6/6S/7/8 */
     667: { small: 148, medium: 321, large: 324 },
-    780: { small: 155, medium: 329, large: 345 },
-    /** SE1 */
-    568: { small: 141, medium: 292, large: 311 },
     /** iPad Pro 2 */
-    1194: { small: 155, medium: 342, extraLarge: 715.5 },
+    1194: { small: 155, medium: 342, large: 342, extraLarge: 715.5 },
     /** iPad 6 */
-    1024: { small: 141, medium: 305.5, extraLarge: 634.5 }
+    1024: { small: 141, medium: 305.5, large: 305.5, extraLarge: 634.5 }
   }
   let { width, height } = Device.screenSize()
   if (width > height) height = width
@@ -302,7 +299,9 @@ const vh = (num) => {
   const family = config.widgetFamily
   if (!family) throw new Error('`vh` only work in widget')
   const size = widgetSize()
-  const height = family === 'medium' ? size.small : (size[family] || size.medium)
+  const height = family === 'medium'
+    ? size.small
+    : family === 'extraLarge' ? size.large : size[family]
   return num * height / 100
 }
 
@@ -314,7 +313,9 @@ const vmin = (num, widgetFamily) => {
   if (!family) throw new Error('`vmin` only work in widget')
   const size = widgetSize()
   const width = size[family === 'large' ? 'medium' : family]
-  const height = family === 'medium' ? size.small : (size[family] || size.medium)
+  const height = family === 'medium'
+    ? size.small
+    : family === 'extraLarge' ? size.large : size[family]
   return num * Math.min(width, height) / 100
 }
 
