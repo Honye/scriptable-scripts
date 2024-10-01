@@ -1,10 +1,11 @@
 if (typeof require === 'undefined') require = importModule
-const { withSettings } = require('./withSettings.module')
-const { i18n } = require('./utils.module')
+const { withSettings, writeSettings } = require('./withSettings.module')
+const { i18n, presentSheet } = require('./utils.module')
 const { lineChart } = require('./chart.module')
 
 const preference = {
   province: '31',
+  area: 0,
   max: 3
 }
 
@@ -151,13 +152,21 @@ const addItem = async (container, data) => {
 }
 
 const createWidget = async ({ data }, { data: history }) => {
-  const { provinceCheck, provinceData } = data
+  let { provinceCheck, provinceData, area } = data
+  if (area.length) {
+    const areaData = area[preference.area]
+    provinceCheck = areaData.areaCheck
+    provinceData = areaData.areaData
+  }
+
   if (config.widgetFamily === 'large') {
     preference.max = 7
   } else {
     preference.max = 3
   }
-  const historyData = history.provinceData.slice().reverse()
+  const historyData = (
+    history.area.length ? history.area[preference.area].areaData : history.provinceData
+  ).slice().reverse()
   const widget = new ListWidget()
   widget.setPadding(0, 12, 0, 12)
   const promises = []
@@ -220,7 +229,17 @@ await withSettings({
   render: async ({ settings, family }) => {
     config.widgetFamily = family
     Object.assign(preference, settings)
-    await switchProvince({ provinceId: preference.province })
+    const { data: _data } = await switchProvince({ provinceId: preference.province })
+    if (_data.area.length) {
+      const { value } = await presentSheet({
+        title: i18n(['Area', '选择价区']),
+        options: _data.area.map(({ areaCheck }) => ({ title: areaCheck.AREA_NAME }))
+      })
+      if (value > -1) {
+        preference.area = value
+        writeSettings(preference, { useICloud: preference.useICloud })
+      }
+    }
     const [data, history] = await initMainData()
     const widget = await createWidget(data, history)
     return widget

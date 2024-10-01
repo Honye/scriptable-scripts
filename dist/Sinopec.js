@@ -2,14 +2,51 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: gas-pump; icon-color: deep-brown;
 /**
- * @version 0.0.3
+ * @version 0.0.4
  * @author Honye
  */
 
 /**
- * @version 1.1.0
+ * @version 1.2.2
  */
 
+
+/**
+ * @param {object} options
+ * @param {string} [options.title]
+ * @param {string} [options.message]
+ * @param {Array<{ title: string; [key: string]: any }>} options.options
+ * @param {boolean} [options.showCancel = true]
+ * @param {string} [options.cancelText = 'Cancel']
+ */
+const presentSheet = async (options) => {
+  options = {
+    showCancel: true,
+    cancelText: 'Cancel',
+    ...options
+  };
+  const alert = new Alert();
+  if (options.title) {
+    alert.title = options.title;
+  }
+  if (options.message) {
+    alert.message = options.message;
+  }
+  if (!options.options) {
+    throw new Error('The "options" property of the parameter cannot be empty')
+  }
+  for (const option of options.options) {
+    alert.addAction(option.title);
+  }
+  if (options.showCancel) {
+    alert.addCancelAction(options.cancelText);
+  }
+  const value = await alert.presentSheet();
+  return {
+    value,
+    option: options.options[value]
+  }
+};
 
 /**
  * 多语言国际化
@@ -278,7 +315,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.1
+ * @version 1.6.2
  * @author Honye
  */
 
@@ -899,7 +936,7 @@ input[type='checkbox'][role='switch']:checked::before {
       }
     },
     native (data) {
-      onWebEvent?.(data);
+      return onWebEvent?.(data)
     }
   };
   await loadHTML(
@@ -1085,6 +1122,7 @@ const lineChart = (options) => {
 
 const preference = {
   province: '31',
+  area: 0,
   max: 3
 };
 
@@ -1231,13 +1269,21 @@ const addItem = async (container, data) => {
 };
 
 const createWidget = async ({ data }, { data: history }) => {
-  const { provinceCheck, provinceData } = data;
+  let { provinceCheck, provinceData, area } = data;
+  if (area.length) {
+    const areaData = area[preference.area];
+    provinceCheck = areaData.areaCheck;
+    provinceData = areaData.areaData;
+  }
+
   if (config.widgetFamily === 'large') {
     preference.max = 7;
   } else {
     preference.max = 3;
   }
-  const historyData = history.provinceData.slice().reverse();
+  const historyData = (
+    history.area.length ? history.area[preference.area].areaData : history.provinceData
+  ).slice().reverse();
   const widget = new ListWidget();
   widget.setPadding(0, 12, 0, 12);
   const promises = [];
@@ -1300,7 +1346,17 @@ await withSettings({
   render: async ({ settings, family }) => {
     config.widgetFamily = family;
     Object.assign(preference, settings);
-    await switchProvince({ provinceId: preference.province });
+    const { data: _data } = await switchProvince({ provinceId: preference.province });
+    if (_data.area.length) {
+      const { value } = await presentSheet({
+        title: i18n(['Area', '选择价区']),
+        options: _data.area.map(({ areaCheck }) => ({ title: areaCheck.AREA_NAME }))
+      });
+      if (value > -1) {
+        preference.area = value;
+        writeSettings(preference, { useICloud: preference.useICloud });
+      }
+    }
     const [data, history] = await initMainData();
     const widget = await createWidget(data, history);
     return widget
