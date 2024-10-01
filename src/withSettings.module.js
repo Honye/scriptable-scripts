@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.1
+ * @version 1.6.2
  * @author Honye
  */
 
@@ -629,7 +629,7 @@ input[type='checkbox'][role='switch']:checked::before {
       }
     },
     native (data) {
-      onWebEvent?.(data)
+      return onWebEvent?.(data)
     }
   }
   await loadHTML(
@@ -744,5 +744,7 @@ const withSettings = async (options) => {
 }
 
 module.exports = {
-  withSettings
+  withSettings,
+  writeSettings,
+  present
 }
