@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-glyph: gas-pump; icon-color: deep-brown;
 /**
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -1095,7 +1095,7 @@ const withSettings = async (options) => {
 };
 
 /**
- * @version 0.0.1
+ * @version 0.0.2
  * @author github/Honye
  */
 
@@ -1106,61 +1106,72 @@ const withSettings = async (options) => {
  * @param {Color} options.lineColor
  * @param {Color} options.shadowColor
  */
-const lineChart = (options) => {
-  const { data, size, lineWidth, lineColor, radius, shadowColor } = {
+const lineChart = async (options) => {
+  let { data, size: imageSize, lineWidth, lineColor, radius, shadowColor } = {
     radius: 0.5,
     lineWidth: 0.5,
     ...options
   };
+  const scale = Device.screenScale();
+  const width = imageSize.width * scale;
+  const height = imageSize.height * scale;
+  lineWidth *= scale;
+  radius *= scale;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const maxOffset = max - min;
-  const length = data.length;
-  const yUnit = (size.height - radius * 2) / maxOffset;
-  const xUnit = (size.width - radius * 2) / (length - 1);
+  const { length } = data;
+  const yUnit = (height - radius * 2) / maxOffset;
+  const xUnit = (width - radius * 2) / (length - 1);
+  const createStyle = ({ red, green, blue, alpha }) =>
+    `rgba(${red * 255},${green * 255},${blue * 255},${alpha})`;
+  const lineStyle = createStyle(lineColor);
+  const shadowStyle = createStyle(shadowColor);
+  const transparentStyle = createStyle(new Color(shadowColor.hex, 0));
 
-  const context = new DrawContext();
-  context.size = size;
-  context.respectScreenScale = true;
-  context.opaque = false;
-  context.setLineWidth(lineWidth);
-  // const dotsPath = new Path()
-  const linePath = new Path();
-  const areaPath = new Path();
-  const points = [];
+  const js =
+  `const data = ${JSON.stringify(data)}
+  const canvas = document.createElement('canvas')
+  canvas.width = ${width}
+  canvas.height = ${height}
+  const ctx = canvas.getContext('2d')
+  ctx.beginPath()
   for (const [i, num] of data.entries()) {
-    // dotsPath.addEllipse(new Rect(
-    //   i * xUnit,
-    //   size.height - (num - min) * yUnit - radius * 2,
-    //   radius * 2,
-    //   radius * 2
-    // ))
-
-    const point = new Point(i * xUnit + radius, size.height - (num - min) * yUnit - radius * 2 + radius);
-    points.push(point);
+    const point = [i * ${xUnit} + ${radius}, ${height} - (num - ${min}) * ${yUnit} - ${radius} * 2 + ${radius}]
     if (i === 0) {
-      linePath.move(point);
-      areaPath.move(point);
+      ctx.moveTo(...point)
     } else {
-      linePath.addLine(point);
-      areaPath.addLine(point);
+      ctx.lineTo(...point)
     }
   }
-  // context.addPath(dotsPath)
-  // context.setFillColor(lineColor)
-  // context.fillPath()
+  ctx.strokeStyle = '${lineStyle}'
+  ctx.lineWidth = ${lineWidth}
+  ctx.stroke()
 
-  context.addPath(linePath);
-  context.setStrokeColor(lineColor);
-  context.strokePath();
-
-  areaPath.addLine(new Point(points[points.length - 1].x, size.height - radius));
-  areaPath.addLine(new Point(radius, size.height - radius));
-  context.addPath(areaPath);
-  context.setFillColor(shadowColor);
-  context.fillPath();
-
-  const image = context.getImage();
+  ctx.beginPath()
+  for (const [i, num] of data.entries()) {
+    const point = [i * ${xUnit} + ${radius}, ${height} - (num - ${min}) * ${yUnit} - ${radius} * 2 + ${radius}]
+    if (i === 0) {
+      ctx.moveTo(${radius}, ${height - radius})
+      ctx.lineTo(...point)
+    } else {
+      ctx.lineTo(...point)
+    }
+    if (i === data.length - 1) {
+      ctx.lineTo(point[0], ${height - radius})
+    }
+  }
+  const gradient = ctx.createLinearGradient(0, 0, 0, ${height})
+  gradient.addColorStop(0, '${shadowStyle}')
+  gradient.addColorStop(1, '${transparentStyle}')
+  ctx.fillStyle = gradient
+  ctx.fill()
+  const uri = canvas.toDataURL()
+  completion(uri)`;
+  const webView = new WebView();
+  const uri = await webView.evaluateJavaScript(js, true);
+  const base64str = uri.replace(/^data:image\/\w+;base64,/, '');
+  const image = Image.fromData(Data.fromBase64String(base64str));
   return image
 };
 
@@ -1269,12 +1280,12 @@ const initOilPrice = async () => {
  */
 const addLineChart = async (container, history, { color, size }) => {
   const image = container.addImage(
-    lineChart({
+    await lineChart({
       data: history,
       size,
       lineWidth: 1.5,
       lineColor: color,
-      shadowColor: new Color(color.hex, 0.06)
+      shadowColor: new Color(color.hex, 0.3)
     })
   );
   image.imageSize = size;
@@ -1300,7 +1311,7 @@ const createSmallWidget = async (data) => {
   const color = data.offset > 0 ? Color.red() : Color.green();
   head.addSpacer();
   const offset = head.addText(`${data.offset > 0 ? '+' : ''}${data.offset}`);
-  offset.font = Font.mediumSystemFont(16);
+  offset.font = Font.mediumSystemFont(15);
   offset.textColor = color;
   const size = new Size(
     s.small - 32,
@@ -1328,10 +1339,10 @@ const addItem = async (container, data) => {
   addTitle(stack, data);
   stack.addSpacer();
   const color = data.offset > 0 ? Color.red() : Color.green();
-  const size = new Size(100, 26);
+  const size = new Size(90, 26);
   await addLineChart(stack, data.history, { color, size });
 
-  stack.addSpacer(30);
+  stack.addSpacer(24);
   const priceStack = stack.addStack();
   priceStack.size = new Size(60, -1);
   priceStack.layoutVertically();

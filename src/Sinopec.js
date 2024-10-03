@@ -108,12 +108,12 @@ const initOilPrice = async () => {
  */
 const addLineChart = async (container, history, { color, size }) => {
   const image = container.addImage(
-    lineChart({
+    await lineChart({
       data: history,
       size,
       lineWidth: 1.5,
       lineColor: color,
-      shadowColor: new Color(color.hex, 0.06)
+      shadowColor: new Color(color.hex, 0.3)
     })
   )
   image.imageSize = size
@@ -139,7 +139,7 @@ const createSmallWidget = async (data) => {
   const color = data.offset > 0 ? Color.red() : Color.green()
   head.addSpacer()
   const offset = head.addText(`${data.offset > 0 ? '+' : ''}${data.offset}`)
-  offset.font = Font.mediumSystemFont(16)
+  offset.font = Font.mediumSystemFont(15)
   offset.textColor = color
   const size = new Size(
     s.small - 32,
@@ -167,10 +167,10 @@ const addItem = async (container, data) => {
   addTitle(stack, data)
   stack.addSpacer()
   const color = data.offset > 0 ? Color.red() : Color.green()
-  const size = new Size(100, 26)
+  const size = new Size(90, 26)
   await addLineChart(stack, data.history, { color, size })
 
-  stack.addSpacer(30)
+  stack.addSpacer(24)
   const priceStack = stack.addStack()
   priceStack.size = new Size(60, -1)
   priceStack.layoutVertically()
