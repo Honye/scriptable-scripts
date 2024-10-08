@@ -4,13 +4,13 @@
 /**
  * Scriptable scripts store
  *
- * @version 1.0.1
+ * @version 1.0.2
  * @author Honye
  */
 
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.0.2
+ * @version 1.0.3
  * @author Honye
  */
 
@@ -116,7 +116,10 @@ const inject = async (webView, options) => {
       }
     })()
       .then((res) => sendResult(webView, code, res))
-      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+      .catch((e) => {
+        console.error(e);
+        sendResult(webView, code, e instanceof Error ? e : new Error(e));
+      })
   });
   await Promise.all(sendTasks);
   inject(webView, options);
@@ -283,6 +286,11 @@ const methods = {
   }
 };
 
-await loadURL(webView, url, { methods });
-
-webView.present(true);
+const query = args.queryParameters;
+const fileURL = query && query.url;
+if (fileURL) {
+  installByURL(fileURL);
+} else {
+  await loadURL(webView, url, { methods });
+  webView.present(true);
+}

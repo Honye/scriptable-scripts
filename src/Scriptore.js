@@ -153,6 +153,11 @@ const methods = {
   }
 }
 
-await loadURL(webView, url, { methods })
-
-webView.present(true)
+const query = args.queryParameters
+const fileURL = query && query.url
+if (fileURL) {
+  installByURL(fileURL)
+} else {
+  await loadURL(webView, url, { methods })
+  webView.present(true)
+}
