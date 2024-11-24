@@ -1,7 +1,8 @@
 {
-  "version": "1.3.2",
+  "version": "2.0.0",
   "description": [
-    "湖北联通余额信息展示"
+    "湖北联通余额信息展示",
+    "原创 UI，修改套用请注明来源"
   ],
   "setting": {
     "icon-glyph": "mobile-alt",

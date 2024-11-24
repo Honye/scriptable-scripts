@@ -3,10 +3,71 @@
 // icon-glyph: mobile-alt; icon-color: red;
 /**
  * 湖北联通余额信息展示
+ * 原创 UI，修改套用请注明来源
  *
- * @version 1.3.2
+ * @version 2.0.0
  * @author Honye
  */
+
+/**
+ * @version 1.2.2
+ */
+
+
+/**
+ * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
+ */
+const widgetSize = () => {
+  const phones = {
+    /** 16 Pro Max */
+    956: { small: 170, medium: 364, large: 382 },
+    /** 16 Pro */
+    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
+    932: { small: 170, medium: 364, large: 382 },
+    /** 13 Pro Max, 12 Pro Max */
+    926: { small: 170, medium: 364, large: 382 },
+    /** 11 Pro Max, 11, XS Max, XR */
+    896: { small: 169, medium: 360, large: 379 },
+    /** Plus phones */
+    736: { small: 157, medium: 348, large: 357 },
+    /** 16, 15 Pro, 15, 14 Pro */
+    852: { small: 158, medium: 338, large: 354 },
+    /** 13, 13 Pro, 12, 12 Pro */
+    844: { small: 158, medium: 338, large: 354 },
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
+    812: { small: 155, medium: 329, large: 345 },
+    /** SE2 and 6/6S/7/8 */
+    667: { small: 148, medium: 321, large: 324 },
+    /** iPad Pro 2 */
+    1194: { small: 155, medium: 342, large: 342, extraLarge: 715.5 },
+    /** iPad 6 */
+    1024: { small: 141, medium: 305.5, large: 305.5, extraLarge: 634.5 }
+  };
+  let { width, height } = Device.screenSize();
+  if (width > height) height = width;
+
+  if (phones[height]) return phones[height]
+
+  if (config.runsInWidget) {
+    const pc = { small: 164, medium: 344, large: 344 };
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return { small: 155, medium: 329, large: 329 }
+};
+
+/**
+ * @param {number} num
+ */
+const vw = (num) => {
+  const family = config.widgetFamily || 'small';
+  if (!family) throw new Error('`vw` only work in widget')
+  const size = widgetSize();
+  const width = size[family === 'large' ? 'medium' : family];
+  return num * width / 100
+};
 
 /**
  * 多语言国际化
@@ -126,7 +187,11 @@ const useFileManager = (options = {}) => {
    * @param {string} filePath
    */
   const readImage = (filePath) => {
-    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+    const fullPath = safePath(filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readImage(fullPath)
+    }
+    return null
   };
 
   return {
@@ -145,7 +210,7 @@ const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.0.2
+ * @version 1.0.3
  * @author Honye
  */
 
@@ -251,7 +316,10 @@ const inject = async (webView, options) => {
       }
     })()
       .then((res) => sendResult(webView, code, res))
-      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+      .catch((e) => {
+        console.error(e);
+        sendResult(webView, code, e instanceof Error ? e : new Error(e));
+      })
   });
   await Promise.all(sendTasks);
   inject(webView, options);
@@ -278,7 +346,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.1
+ * @version 1.6.2
  * @author Honye
  */
 
@@ -899,7 +967,7 @@ input[type='checkbox'][role='switch']:checked::before {
       }
     },
     native (data) {
-      onWebEvent?.(data);
+      return onWebEvent?.(data)
     }
   };
   await loadHTML(
@@ -1013,33 +1081,344 @@ const withSettings = async (options) => {
   }, true)
 };
 
+/**
+ * 话费、流量和语音余额小组件小号 UI
+ *
+ * 原创 UI，修改套用请注明来源
+ *
+ * GitHub: https://github.com/honye
+ *
+ * @version 1.0.0
+ * @author Honye
+ */
+
+
+const cache$1 = useCache();
+
+const cacheImage = async (url, filename) => {
+  const cached = cache$1.readImage(filename);
+  if (cached) return cached
+  const image = await getImage(url);
+  cache$1.writeImage(filename, image);
+  return image
+};
+
+const createBg = async () => {
+  const filename = 'unicom_bg.png';
+  const cached = cache$1.readImage(filename);
+  if (cached) return cached
+  const ctx = new DrawContext();
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  ctx.size = new Size(155, 155);
+  ctx.drawImageInRect(
+    await getImage('https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts@master/static/unicom_bg.png'),
+    new Rect(77, -22, 100, 100)
+  );
+  const image = ctx.getImage();
+  cache$1.writeImage(filename, image);
+  return image
+};
+
+/**
+ * @param {Color} startColor
+ * @param {Color} endColor
+ * @param {number} factor 0.0 ~ 1.0
+ */
+const interpolateColor = (startColor, endColor, factor) => {
+  const interpolate = (start, end) => {
+    return start + (end - start) * factor
+  };
+  const r = interpolate(startColor.red, endColor.red);
+  const g = interpolate(startColor.green, endColor.green);
+  const b = interpolate(startColor.blue, endColor.blue);
+  const a = interpolate(startColor.alpha, endColor.alpha);
+  const hex = [r, g, b].map((n) => Math.round(n * 255).toString(16).padStart(2, '0')).join('');
+  return new Color(hex, a)
+};
+
+/** @param {number} deg */
+const deg2arc = (deg) => {
+  return deg * Math.PI / 180
+};
+
+/**
+ * @param {object} params
+ * @param {Point} params.center
+ * @param {number} params.radius
+ * @param {number} params.deg
+ */
+const pointAtDeg = ({ center, radius, deg }) => {
+  return new Point(
+    center.x + radius * Math.cos(deg2arc(deg)),
+    center.y + radius * Math.sin(deg2arc(deg))
+  )
+};
+
+/**
+ * @param {object} params
+ * @param {Point} params.center
+ * @param {number} params.radius
+ * @param {number} params.startDeg
+ * @param {number} params.drawDeg
+ */
+const arcPath = ({ center, radius, startDeg, drawDeg }) => {
+  const startArc = deg2arc(startDeg);
+  const path = new Path();
+  path.move(pointAtDeg({ center, radius, deg: startDeg }));
+  const l = Math.PI * radius * 2 * drawDeg / 360;
+  for (let i = 0; i <= l; i++) {
+    path.addLine(
+      new Point(
+        center.x + radius * Math.cos(startArc + i / radius),
+        center.y + radius * Math.sin(startArc + i / radius)
+      )
+    );
+  }
+  return path
+};
+
+/**
+ * @param {DrawContext} ctx
+ * @param {object} options
+ * @param {Color} options.startColor
+ * @param {Color} options.endColor
+ * @param {number} options.lineWidth
+ */
+const drawGradientArc = (ctx, {
+  center,
+  radius,
+  startDeg,
+  drawDeg,
+  startColor,
+  endColor,
+  lineWidth
+}) => {
+  const startArc = deg2arc(startDeg);
+  let lastPoint = pointAtDeg({ center, radius, deg: startDeg });
+  const l = Math.PI * radius * 2 * drawDeg / 360;
+  for (let i = 0; i <= l; i++) {
+    const path = new Path();
+    path.move(lastPoint);
+    const nextPoint = new Point(
+      center.x + radius * Math.cos(startArc + i / radius),
+      center.y + radius * Math.sin(startArc + i / radius)
+    );
+    path.addLine(nextPoint);
+    ctx.addPath(path);
+    ctx.setLineWidth(lineWidth);
+    ctx.setStrokeColor(interpolateColor(startColor, endColor, i / l));
+    ctx.strokePath();
+    lastPoint = nextPoint;
+  }
+};
+
+/**
+ * @param {DrawContext} ctx
+ * @param {object} options
+ * @param {Color} options.startColor
+ * @param {Color} options.endColor
+ */
+const drawArc = (ctx, { startColor, endColor, percent }) => {
+  const { width } = ctx.size;
+  const lineWidth = 4;
+  const radius = (width - lineWidth) / 2;
+  const center = new Point(width / 2, width / 2);
+
+  if (startColor === endColor) {
+    ctx.addPath(arcPath({ center, radius, startDeg: 135, drawDeg: 270 * percent }));
+    ctx.setStrokeColor(startColor);
+    ctx.setLineWidth(lineWidth);
+    ctx.strokePath();
+  } else {
+    drawGradientArc(ctx, {
+      center,
+      radius,
+      startDeg: 135,
+      drawDeg: 270 * percent,
+      startColor,
+      endColor,
+      lineWidth
+    });
+  }
+
+  //   ctx.addPath(
+  //     arcPath({
+  //       center: pointAtDeg({ center, radius, deg: 135 }),
+  //       radius: lineWidth / 2,
+  //       startDeg: -45,
+  //       drawDeg: 180
+  //     })
+  //   )
+  //   ctx.setFillColor(color)
+  //   ctx.fillPath()
+
+//   ctx.addPath(
+//     arcPath({
+//       center: pointAtDeg({ center, radius, deg: 45 }),
+//       radius: lineWidth / 2,
+//       startDeg: 45,
+//       drawDeg: 180
+//     })
+//   )
+//   ctx.setFillColor(color)
+//   ctx.fillPath()
+};
+
+/**
+ * @param {object} params
+ * @param {Color} params.color
+ */
+const getArc = ({ color, percent }) => {
+  const ctx = new DrawContext();
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  const width = 62;
+  ctx.size = new Size(width, width);
+  const aColor = new Color(color.hex, 0.1);
+  drawArc(ctx, {
+    startColor: aColor,
+    endColor: aColor,
+    percent: 1
+  });
+  drawArc(ctx, {
+    startColor: color,
+    endColor: new Color(color.hex, 0.4),
+    percent
+  });
+
+  return ctx.getImage()
+};
+
+/**
+ * @param {WidgetStack} container
+ * @param {(s: WidgetStack) => void} fn
+ */
+const centerH = (container, fn) => {
+  const stack = container.addStack();
+  stack.size = new Size(vw(50 * 100 / 155), -1);
+  stack.centerAlignContent();
+  fn(stack);
+};
+
+/**
+ * @param {WidgetStack} stack
+ * @param {object} options
+ * @param {Color} options.color
+ */
+const addItem = async (stack, { title, balance, total, icon, color }) => {
+  const container = stack.addStack();
+  container.centerAlignContent();
+  const cs = vw(62 * 100 / 155);
+  container.size = new Size(cs, cs);
+  container.setPadding(0, 0, 0, 0);
+  // container.borderWidth = vw(8 * 100 / 155)
+  container.backgroundImage = getArc({
+    color,
+    percent: balance / total
+  });
+
+  const contentStack = container.addStack();
+  const cts = vw(50 * 100 / 155);
+  contentStack.size = new Size(cts, cts);
+  contentStack.cornerRadius = cts / 2;
+  contentStack.layoutVertically();
+  contentStack.setPadding(vw(8 * 100 / 155), 0, 0, 0);
+  const gradient = new LinearGradient();
+  gradient.colors = [new Color(color.hex, 0.2), new Color(color.hex, 0)];
+  gradient.locations = [0, 1];
+  gradient.startPoint = new Point(0, 0);
+  gradient.endPoint = new Point(0, 1);
+  contentStack.backgroundGradient = gradient;
+
+  centerH(contentStack, (s) => {
+    const label = s.addText(title);
+    label.font = Font.systemFont(vw(8 * 100 / 155));
+    label.textColor = Color.dynamic(new Color('#221f1f', 0.7), new Color('#ffffff', 0.7));
+  });
+
+  centerH(contentStack, (s) => {
+    const value = s.addText(`${balance}`);
+    value.lineLimit = 1;
+    value.minimumScaleFactor = 0.5;
+    value.font = Font.boldRoundedSystemFont(vw(14 * 100 / 155));
+  });
+
+  centerH(contentStack, (s) => {
+    const stack = s.addStack();
+    const size = vw(16 * 100 / 155);
+    stack.size = new Size(size, size);
+    stack.cornerRadius = size / 2;
+    stack.backgroundColor = color;
+    stack.centerAlignContent();
+    const ic = stack.addImage(SFSymbol.named(icon).image);
+    const is = vw(12 * 100 / 155);
+    ic.imageSize = new Size(is, is);
+    ic.tintColor = Color.white();
+  });
+};
+
+/**
+ * @param {object} data
+ * @param {number} data.hf
+ * @param {number} data.ll
+ * @param {number} data.totalLl
+ * @param {number} data.yy
+ * @param {number} data.totalYy
+ */
+const createWidget$1 = async ({ hf, ll, totalLl, yy, totalYy }) => {
+  const widget = new ListWidget();
+  widget.backgroundImage = await createBg();
+  widget.setPadding(0, 0, 0, 0);
+
+  const container = widget.addStack();
+  container.layoutVertically();
+  const p = vw(14 * 100 / 155);
+  container.setPadding(p, p, p, p);
+
+  const top = container.addStack();
+  top.layoutHorizontally();
+  const hfStack = top.addStack();
+  hfStack.layoutVertically();
+  const hflabel = hfStack.addText('剩余话费');
+  hflabel.font = Font.systemFont(vw(12 * 100 / 155));
+  hflabel.textColor = Color.dynamic(new Color('#221f1f', 0.7), new Color('#ffffff', 0.7));
+  const hfBalance = hfStack.addText(`${hf}`);
+  hfBalance.minimumScaleFactor = 0.5;
+  hfBalance.font = Font.boldRoundedSystemFont(vw(24 * 100 / 155));
+  hfBalance.textColor = Color.dynamic(new Color('#221f1f'), new Color('#ffffff'));
+  top.addSpacer();
+  // logo
+  const logo = top.addImage(
+    await cacheImage('https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts@master/static/unicom.png', 'chinaunicom.png')
+  );
+  logo.imageSize = new Size(vw(24 * 100 / 155), vw(24 * 100 / 155));
+  container.addSpacer(vw(18 * 100 / 155));
+  const bottom = container.addStack();
+  await addItem(bottom, {
+    title: '剩余流量',
+    balance: ll,
+    total: totalLl,
+    icon: 'antenna.radiowaves.left.and.right',
+    color: new Color('#3bc9ec')
+  });
+  bottom.addSpacer();
+  await addItem(bottom, {
+    title: '剩余语音',
+    balance: yy,
+    total: totalYy,
+    icon: 'phone',
+    color: new Color('#a2cf39')
+  });
+  return widget
+};
+
 const preference = {
-  textColorLight: '#222222',
-  textColorDark: '#ffffff',
   packages: [],
   authorization: ''
 };
 
 const cache = useCache();
-const ringStackSize = 61; // 圆环大小
-const ringTextSize = 14; // 圆环中心文字大小
-const creditTextSize = 21; // 话费文本大小
-const databgColor = new Color('12A6E4', 0.3); // 流量环背景颜色
-const datafgColor = new Color('12A6E4'); // 流量环前景颜色
-let dataTextColor = Color.dynamic(
-  new Color(preference.textColorLight),
-  new Color(preference.textColorDark)
-);
-const voicebgColor = new Color('F86527', 0.3); // 语音环背景颜色
-const voicefgColor = new Color('F86527'); // 语音环前景颜色
-
-const dataSfs = SFSymbol.named('antenna.radiowaves.left.and.right');
-dataSfs.applyHeavyWeight();
-const dataIcon = dataSfs.image;
-const canvSize = 178;
-const canvas = new DrawContext();
-const canvWidth = 18;
-const canvRadius = 80;
 
 const hbHeaders = () => {
   let { authorization } = preference;
@@ -1060,172 +1439,16 @@ const hbHeaders = () => {
 
 const createWidget = async () => {
   const data = await getData();
-  const { balenceData, flowData, voiceData, _state } = data;
-  const widget = new ListWidget();
-  widget.setPadding(16, 16, 16, 16);
-  widget.backgroundColor = Color.dynamic(new Color('ffffff'), new Color('242426'));
-
-  const status = _state === 'expired'
-    ? 'failed' // 余额信息请求失败，检查授权信息是否有效
-    : 'success';
-  addStatusDot(widget, status);
-  await addLogo(widget);
-  await renderBalance(widget, balenceData.amount);
-  await renderArcs(widget, flowData, voiceData);
+  const { balenceData, flowData, voiceData } = data;
+  const widget = await createWidget$1({
+    hf: balenceData.amount,
+    ll: (flowData.left / 1024).toFixed(2),
+    totalLl: (flowData.total / 1024).toFixed(2),
+    yy: voiceData.left,
+    totalYy: voiceData.total
+  });
   return widget
 };
-
-/**
- * 状态显示
- * @param {'waiting'|'success'|'warning'|'failed'} status
- */
-const addStatusDot = (widget, status) => {
-  const stackStatus = widget.addStack();
-  stackStatus.addSpacer();
-  const iconStatus = stackStatus.addImage(SFSymbol.named('circle.fill').image);
-  iconStatus.imageSize = new Size(6, 6);
-  const colors = {
-    waiting: Color.gray(),
-    success: Color.green(),
-    warning: Color.orange(),
-    failed: Color.red()
-  };
-  iconStatus.tintColor = colors[status];
-};
-
-const getLogo = async () => {
-  const url = 'https://jun.fly.dev/imgs/chinaunicom.png';
-  const path = 'chinaunicom.png';
-  const cached = cache.readImage(path);
-  if (cached) {
-    return cached
-  }
-
-  const image = await getImage(url);
-  cache.writeImage(path, image);
-  return image
-};
-
-/** 联通 Logo 显示 */
-const addLogo = async (widget) => {
-  const headerStack = widget.addStack();
-  headerStack.addSpacer();
-  const logo = headerStack.addImage(await getLogo());
-  logo.imageSize = new Size(393 * 0.25, 118 * 0.25);
-  headerStack.addSpacer();
-  widget.addSpacer();
-};
-
-/** 余额显示 */
-const renderBalance = async (widget, balance) => {
-  const stack = widget.addStack();
-  stack.centerAlignContent();
-  stack.addSpacer();
-  const elText = stack.addText(balance);
-  elText.textColor = dataTextColor;
-  elText.font = Font.mediumRoundedSystemFont(creditTextSize);
-  stack.addSpacer();
-  widget.addSpacer();
-};
-
-/**
- * @param {Data} flowData
- * @param {Data} voiceData
- */
-const renderArcs = async (widget, flowData, voiceData) => {
-  const bodyStack = widget.addStack();
-  bodyStack.layoutVertically();
-
-  canvas.size = new Size(canvSize, canvSize);
-  canvas.opaque = false;
-  canvas.respectScreenScale = true;
-
-  const dataGap = (flowData.left / flowData.total * 100) * 3.6;
-  const voiceGap = (voiceData.left / voiceData.total * 100) * 3.6;
-
-  drawArc(dataGap, datafgColor, databgColor);
-  const ringStack = bodyStack.addStack();
-  const ringLeft = ringStack.addStack();
-  ringLeft.layoutVertically();
-  ringLeft.size = new Size(ringStackSize, ringStackSize);
-  ringLeft.backgroundImage = canvas.getImage();
-  await ringContent(
-    ringLeft,
-    dataIcon,
-    datafgColor,
-    `${Number((flowData.left / 1024).toFixed(2))}`,
-    'GB'
-  );
-  ringStack.addSpacer();
-
-  drawArc(voiceGap, voicefgColor, voicebgColor);
-  const ringRight = ringStack.addStack();
-  ringRight.layoutVertically();
-  ringRight.size = new Size(ringStackSize, ringStackSize);
-  ringRight.backgroundImage = canvas.getImage();
-  await ringContent(
-    ringRight,
-    SFSymbol.named('phone.fill').image,
-    voicefgColor,
-    `${voiceData.left}`,
-    '分钟'
-  );
-};
-
-function sinDeg (deg) {
-  return Math.sin((deg * Math.PI) / 180)
-}
-
-function cosDeg (deg) {
-  return Math.cos((deg * Math.PI) / 180)
-}
-
-function ringContent (widget, icon, iconColor, text, unit) {
-  const rowIcon = widget.addStack();
-  rowIcon.addSpacer();
-  const iconElement = rowIcon.addImage(icon);
-  iconElement.tintColor = iconColor;
-  iconElement.imageSize = new Size(12, 12);
-  iconElement.imageOpacity = 0.7;
-  rowIcon.addSpacer();
-
-  widget.addSpacer(1);
-
-  const rowText = widget.addStack();
-  rowText.addSpacer();
-  const textElement = rowText.addText(text);
-  textElement.textColor = dataTextColor;
-  textElement.font = Font.mediumSystemFont(ringTextSize);
-  rowText.addSpacer();
-
-  const rowUnit = widget.addStack();
-  rowUnit.addSpacer();
-  const unitElement = rowUnit.addText(unit);
-  unitElement.textColor = dataTextColor;
-  unitElement.font = Font.boldSystemFont(8);
-  unitElement.textOpacity = 0.5;
-  rowUnit.addSpacer();
-}
-
-function drawArc (deg, fillColor, strokeColor) {
-  const ctr = new Point(canvSize / 2, canvSize / 2);
-  const bgx = ctr.x - canvRadius;
-  const bgy = ctr.y - canvRadius;
-  const bgd = 2 * canvRadius;
-  const bgr = new Rect(bgx, bgy, bgd, bgd);
-
-  canvas.setFillColor(fillColor);
-  canvas.setStrokeColor(strokeColor);
-  canvas.setLineWidth(canvWidth);
-  canvas.strokeEllipse(bgr);
-
-  for (let t = 0; t < deg; t++) {
-    const rectX = ctr.x + canvRadius * sinDeg(t) - canvWidth / 2;
-    const rectY = ctr.y - canvRadius * cosDeg(t) - canvWidth / 2;
-    const rectR = new Rect(rectX, rectY, canvWidth, canvWidth);
-    canvas.fillEllipse(rectR);
-  }
-}
 
 /**
  * 湖北联通余额
@@ -1281,7 +1504,6 @@ const getData = async () => {
       voiceData
     };
     cache.writeJSON('data.json', data);
-    data._state = 'approved';
     return data
   } catch (e) {
     /**
@@ -1292,7 +1514,6 @@ const getData = async () => {
      * }}
      */
     const data = cache.readJSON('data.json');
-    data._state = 'expired';
     console.warn('==== 数据请求失败，使用缓存数据 ====');
     console.warn(e);
     return data
@@ -1318,18 +1539,6 @@ for (const item of addupInfoList) {
 await withSettings({
   formItems: [
     {
-      name: 'textColorLight',
-      label: i18n(['Text color (light)', '文字颜色（白天）']),
-      type: 'color',
-      default: preference.textColorLight
-    },
-    {
-      name: 'textColorDark',
-      label: i18n(['Text color (dark)', '文字颜色（黑夜）']),
-      type: 'color',
-      default: preference.textColorDark
-    },
-    {
       name: 'packages',
       label: i18n(['Packages', '套餐']),
       type: 'multi-select',
@@ -1354,11 +1563,6 @@ await withSettings({
   ],
   render: async ({ settings }) => {
     Object.assign(preference, settings);
-    const { textColorLight, textColorDark } = preference;
-    dataTextColor = Color.dynamic(
-      new Color(textColorLight),
-      new Color(textColorDark)
-    );
     const widget = await createWidget();
     return widget
   }
