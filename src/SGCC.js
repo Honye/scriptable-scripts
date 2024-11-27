@@ -41,7 +41,7 @@ const getLogo = async () => {
   const filename = 'logo.png'
   const cached = cache.readImage(filename)
   if (cached) return cached
-  const image = await getImage('http://192.168.0.107:3000/sgcc.png')
+  const image = await getImage('https://raw.githubusercontent.com/Honye/scriptable-scripts/refs/heads/master/static/sgcc.png')
   cache.writeImage(filename, image)
   return image
 }

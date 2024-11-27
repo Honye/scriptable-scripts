@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -1125,7 +1125,7 @@ const getLogo = async () => {
   const filename = 'logo.png';
   const cached = cache.readImage(filename);
   if (cached) return cached
-  const image = await getImage('http://192.168.0.107:3000/sgcc.png');
+  const image = await getImage('https://raw.githubusercontent.com/Honye/scriptable-scripts/refs/heads/master/static/sgcc.png');
   cache.writeImage(filename, image);
   return image
 };
