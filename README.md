@@ -27,7 +27,7 @@
 
 也可快速安装 [Scriptable 安装器](#Installer)
 
-[点击安装](https://www.icloud.com/shortcuts/768a7435136749959554568ca7b498bd)
+[点击安装](https://www.icloud.com/shortcuts/feaba7c97d0c4d0e8f60d246d2359402)
 
 ## Installer
 
