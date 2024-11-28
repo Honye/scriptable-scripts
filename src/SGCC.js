@@ -4,6 +4,8 @@ const { withSettings } = require('./withSettings.module')
 const vw = (n) => vmin(n, config.widgetFamily)
 
 const preference = {
+  /** @type {'daily'|'monthly'} */
+  dimension: 'daily',
   barCount: 7,
   showStepProgress: true,
   oneLevelPq: 2160,
@@ -50,19 +52,41 @@ const getLogo = async () => {
  * @param {ListWidget} widget
  */
 const addBarChart = (widget, data) => {
-  const { barCount } = preference
-  const { sevenEleList } = data.dayElecQuantity31
-  /** @type {number[]} */
-  const seven = []
-  let i = 0
-  while (seven.length < barCount && i < sevenEleList.length) {
-    const { dayElePq } = sevenEleList[i]
-    if (dayElePq && !Number.isNaN(Number(dayElePq))) {
-      seven.unshift(Number(dayElePq))
+  const { barCount, dimension, oneLevelPq, twoLevelPq } = preference
+  const monthlyData = []
+  /** @type {{ value: number; level: number }[]} */
+  let seven = []
+  const { mothEleList } = data.monthElecQuantity
+  let yearTotal = 0
+  for (const { monthEleNum } of mothEleList) {
+    const n = Number(monthEleNum)
+    yearTotal += n
+    const level = yearTotal > Number(twoLevelPq) ? 3 : yearTotal > Number(oneLevelPq) ? 2 : 1
+    monthlyData.push({
+      yearTotal,
+      monthElec: n,
+      level
+    })
+    if (dimension === 'monthly') {
+      seven.push({ value: n, level })
     }
-    i++
+  }
+  if (dimension === 'daily') {
+    const { sevenEleList } = data.dayElecQuantity31
+    for (const { day, dayElePq } of sevenEleList) {
+      if (dayElePq && !Number.isNaN(Number(dayElePq))) {
+        let [, year, month] = day.match(/^(\d{4})(\d{2})/)
+        year = Number(year)
+        month = Number(month)
+        const level = new Date().getFullYear() === year
+          ? monthlyData[month > monthlyData.length ? month - 2 : month - 1].level
+          : 1
+        seven.unshift({ value: Number(dayElePq), level })
+      }
+    }
   }
 
+  seven = seven.slice(-barCount)
   const container = widget.addStack()
   container.size = new Size(-1, vw(68 * 100 / 155))
   const vp = vw(10 * 100 / 155)
@@ -71,20 +95,21 @@ const addBarChart = (widget, data) => {
   container.bottomAlignContent()
 
   container.addSpacer()
-  const max = Math.max(...seven)
+  const max = Math.max(...seven.map(({ value }) => value))
   const maxHeight = vw(48 * 100 / 155)
   const w = vw(8 * 100 / 155)
-  for (let i = 0; i < seven.length; i++) {
+  for (const { value, level } of seven) {
     const day = container.addStack()
-    day.size = new Size(w, seven[i] / max * maxHeight)
+    day.size = new Size(w, value / max * maxHeight)
     day.cornerRadius = w / 2
-    day.backgroundColor = Color.red()
     const gradient = new LinearGradient()
     gradient.locations = [0, 1]
-    gradient.colors = [
-      new Color('#81CDC7'),
-      new Color('#00706B')
+    const colors = [
+      [new Color('#81CDC7'), new Color('#00706B')], // level 1
+      [new Color('#FFEE8C'), new Color('#E8C70B')], // level 2
+      [new Color('#FCBF94'), new Color('#D0580D')] // level 3
     ]
+    gradient.colors = colors[level - 1]
     gradient.startPoint = new Point(0, 0)
     gradient.endPoint = new Point(0, 1)
     day.backgroundGradient = gradient
@@ -140,18 +165,18 @@ const addStepProgress = (container, data) => {
     )
   }
   if (level > 1) {
-    colors.splice(4, 0, twoLevelColor, twoLevelColor)
+    colors.splice(4 + 2, 0, twoLevelColor, twoLevelColor)
     const per = Math.min(totalYearPq / twoLevelPq, 1) * 0.32
     locations.splice(
-      5, 0,
+      5 + 2, 0,
       0.34 + per, 0.34 + per
     )
   }
   if (level > 2) {
-    colors.splice(8, 0, threeLevelColor, threeLevelColor)
+    colors.splice(8 + 2 * 2, 0, threeLevelColor, threeLevelColor)
     const per = Math.min(totalYearPq / (twoLevelPq + twoLevelPq - oneLevelPq), 1) * 0.32
     locations.splice(
-      9, 0,
+      9 + 2 * 2, 0,
       0.68 + per, 0.68 + per
     )
   }
@@ -202,7 +227,8 @@ const createWidget = async (data) => {
   widget.addSpacer()
   const bottom = widget.addStack()
   bottom.layoutVertically()
-  const l = bottom.addText('剩余电费')
+  const { totalAmount } = data.stepElecQuantity[0].electricParticulars
+  const l = bottom.addText(`余额 (上期:${totalAmount})`)
   l.font = Font.systemFont(vw(12 * 100 / 155))
   l.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#ffffff', 0.7))
   const w = bottom.addStack()
@@ -219,6 +245,16 @@ const createWidget = async (data) => {
 
 await withSettings({
   formItems: [
+    {
+      label: i18n(['Daily or monthly', '每日或每月']),
+      name: 'dimension',
+      type: 'select',
+      options: [
+        { label: i18n(['Daily', '每日']), value: 'daily' },
+        { label: i18n(['Monthly', '每月']), value: 'monthly' }
+      ],
+      default: preference.dimension
+    },
     {
       label: i18n(['Bar count', '柱状图数量']),
       name: 'barCount',
