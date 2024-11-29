@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.2.0
+ * @version 1.2.1
  * @author Honye
  */
 
@@ -1099,8 +1099,16 @@ const preference = {
 const cache = useCache();
 
 const getData = async () => {
-  const url = 'http://api.wsgw-rewrite.com/electricity/bill/all';
+  const url = 'http://api.wsgw-rewrite.com/electricity/bill/all?monthElecQuantity=1&dayElecQuantity31=1&stepElecQuantity=1&eleBill=1';
   const filename = 'data.json';
+  const fm = FileManager.local();
+  const filePath = fm.joinPath(cache.cacheDirectory, filename);
+  const mDate = fm.modificationDate(filePath);
+  if (mDate && Date.now() - mDate.getTime() < 14400000) {
+    console.log('[INFO] Request too frequent, using local cached data...');
+    return cache.readJSON(filename)
+  }
+
   const request = new Request(url);
   let data;
   try {
@@ -1213,8 +1221,11 @@ const addStepProgress = (container, data) => {
   const threeLevelColor = new Color('#D0580D');
   const threeLevelBg = new Color(threeLevelColor.hex, 0.1);
   const transparent = new Color('#000000', 0);
-  const [{ electricParticulars }] = data.stepElecQuantity;
-  const { totalYearPq } = electricParticulars;
+  let totalYearPq = 0;
+  if (data.stepElecQuantity?.[0]) {
+    const [{ electricParticulars }] = data.stepElecQuantity;
+    totalYearPq = electricParticulars.totalYearPq;
+  }
 
   const stack = container.addStack();
   stack.size = new Size(-1, vw(4 * 100 / 155));
@@ -1311,8 +1322,12 @@ const createWidget = async (data) => {
   widget.addSpacer();
   const bottom = widget.addStack();
   bottom.layoutVertically();
-  const { totalAmount } = data.stepElecQuantity[0].electricParticulars;
-  const l = bottom.addText(`余额 (上期:${totalAmount})`);
+  let totalAmount = 0;
+  if (data.stepElecQuantity?.[0]) {
+    const { electricParticulars } = data.stepElecQuantity[0];
+    totalAmount = electricParticulars.totalAmount;
+  }
+  const l = bottom.addText(`余额${totalAmount ? `(上期:${totalAmount})` : ''}`);
   l.font = Font.systemFont(vw(12 * 100 / 155));
   l.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#ffffff', 0.7));
   const w = bottom.addStack();
