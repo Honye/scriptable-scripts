@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.0
+ * @version 1.7.1
  * @author Honye
  */
 
@@ -193,6 +193,9 @@ const present = async (options, isFirstPage, others = {}) => {
   -webkit-user-select: none;
   user-select: none;
 }
+:focus-visible {
+  outline-width: 2px;
+}
 body {
   margin: 10px 0;
   -webkit-font-smoothing: antialiased;
@@ -203,6 +206,10 @@ body {
 input {
   -webkit-user-select: auto;
   user-select: auto;
+}
+input:where([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]) {
+  accent-color: var(--text-color);
+  white-space: nowrap;
 }
 select {
   accent-color: var(--text-color);
@@ -263,9 +270,13 @@ button .iconfont {
 .form-item__input-wrapper {
   flex: 1;
   text-align: right;
+  box-sizing: border-box;
+  padding: 2px;
+  margin-right: -2px;
+  overflow: hidden;
 }
 .form-item__input {
-  max-width: 100%;
+  max-width: calc(100% - 4px);
 }
 .form-item .iconfont {
   margin-right: 4px;
@@ -293,6 +304,7 @@ input[type="date"] {
   min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
+  margin: 0;
   position: relative;
   display: inline-block;
   appearance: none;
