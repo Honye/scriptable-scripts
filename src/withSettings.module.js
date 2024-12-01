@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.2
+ * @version 1.7.0
  * @author Honye
  */
 
@@ -131,7 +131,7 @@ const previewsHTML =
 
 const copyrightHTML =
 `<footer>
-  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a></div>
 </footer>`
 
 /**
@@ -182,10 +182,12 @@ const present = async (options, isFirstPage, others = {}) => {
   const style =
 `:root {
   --color-primary: #007aff;
-  --divider-color: rgba(60,60,67,0.36);
+  --text-color: #1e1f24;
+  --text-secondary: #8b8d98;
+  --divider-color: #eff0f3;
   --card-background: #fff;
   --card-radius: 10px;
-  --list-header-color: rgba(60,60,67,0.6);
+  --bg-input: #f9f9fb;
 }
 * {
   -webkit-user-select: none;
@@ -196,21 +198,25 @@ body {
   -webkit-font-smoothing: antialiased;
   font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
   accent-color: var(--color-primary);
+  color: var(--text-color);
 }
 input {
   -webkit-user-select: auto;
   user-select: auto;
+}
+select {
+  accent-color: var(--text-color);
 }
 body {
   background: #f2f2f7;
 }
 button {
   font-size: 16px;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   border: none;
-  padding: 0.24em 0.5em;
+  padding: 0.5em;
 }
 button .iconfont {
   margin-right: 6px;
@@ -220,7 +226,7 @@ button .iconfont {
 }
 .list__header {
   margin: 0 20px;
-  color: var(--list-header-color);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .list__body {
@@ -256,7 +262,6 @@ button .iconfont {
 }
 .form-item__input-wrapper {
   flex: 1;
-  overflow: hidden;
   text-align: right;
 }
 .form-item__input {
@@ -269,6 +274,13 @@ button .iconfont {
 .form-item select {
   font-size: 14px;
   text-align: right;
+}
+.form-item input:not([type=color]),
+.form-item select {
+  border-radius: 99px;
+  background-color: var(--bg-input);
+  border: none;
+  color: var(--text-color);
 }
 .form-item input[type="checkbox"] {
   width: 1.25em;
@@ -285,9 +297,9 @@ input[type='checkbox'][role='switch'] {
   display: inline-block;
   appearance: none;
   width: 40px;
-  height: 24px;
-  border-radius: 24px;
-  background: #ccc;
+  height: 25px;
+  border-radius: 25px;
+  background: var(--bg-input);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']::before {
@@ -295,10 +307,11 @@ input[type='checkbox'][role='switch']::before {
   position: absolute;
   left: 2px;
   top: 2px;
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px 0 rgba(0, 0, 0, 0.15), 0 2px 1px 0 rgba(0, 0, 0, 0.06);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']:checked {
@@ -309,15 +322,18 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .actions {
   margin: 15px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 12px;
 }
 .copyright {
   margin: 15px;
   margin-inline: 18px;
   font-size: 12px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 .copyright a {
-  color: #515154;
+  color: var(--text-color);
   text-decoration: none;
 }
 .preview.loading {
@@ -342,33 +358,22 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --divider-color: rgba(84,84,88,0.65);
-    --card-background: #1c1c1e;
-    --list-header-color: rgba(235,235,245,0.6);
+    --text-color: #eeeef0;
+    --text-secondary: #6c6e79;
+    --divider-color: #222325;
+    --card-background: #19191b;
+    --bg-input: #303136;
   }
   body {
-    background: #000;
-    color: #fff;
-  }
-  input {
-    background-color: rgb(58, 57, 57);
-    color: var(--color-primary);
-  }
-  input[type='checkbox'][role='switch'] {
-    background-color: rgb(56, 56, 60);
+    background: #111113;
   }
   input[type='checkbox'][role='switch']::before {
     background-color: rgb(206, 206, 206);
   }
-  select {
-    background-color: rgb(82, 82, 82);
-    border: none;
-  }
   .form-item[media="(prefers-color-scheme: dark)"] {
     display: flex;
   }
-}
-`
+}`
 
   const js =
 `(() => {
