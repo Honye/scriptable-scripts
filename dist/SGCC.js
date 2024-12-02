@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.2.1
+ * @version 1.3.0
  * @author Honye
  */
 
@@ -350,7 +350,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.2
+ * @version 1.7.1
  * @author Honye
  */
 
@@ -473,7 +473,7 @@ const previewsHTML =
 
 const copyrightHTML =
 `<footer>
-  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a></div>
 </footer>`;
 
 /**
@@ -524,35 +524,48 @@ const present = async (options, isFirstPage, others = {}) => {
   const style =
 `:root {
   --color-primary: #007aff;
-  --divider-color: rgba(60,60,67,0.36);
+  --text-color: #1e1f24;
+  --text-secondary: #8b8d98;
+  --divider-color: #eff0f3;
   --card-background: #fff;
   --card-radius: 10px;
-  --list-header-color: rgba(60,60,67,0.6);
+  --bg-input: #f9f9fb;
 }
 * {
   -webkit-user-select: none;
   user-select: none;
+}
+:focus-visible {
+  outline-width: 2px;
 }
 body {
   margin: 10px 0;
   -webkit-font-smoothing: antialiased;
   font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
   accent-color: var(--color-primary);
+  color: var(--text-color);
 }
 input {
   -webkit-user-select: auto;
   user-select: auto;
+}
+input:where([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]) {
+  accent-color: var(--text-color);
+  white-space: nowrap;
+}
+select {
+  accent-color: var(--text-color);
 }
 body {
   background: #f2f2f7;
 }
 button {
   font-size: 16px;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   border: none;
-  padding: 0.24em 0.5em;
+  padding: 0.5em;
 }
 button .iconfont {
   margin-right: 6px;
@@ -562,7 +575,7 @@ button .iconfont {
 }
 .list__header {
   margin: 0 20px;
-  color: var(--list-header-color);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .list__body {
@@ -598,11 +611,14 @@ button .iconfont {
 }
 .form-item__input-wrapper {
   flex: 1;
-  overflow: hidden;
   text-align: right;
+  box-sizing: border-box;
+  padding: 2px;
+  margin-right: -2px;
+  overflow: hidden;
 }
 .form-item__input {
-  max-width: 100%;
+  max-width: calc(100% - 4px);
 }
 .form-item .iconfont {
   margin-right: 4px;
@@ -611,6 +627,13 @@ button .iconfont {
 .form-item select {
   font-size: 14px;
   text-align: right;
+}
+.form-item input:not([type=color]),
+.form-item select {
+  border-radius: 99px;
+  background-color: var(--bg-input);
+  border: none;
+  color: var(--text-color);
 }
 .form-item input[type="checkbox"] {
   width: 1.25em;
@@ -623,13 +646,14 @@ input[type="date"] {
   min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
+  margin: 0;
   position: relative;
   display: inline-block;
   appearance: none;
   width: 40px;
-  height: 24px;
-  border-radius: 24px;
-  background: #ccc;
+  height: 25px;
+  border-radius: 25px;
+  background: var(--bg-input);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']::before {
@@ -637,10 +661,11 @@ input[type='checkbox'][role='switch']::before {
   position: absolute;
   left: 2px;
   top: 2px;
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px 0 rgba(0, 0, 0, 0.15), 0 2px 1px 0 rgba(0, 0, 0, 0.06);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']:checked {
@@ -651,15 +676,18 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .actions {
   margin: 15px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 12px;
 }
 .copyright {
   margin: 15px;
   margin-inline: 18px;
   font-size: 12px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 .copyright a {
-  color: #515154;
+  color: var(--text-color);
   text-decoration: none;
 }
 .preview.loading {
@@ -684,33 +712,22 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --divider-color: rgba(84,84,88,0.65);
-    --card-background: #1c1c1e;
-    --list-header-color: rgba(235,235,245,0.6);
+    --text-color: #eeeef0;
+    --text-secondary: #6c6e79;
+    --divider-color: #222325;
+    --card-background: #19191b;
+    --bg-input: #303136;
   }
   body {
-    background: #000;
-    color: #fff;
-  }
-  input {
-    background-color: rgb(58, 57, 57);
-    color: var(--color-primary);
-  }
-  input[type='checkbox'][role='switch'] {
-    background-color: rgb(56, 56, 60);
+    background: #111113;
   }
   input[type='checkbox'][role='switch']::before {
     background-color: rgb(206, 206, 206);
   }
-  select {
-    background-color: rgb(82, 82, 82);
-    border: none;
-  }
   .form-item[media="(prefers-color-scheme: dark)"] {
     display: flex;
   }
-}
-`;
+}`;
 
   const js =
 `(() => {
@@ -1085,7 +1102,56 @@ const withSettings = async (options) => {
   }, true)
 };
 
-const vw = (n) => vmin(n, config.widgetFamily);
+/**
+ * @param {WidgetStack} stack
+ * @param {object} options
+ * @param {number} [options.column] column count
+ * @param {number | [number, number]} [options.gap]
+ * @param {'row' | 'column'} [options.direction]
+ */
+const useGrid = async (stack, options) => {
+  const {
+    column,
+    gap = 0,
+    direction = 'row'
+  } = options;
+  const [columnGap, rowGap] = typeof gap === 'number' ? [gap, gap] : gap;
+
+  if (direction === 'row') {
+    stack.layoutVertically();
+  } else {
+    stack.layoutHorizontally();
+  }
+
+  let i = -1;
+  const rows = [];
+
+  const add = async (fn) => {
+    i++;
+    const r = Math.floor(i / column);
+    if (i % column === 0) {
+      if (r > 0) {
+        stack.addSpacer(rowGap);
+      }
+      const rowStack = stack.addStack();
+      if (direction === 'row') {
+        rowStack.layoutHorizontally();
+      } else {
+        rowStack.layoutVertically();
+      }
+      rows.push(rowStack);
+    }
+
+    if (i % column > 0) {
+      rows[r].addSpacer(columnGap);
+    }
+    await fn(rows[r]);
+  };
+
+  return { add }
+};
+
+const rpt = (n) => vmin(n * 100 / 155, config.widgetFamily);
 
 const preference = {
   /** @type {'daily'|'monthly'} */
@@ -1097,6 +1163,7 @@ const preference = {
 };
 
 const cache = useCache();
+const sizes = widgetSize();
 
 const getData = async () => {
   const url = 'http://api.wsgw-rewrite.com/electricity/bill/all?monthElecQuantity=1&dayElecQuantity31=1&stepElecQuantity=1&eleBill=1';
@@ -1141,7 +1208,7 @@ const getLogo = async () => {
 };
 
 /**
- * @param {ListWidget} widget
+ * @param {WidgetStack} widget
  */
 const addBarChart = (widget, data) => {
   const { barCount, dimension, oneLevelPq, twoLevelPq } = preference;
@@ -1180,17 +1247,19 @@ const addBarChart = (widget, data) => {
 
   seven = seven.slice(-barCount);
   const container = widget.addStack();
-  container.size = new Size(-1, vw(68 * 100 / 155));
-  const vp = vw(10 * 100 / 155);
-  container.setPadding(vp, 0, vp, 0);
+  const height = config.widgetFamily === 'medium' ? rpt(40) : rpt(68);
+  container.size = new Size(-1, height);
+  const vp = config.widgetFamily === 'medium' ? rpt(4) : rpt(10);
+  const px = config.widgetFamily === 'medium' ? 0 : rpt(8);
+  container.setPadding(vp, px, vp, px);
   container.layoutHorizontally();
   container.bottomAlignContent();
 
-  container.addSpacer();
+  const gap = config.widgetFamily === 'medium' ? rpt(6) : undefined;
   const max = Math.max(...seven.map(({ value }) => value));
-  const maxHeight = vw(48 * 100 / 155);
-  const w = vw(8 * 100 / 155);
-  for (const { value, level } of seven) {
+  const maxHeight = height - vp * 2;
+  const w = config.widgetFamily === 'medium' ? rpt(6) : rpt(8);
+  for (const [i, { value, level }] of seven.entries()) {
     const day = container.addStack();
     day.size = new Size(w, value / max * maxHeight);
     day.cornerRadius = w / 2;
@@ -1205,7 +1274,9 @@ const addBarChart = (widget, data) => {
     gradient.startPoint = new Point(0, 0);
     gradient.endPoint = new Point(0, 1);
     day.backgroundGradient = gradient;
-    container.addSpacer();
+    if (i < seven.length - 1) {
+      container.addSpacer(gap);
+    }
   }
 };
 
@@ -1228,7 +1299,7 @@ const addStepProgress = (container, data) => {
   }
 
   const stack = container.addStack();
-  stack.size = new Size(-1, vw(4 * 100 / 155));
+  stack.size = new Size(-1, rpt(4));
   stack.addSpacer();
   const gradient = new LinearGradient();
   const colors = [
@@ -1300,7 +1371,173 @@ const addBarAndStep = (widget, data) => {
   addStepProgress(container, data);
 };
 
-const createWidget = async (data) => {
+/**
+ * @param {WidgetStack} stack
+ * @param {object} data
+ * @param {string} data.label
+ * @param {number} data.value
+ */
+const addLabelValue = (stack, { label, value }) => {
+  const c = stack.addStack();
+  c.layoutVertically();
+  c.addStack().addSpacer();
+  c.backgroundColor = Color.dynamic(new Color('#00706B', 0.05), new Color('#04605B', 0.15));
+  c.cornerRadius = rpt(6);
+  c.setPadding(rpt(6), rpt(12), rpt(6), rpt(12));
+  const title = c.addText(label);
+  title.font = Font.systemFont(rpt(8));
+  title.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
+  const number = c.addText(`${value}`);
+  number.font = Font.boldRoundedSystemFont(14);
+  number.textColor = Color.dynamic(new Color('#18231C'), new Color('#FFFFFF'));
+};
+
+/**
+ * @param {WidgetStack} stack
+ */
+const addMediumSteps = (stack, data, { width }) => {
+  const { oneLevelPq, twoLevelPq } = preference;
+  let totalYearPq = 0;
+  if (data.stepElecQuantity?.[0]) {
+    const [{ electricParticulars }] = data.stepElecQuantity;
+    totalYearPq = electricParticulars.totalYearPq;
+  }
+
+  const c = stack.addStack();
+  c.layoutVertically();
+  c.backgroundColor = Color.dynamic(new Color('#00706B', 0.05), new Color('#04605B', 0.15));
+  c.cornerRadius = rpt(6);
+  const paddingX = rpt(12);
+  c.setPadding(rpt(6), paddingX, rpt(6), paddingX);
+  c.addStack().addSpacer();
+
+  const level = totalYearPq > twoLevelPq ? 3 : totalYearPq > oneLevelPq ? 2 : 1;
+  let percent = totalYearPq / [oneLevelPq, twoLevelPq, twoLevelPq + twoLevelPq - oneLevelPq][level - 1];
+  percent = Math.min(percent, 1);
+  const title = c.addText(`第${['一', '二', '三'][level - 1]}梯度：${Number((percent * 100).toFixed(2))}%`);
+  title.font = Font.systemFont(rpt(8));
+  title.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
+
+  c.addSpacer(rpt(4));
+  const p = c.addStack();
+  const barGap = rpt(2);
+  const t = Math.floor((width - paddingX * 2 + barGap) / (2 + barGap));
+  /** one step bar counts */
+  const n = Math.floor(t / 3);
+  const colors = [
+    Color.dynamic(new Color('#00706B'), new Color('#04605B')), // level 1
+    Color.dynamic(new Color('#E8C70B'), new Color('#CBAD02')), // level 2
+    Color.dynamic(new Color('#D0580D'), new Color('#D0580D')) // level 3
+  ];
+  const bgColors = [
+    Color.dynamic(new Color('#00706B', 0.1), new Color('#04605B', 0.1)), // level 1
+    Color.dynamic(new Color('#E8C70B', 0.1), new Color('#CBAD02', 0.1)), // level 2
+    Color.dynamic(new Color('#D0580D', 0.1), new Color('#D0580D', 0.1)) // level 3
+  ];
+  for (let i = 0; i < n * 3; i++) {
+    const bar = p.addStack();
+    bar.layoutVertically();
+    bar.addSpacer();
+    bar.size = new Size(2, -1);
+    const end = Math.floor(n * level * percent);
+    bar.backgroundColor = (i > end ? bgColors : colors)[Math.floor(i / n)];
+    bar.cornerRadius = 1;
+    if (i < n * 3 - 1) {
+      p.addSpacer(barGap);
+    }
+  }
+};
+
+const createMediumWidget = async () => {
+  const { barCount } = preference;
+  const data = await getWidgetData();
+  const widget = new ListWidget();
+  const widgetPadding = rpt(12);
+  widget.setPadding(widgetPadding, widgetPadding, widgetPadding, widgetPadding);
+  const widgetGradient = new LinearGradient();
+  widgetGradient.colors = [
+    Color.dynamic(new Color('#00706B', 0.18), new Color('#00706B', 0)),
+    new Color('#00706B', 0)
+  ];
+  widgetGradient.locations = [0, 0.35];
+  widgetGradient.startPoint = new Point(0, 0);
+  widgetGradient.endPoint = new Point(sizes.small / sizes.medium, 1);
+  widget.backgroundGradient = widgetGradient;
+
+  const container = widget.addStack();
+  container.layoutHorizontally();
+
+  const lpx = rpt(4);
+  const barItemWith = rpt(6);
+  const barGap = rpt(6);
+  const leftWidth = Math.max(barCount, 7) * (barItemWith + barGap) - barGap + lpx * 2;
+  const left = container.addStack();
+  left.size = new Size(leftWidth, -1);
+  left.layoutVertically();
+  const gradient = new LinearGradient();
+  gradient.locations = [0, 1];
+  gradient.colors = [
+    new Color('#00706B', 0),
+    Color.dynamic(new Color('#00706B', 0.05), new Color('#04605B', 0.15))
+  ];
+  gradient.startPoint = new Point(0, 0.4);
+  gradient.endPoint = new Point(0, 1);
+  left.backgroundGradient = gradient;
+  left.cornerRadius = rpt(6);
+  left.setPadding(0, lpx, 0, lpx);
+
+  const logo = left.addImage(await getLogo());
+  const lw = rpt(24);
+  logo.imageSize = new Size(lw, lw);
+
+  left.addSpacer(rpt(12));
+  const label = left.addText('剩余电费');
+  label.font = Font.systemFont(rpt(10));
+  label.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
+  const number = left.addText(`${data.eleBill.sumMoney}`);
+  number.minimumScaleFactor = 0.5;
+  number.font = Font.boldRoundedSystemFont(rpt(18));
+  number.textColor = Color.dynamic(new Color('#18231C'), new Color('#FFFFFF'));
+
+  left.addSpacer();
+  addBarChart(left, data);
+
+  const lrGap = rpt(12);
+  container.addSpacer(lrGap);
+  const right = container.addStack();
+  right.layoutVertically();
+  const { add } = await useGrid(right, {
+    column: 2,
+    gap: [rpt(8), rpt(6)]
+  });
+  await add((stack) => addLabelValue(stack, {
+    label: '上期电费',
+    value: data.stepElecQuantity?.[0].electricParticulars.totalAmount || '0.00'
+  }));
+  await add((stack) => addLabelValue(stack, {
+    label: '上期电量',
+    value: data.eleBill.totalPq
+  }));
+  await add((stack) => addLabelValue(stack, {
+    label: '年度电费',
+    value: data.monthElecQuantity.dataInfo.totalEleCost
+  }));
+  await add((stack) => addLabelValue(stack, {
+    label: '年度电量',
+    value: data.monthElecQuantity.dataInfo.totalEleNum
+  }));
+  right.addSpacer(rpt(6));
+  addMediumSteps(right, data, { width: sizes.medium - widgetPadding * 2 - leftWidth - lrGap });
+  return widget
+};
+
+const createWidget = async () => {
+  if (config.widgetFamily === 'medium') {
+    const widget = await createMediumWidget();
+    return widget
+  }
+
+  const data = await getWidgetData();
   const widget = new ListWidget();
   widget.setPadding(12, 12, 12, 12);
   widget.backgroundColor = Color.dynamic(
@@ -1328,16 +1565,16 @@ const createWidget = async (data) => {
     totalAmount = electricParticulars.totalAmount;
   }
   const l = bottom.addText(`余额${totalAmount ? `(上期:${totalAmount})` : ''}`);
-  l.font = Font.systemFont(vw(12 * 100 / 155));
+  l.font = Font.systemFont(rpt(12));
   l.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#ffffff', 0.7));
   const w = bottom.addStack();
   w.centerAlignContent();
   const p = w.addText(`${data.eleBill.sumMoney}`);
-  p.font = Font.boldRoundedSystemFont(vw(24 * 100 / 155));
+  p.font = Font.boldRoundedSystemFont(rpt(24));
   p.textColor = Color.dynamic(new Color('#18231C'), new Color('#ffffff'));
   w.addSpacer();
   const logo = w.addImage(await getLogo());
-  const lw = vw(24 * 100 / 155);
+  const lw = rpt(24);
   logo.imageSize = new Size(lw, lw);
   return widget
 };
@@ -1382,8 +1619,7 @@ await withSettings({
   render: async ({ family, settings }) => {
     family && (config.widgetFamily = family);
     Object.assign(preference, settings);
-    const data = await getWidgetData();
-    const widget = await createWidget(data);
+    const widget = await createWidget();
     return widget
   }
 });
