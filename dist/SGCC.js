@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.3.0
+ * @version 1.3.1
  * @author Honye
  */
 
@@ -1124,8 +1124,12 @@ const useGrid = async (stack, options) => {
   }
 
   let i = -1;
+  /** @type {WidgetStack[]} */
   const rows = [];
 
+  /**
+   * @param {(stack: WidgetStack) => void} fn
+   */
   const add = async (fn) => {
     i++;
     const r = Math.floor(i / column);
@@ -1212,6 +1216,7 @@ const getLogo = async () => {
  */
 const addBarChart = (widget, data) => {
   const { barCount, dimension, oneLevelPq, twoLevelPq } = preference;
+  /** @type {{yearTotal:number;monthElec:number;level:number}[]} */
   const monthlyData = [];
   /** @type {{ value: number; level: number }[]} */
   let seven = [];
@@ -1221,11 +1226,7 @@ const addBarChart = (widget, data) => {
     const n = Number(monthEleNum);
     yearTotal += n;
     const level = yearTotal > Number(twoLevelPq) ? 3 : yearTotal > Number(oneLevelPq) ? 2 : 1;
-    monthlyData.push({
-      yearTotal,
-      monthElec: n,
-      level
-    });
+    monthlyData.push({ yearTotal, monthElec: n, level });
     if (dimension === 'monthly') {
       seven.push({ value: n, level });
     }
@@ -1237,9 +1238,15 @@ const addBarChart = (widget, data) => {
         let [, year, month] = day.match(/^(\d{4})(\d{2})/);
         year = Number(year);
         month = Number(month);
-        const level = new Date().getFullYear() === year
-          ? monthlyData[month > monthlyData.length ? month - 2 : month - 1].level
-          : 1;
+        // 非今年数据默认阶梯为 1
+        let level = 1;
+        if (new Date().getFullYear() === year) {
+          const safeIndex = Math.max(
+            0,
+            Math.min(monthlyData.length - 1, month > monthlyData.length ? monthlyData.length - 1 : month - 1)
+          );
+          level = monthlyData[safeIndex].level;
+        }
         seven.unshift({ value: Number(dayElePq), level });
       }
     }
@@ -1491,7 +1498,7 @@ const createMediumWidget = async () => {
   logo.imageSize = new Size(lw, lw);
 
   left.addSpacer(rpt(12));
-  const label = left.addText('剩余电费');
+  const label = left.addText(!data.arrearsOfFees ? '剩余电费' : '待缴电费');
   label.font = Font.systemFont(rpt(10));
   label.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
   const number = left.addText(`${data.eleBill.sumMoney}`);
@@ -1516,7 +1523,7 @@ const createMediumWidget = async () => {
   }));
   await add((stack) => addLabelValue(stack, {
     label: '上期电量',
-    value: data.eleBill.totalPq
+    value: data.stepElecQuantity?.[0].electricParticulars.totalPq || '0.00'
   }));
   await add((stack) => addLabelValue(stack, {
     label: '年度电费',
