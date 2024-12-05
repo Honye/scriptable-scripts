@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.3.1
+ * @version 1.3.2
  * @author Honye
  */
 
@@ -1168,6 +1168,8 @@ const preference = {
 
 const cache = useCache();
 const sizes = widgetSize();
+/** @type {Date} */
+let respDate;
 
 const getData = async () => {
   const url = 'http://api.wsgw-rewrite.com/electricity/bill/all?monthElecQuantity=1&dayElecQuantity31=1&stepElecQuantity=1&eleBill=1';
@@ -1177,7 +1179,9 @@ const getData = async () => {
   const mDate = fm.modificationDate(filePath);
   if (mDate && Date.now() - mDate.getTime() < 14400000) {
     console.log('[INFO] Request too frequent, using local cached data...');
-    return cache.readJSON(filename)
+    const data = cache.readJSON(filename);
+    respDate = mDate;
+    return data
   }
 
   const request = new Request(url);
@@ -1185,10 +1189,12 @@ const getData = async () => {
   try {
     data = await request.loadJSON();
     cache.writeJSON(filename, data);
+    respDate = new Date();
   } catch (e) {
     console.error(e);
     console.log('[INFO] An exception occurred during the request; using cached data...');
     data = cache.readJSON(filename);
+    respDate = mDate;
   }
   return data
 };
@@ -1421,9 +1427,22 @@ const addMediumSteps = (stack, data, { width }) => {
   const level = totalYearPq > twoLevelPq ? 3 : totalYearPq > oneLevelPq ? 2 : 1;
   let percent = totalYearPq / [oneLevelPq, twoLevelPq, twoLevelPq + twoLevelPq - oneLevelPq][level - 1];
   percent = Math.min(percent, 1);
-  const title = c.addText(`第${['一', '二', '三'][level - 1]}梯度：${Number((percent * 100).toFixed(2))}%`);
+  const head = c.addStack();
+  const title = head.addText(`第${['一', '二', '三'][level - 1]}梯度：${Number((percent * 100).toFixed(2))}%`);
   title.font = Font.systemFont(rpt(8));
   title.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
+  head.addSpacer();
+  const time = head.addStack();
+  time.centerAlignContent();
+  const clock = time.addImage(SFSymbol.named('clock.arrow.circlepath').image);
+  clock.tintColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
+  clock.imageSize = new Size(rpt(8), rpt(8));
+  const df = new DateFormatter();
+  df.locale = 'zh-CN';
+  df.dateFormat = 'HH:mm';
+  const timeText = time.addText(` ${df.string(respDate)}`);
+  timeText.font = Font.systemFont(rpt(8));
+  timeText.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7));
 
   c.addSpacer(rpt(4));
   const p = c.addStack();
