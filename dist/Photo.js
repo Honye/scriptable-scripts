@@ -6,7 +6,7 @@
  * 添加到桌面前需先在 APP 内运行选择图片
  * 有特殊字体，可下载相关字体或者清空字体配置
  *
- * @version 1.0.0
+ * @version 1.0.1
  * @author Honye
  */
 
@@ -1294,7 +1294,8 @@ const preference = {
   textColor: '#1e1f24',
   textColorDark: '#ffffff',
   secondaryColor: '#80828d',
-  secondaryColorDark: '#b3b3bd'
+  secondaryColorDark: '#b3b3bd',
+  imageRadius: 0
 };
 
 const rpt = (n) => vmin(n * 100 / 329, config.widgetFamily);
@@ -1330,7 +1331,7 @@ const choosePhoto = async (index) => {
 };
 
 const createWidget = async () => {
-  const { text, titleFont } = preference;
+  const { text, titleFont, imageRadius } = preference;
   const textColor = Color.dynamic(
     new Color(preference.textColor),
     new Color(preference.textColorDark)
@@ -1387,11 +1388,10 @@ const createWidget = async () => {
   photos.centerAlignContent();
 
   const addOne = async (filename) => {
-    const image = photos.addImage(await getPhoto(filename));
-    image.resizable = true;
-    image.imageSize = new Size(rpt(80), rpt(152));
-    image.containerRelativeShape = true;
-    image.applyFillingContentMode();
+    const image = photos.addStack();
+    image.size = new Size(rpt(80), rpt(152));
+    image.backgroundImage = await getPhoto(filename);
+    image.cornerRadius = imageRadius;
     return image
   };
   await addOne('photo_1');
@@ -1405,11 +1405,13 @@ const createWidget = async () => {
 
   const third = photosRight.addStack();
   third.size = new Size(rpt(125), rpt(121));
+  third.cornerRadius = imageRadius;
   third.backgroundImage = await getPhoto('photo_3');
 
   photosRight.addSpacer(rpt(4));
   const fourth = photosRight.addStack();
   fourth.size = new Size(rpt(125), rpt(100));
+  fourth.cornerRadius = imageRadius;
   fourth.backgroundImage = await getPhoto('photo_4');
   return widget
 };
@@ -1454,6 +1456,12 @@ await withSettings({
       type: 'color',
       media: '(prefers-color-scheme: dark)',
       default: preference.secondaryColorDark
+    },
+    {
+      label: i18n(['Image Radius', '图片圆角']),
+      name: 'imageRadius',
+      type: 'number',
+      default: preference.imageRadius
     },
     {
       label: i18n(['Choose Photo', '选择图片']),
