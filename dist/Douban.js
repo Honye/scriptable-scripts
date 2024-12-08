@@ -7,9 +7,254 @@
  * - Only support small and medium
  * - Tap widget to open the movie web page
  *
- * @version 1.0.2
+ * @version 1.1.0
  * @author Honye
  */
+
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: light-gray; icon-glyph: cube;
+/* 公历转农历代码思路：
+1、建立农历年份查询表
+2、计算输入公历日期与公历基准的相差天数
+3、从农历基准开始遍历农历查询表，计算自农历基准之后每一年的天数，并用相差天数依次相减，确定农历年份
+4、利用剩余相差天数以及农历每个月的天数确定农历月份
+5、利用剩余相差天数确定农历哪一天 */
+
+// 农历1949-2100年查询表
+const lunarYearArr = [
+  0x0b557, // 1949
+  0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5b0, 0x14573, 0x052b0, 0x0a9a8, 0x0e950, 0x06aa0, // 1950-1959
+  0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0, // 1960-1969
+  0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b6a0, 0x195a6, // 1970-1979
+  0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570, // 1980-1989
+  0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0, // 1990-1999
+  0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5, // 2000-2009
+  0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930, // 2010-2019
+  0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530, // 2020-2029
+  0x05aa0, 0x076a3, 0x096d0, 0x04afb, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45, // 2030-2039
+  0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0, // 2040-2049
+  0x14b63, 0x09370, 0x049f8, 0x04970, 0x064b0, 0x168a6, 0x0ea50, 0x06b20, 0x1a6c4, 0x0aae0, // 2050-2059
+  0x0a2e0, 0x0d2e3, 0x0c960, 0x0d557, 0x0d4a0, 0x0da50, 0x05d55, 0x056a0, 0x0a6d0, 0x055d4, // 2060-2069
+  0x052d0, 0x0a9b8, 0x0a950, 0x0b4a0, 0x0b6a6, 0x0ad50, 0x055a0, 0x0aba4, 0x0a5b0, 0x052b0, // 2070-2079
+  0x0b273, 0x06930, 0x07337, 0x06aa0, 0x0ad50, 0x14b55, 0x04b60, 0x0a570, 0x054e4, 0x0d160, // 2080-2089
+  0x0e968, 0x0d520, 0x0daa0, 0x16aa6, 0x056d0, 0x04ae0, 0x0a9d4, 0x0a2d0, 0x0d150, 0x0f252, // 2090-2099
+  0x0d520 // 2100
+];
+const lunarMonth = ['正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '冬', '腊'];
+const lunarDay = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '初', '廿'];
+const tianGan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+const diZhi = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+// 公历转农历函数
+function sloarToLunar (sy, sm, sd) {
+  // 输入的月份减1处理
+  sm -= 1;
+
+  // 计算与公历基准的相差天数
+  // Date.UTC()返回的是距离公历1970年1月1日的毫秒数,传入的月份需要减1
+  let daySpan = (Date.UTC(sy, sm, sd) - Date.UTC(1949, 0, 29)) / (24 * 60 * 60 * 1000) + 1;
+  let ly, lm, ld;
+  // 确定输出的农历年份
+  for (let j = 0; j < lunarYearArr.length; j++) {
+    daySpan -= lunarYearDays(lunarYearArr[j]);
+    if (daySpan <= 0) {
+      ly = 1949 + j;
+      // 获取农历年份确定后的剩余天数
+      daySpan += lunarYearDays(lunarYearArr[j]);
+      break
+    }
+  }
+
+  // 确定输出的农历月份
+  for (let k = 0; k < lunarYearMonths(lunarYearArr[ly - 1949]).length; k++) {
+    daySpan -= lunarYearMonths(lunarYearArr[ly - 1949])[k];
+    if (daySpan <= 0) {
+      // 有闰月时，月份的数组长度会变成13，因此，当闰月月份小于等于k时，lm不需要加1
+      if (hasLeapMonth(lunarYearArr[ly - 1949]) && hasLeapMonth(lunarYearArr[ly - 1949]) <= k) {
+        if (hasLeapMonth(lunarYearArr[ly - 1949]) < k) {
+          lm = k;
+        } else if (hasLeapMonth(lunarYearArr[ly - 1949]) === k) {
+          lm = '闰' + k;
+        } else {
+          lm = k + 1;
+        }
+      } else {
+        lm = k + 1;
+      }
+      // 获取农历月份确定后的剩余天数
+      daySpan += lunarYearMonths(lunarYearArr[ly - 1949])[k];
+      break
+    }
+  }
+
+  // 确定输出农历哪一天
+  ld = daySpan;
+
+  // 将计算出来的农历月份转换成汉字月份，闰月需要在前面加上闰字
+  if (hasLeapMonth(lunarYearArr[ly - 1949]) && (typeof (lm) === 'string' && lm.indexOf('闰') > -1)) {
+    lm = `闰${lunarMonth[/\d/.exec(lm) - 1]}`;
+  } else {
+    lm = lunarMonth[lm - 1];
+  }
+
+  // 将计算出来的农历年份转换为天干地支年
+  ly = getTianGan(ly) + getDiZhi(ly);
+
+  // 将计算出来的农历天数转换成汉字
+  if (ld < 11) {
+    ld = `${lunarDay[10]}${lunarDay[ld - 1]}`;
+  } else if (ld > 10 && ld < 20) {
+    ld = `${lunarDay[9]}${lunarDay[ld - 11]}`;
+  } else if (ld === 20) {
+    ld = `${lunarDay[1]}${lunarDay[9]}`;
+  } else if (ld > 20 && ld < 30) {
+    ld = `${lunarDay[11]}${lunarDay[ld - 21]}`;
+  } else if (ld === 30) {
+    ld = `${lunarDay[2]}${lunarDay[9]}`;
+  }
+
+  // console.log(ly, lm, ld);
+
+  return {
+    lunarYear: ly,
+    lunarMonth: lm,
+    lunarDay: ld
+  }
+}
+
+// 计算农历年是否有闰月，参数为存储农历年的16进制
+// 农历年份信息用16进制存储，其中16进制的最后1位可以用于判断是否有闰月
+function hasLeapMonth (ly) {
+  // 获取16进制的最后1位，需要用到&与运算符
+  if (ly & 0xf) {
+    return ly & 0xf
+  } else {
+    return false
+  }
+}
+
+// 如果有闰月，计算农历闰月天数，参数为存储农历年的16进制
+// 农历年份信息用16进制存储，其中16进制的第1位（0x除外）可以用于表示闰月是大月还是小月
+function leapMonthDays (ly) {
+  if (hasLeapMonth(ly)) {
+    // 获取16进制的第1位（0x除外）
+    return (ly & 0xf0000) ? 30 : 29
+  } else {
+    return 0
+  }
+}
+
+// 计算农历一年的总天数，参数为存储农历年的16进制
+// 农历年份信息用16进制存储，其中16进制的第2-4位（0x除外）可以用于表示正常月是大月还是小月
+function lunarYearDays (ly) {
+  let totalDays = 0;
+
+  // 获取正常月的天数，并累加
+  // 获取16进制的第2-4位，需要用到>>移位运算符
+  for (let i = 0x8000; i > 0x8; i >>= 1) {
+    const monthDays = (ly & i) ? 30 : 29;
+    totalDays += monthDays;
+  }
+  // 如果有闰月，需要把闰月的天数加上
+  if (hasLeapMonth(ly)) {
+    totalDays += leapMonthDays(ly);
+  }
+
+  return totalDays
+}
+
+// 获取农历每个月的天数
+// 参数需传入16进制数值
+function lunarYearMonths (ly) {
+  const monthArr = [];
+
+  // 获取正常月的天数，并添加到monthArr数组中
+  // 获取16进制的第2-4位，需要用到>>移位运算符
+  for (let i = 0x8000; i > 0x8; i >>= 1) {
+    monthArr.push((ly & i) ? 30 : 29);
+  }
+  // 如果有闰月，需要把闰月的天数加上
+  if (hasLeapMonth(ly)) {
+    monthArr.splice(hasLeapMonth(ly), 0, leapMonthDays(ly));
+  }
+
+  return monthArr
+}
+
+// 将农历年转换为天干，参数为农历年
+function getTianGan (ly) {
+  let tianGanKey = (ly - 3) % 10;
+  if (tianGanKey === 0) tianGanKey = 10;
+  return tianGan[tianGanKey - 1]
+}
+
+// 将农历年转换为地支，参数为农历年
+function getDiZhi (ly) {
+  let diZhiKey = (ly - 3) % 12;
+  if (diZhiKey === 0) diZhiKey = 12;
+  return diZhi[diZhiKey - 1]
+}
+
+/**
+ * @version 1.2.2
+ */
+
+
+/**
+ * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
+ */
+const widgetSize = () => {
+  const phones = {
+    /** 16 Pro Max */
+    956: { small: 170, medium: 364, large: 382 },
+    /** 16 Pro */
+    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
+    932: { small: 170, medium: 364, large: 382 },
+    /** 13 Pro Max, 12 Pro Max */
+    926: { small: 170, medium: 364, large: 382 },
+    /** 11 Pro Max, 11, XS Max, XR */
+    896: { small: 169, medium: 360, large: 379 },
+    /** Plus phones */
+    736: { small: 157, medium: 348, large: 357 },
+    /** 16, 15 Pro, 15, 14 Pro */
+    852: { small: 158, medium: 338, large: 354 },
+    /** 13, 13 Pro, 12, 12 Pro */
+    844: { small: 158, medium: 338, large: 354 },
+    /** 13 mini, 12 mini / 11 Pro, XS, X */
+    812: { small: 155, medium: 329, large: 345 },
+    /** SE2 and 6/6S/7/8 */
+    667: { small: 148, medium: 321, large: 324 },
+    /** iPad Pro 2 */
+    1194: { small: 155, medium: 342, large: 342, extraLarge: 715.5 },
+    /** iPad 6 */
+    1024: { small: 141, medium: 305.5, large: 305.5, extraLarge: 634.5 }
+  };
+  let { width, height } = Device.screenSize();
+  if (width > height) height = width;
+
+  if (phones[height]) return phones[height]
+
+  if (config.runsInWidget) {
+    const pc = { small: 164, medium: 344, large: 344 };
+    return pc
+  }
+
+  // in app screen fixed 375x812 pt
+  return { small: 155, medium: 329, large: 329 }
+};
+
+/**
+ * @param {number} num
+ */
+const vw = (num, widgetFamily) => {
+  const family = widgetFamily || config.widgetFamily;
+  if (!family) throw new Error('`vw` only work in widget')
+  const size = widgetSize();
+  const width = size[family === 'large' ? 'medium' : family];
+  return num * width / 100
+};
 
 /**
  * 多语言国际化
@@ -117,9 +362,14 @@ const useFileManager = (options = {}) => {
 
   /**
    * @param {string} filePath
+   * @returns {Image|null}
    */
   const readImage = (filePath) => {
-    return fm.readImage(fm.joinPath(cacheDirectory, filePath))
+    const fullPath = safePath(filePath);
+    if (fm.fileExists(fullPath)) {
+      return fm.readImage(fullPath)
+    }
+    return null
   };
 
   return {
@@ -138,7 +388,7 @@ const useCache = () => useFileManager({ basePath: 'cache' });
 
 /**
  * @file Scriptable WebView JSBridge native SDK
- * @version 1.0.2
+ * @version 1.0.3
  * @author Honye
  */
 
@@ -244,7 +494,10 @@ const inject = async (webView, options) => {
       }
     })()
       .then((res) => sendResult(webView, code, res))
-      .catch((e) => sendResult(webView, code, e instanceof Error ? e : new Error(e)))
+      .catch((e) => {
+        console.error(e);
+        sendResult(webView, code, e instanceof Error ? e : new Error(e));
+      })
   });
   await Promise.all(sendTasks);
   inject(webView, options);
@@ -271,7 +524,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.5.2
+ * @version 1.7.1
  * @author Honye
  */
 
@@ -289,58 +542,6 @@ const isUseICloud = () => {
   const ifm = useFileManager({ useICloud: true });
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
-};
-
-/** 查看配置文件可导出分享 */
-const exportSettings = () => {
-  const scopedFM = useFileManager({ useICloud: isUseICloud() });
-  const filePath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-  if (fm.isFileStoredIniCloud(filePath)) {
-    fm.downloadFileFromiCloud(filePath);
-  }
-  if (fm.fileExists(filePath)) {
-    QuickLook.present(filePath);
-  } else {
-    const alert = new Alert();
-    alert.message = i18n(['Using default configuration', '使用的默认配置，未做任何修改']);
-    alert.addCancelAction(i18n(['OK', '好的']));
-    alert.present();
-  }
-};
-
-const importSettings = async () => {
-  const alert1 = new Alert();
-  alert1.message = i18n([
-    'Will replace existing configuration',
-    '会替换已有配置，确认导入吗？可将现有配置导出备份后再导入其他配置'
-  ]);
-  alert1.addAction(i18n(['Import', '导入']));
-  alert1.addCancelAction(i18n(['Cancel', '取消']));
-  const i = await alert1.present();
-  if (i === -1) return
-
-  const pathList = await DocumentPicker.open(['public.json']);
-  for (const path of pathList) {
-    const fileName = fm.fileName(path, true);
-    const scopedFM = useFileManager({ useICloud: isUseICloud() });
-    const destPath = fm.joinPath(scopedFM.cacheDirectory, fileName);
-    if (fm.fileExists(destPath)) {
-      fm.remove(destPath);
-    }
-    const i = destPath.lastIndexOf('/');
-    const directory = destPath.substring(0, i);
-    if (!fm.fileExists(directory)) {
-      fm.createDirectory(directory, true);
-    }
-    fm.copy(path, destPath);
-  }
-  const alert = new Alert();
-  alert.message = i18n(['Imported success', '导入成功']);
-  alert.addAction(i18n(['Restart', '重新运行']));
-  await alert.present();
-  const callback = new CallbackURL('scriptable:///run');
-  callback.addParameter('scriptName', Script.name());
-  callback.open();
 };
 
 /**
@@ -397,6 +598,7 @@ const moveSettings = (useICloud, data) => {
  * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
+ * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
  * @property {{ label: string; value: unknown }[]} [options]
  * @property {unknown} [default]
  */
@@ -445,7 +647,7 @@ const previewsHTML =
 
 const copyrightHTML =
 `<footer>
-  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a></div>
 </footer>`;
 
 /**
@@ -496,35 +698,48 @@ const present = async (options, isFirstPage, others = {}) => {
   const style =
 `:root {
   --color-primary: #007aff;
-  --divider-color: rgba(60,60,67,0.36);
+  --text-color: #1e1f24;
+  --text-secondary: #8b8d98;
+  --divider-color: #eff0f3;
   --card-background: #fff;
   --card-radius: 10px;
-  --list-header-color: rgba(60,60,67,0.6);
+  --bg-input: #f9f9fb;
 }
 * {
   -webkit-user-select: none;
   user-select: none;
+}
+:focus-visible {
+  outline-width: 2px;
 }
 body {
   margin: 10px 0;
   -webkit-font-smoothing: antialiased;
   font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
   accent-color: var(--color-primary);
+  color: var(--text-color);
 }
-input {
+input, textarea {
   -webkit-user-select: auto;
   user-select: auto;
+}
+input:where([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]) {
+  accent-color: var(--text-color);
+  white-space: nowrap;
+}
+select {
+  accent-color: var(--text-color);
 }
 body {
   background: #f2f2f7;
 }
 button {
   font-size: 16px;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   border: none;
-  padding: 0.24em 0.5em;
+  padding: 0.5em;
 }
 button .iconfont {
   margin-right: 6px;
@@ -534,7 +749,7 @@ button .iconfont {
 }
 .list__header {
   margin: 0 20px;
-  color: var(--list-header-color);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .list__body {
@@ -554,6 +769,9 @@ button .iconfont {
   padding: 0.5em 20px;
   position: relative;
 }
+.form-item[media*="prefers-color-scheme"] {
+  display: none;
+}
 .form-item--link .icon-arrow_right {
   color: #86868b;
 }
@@ -567,19 +785,38 @@ button .iconfont {
 }
 .form-item__input-wrapper {
   flex: 1;
-  overflow: hidden;
   text-align: right;
+  box-sizing: border-box;
+  padding: 2px;
+  margin-right: -2px;
+  overflow: hidden;
 }
 .form-item__input {
-  max-width: 100%;
+  max-width: calc(100% - 4px);
 }
 .form-item .iconfont {
   margin-right: 4px;
 }
 .form-item input,
+.form-item textarea,
 .form-item select {
   font-size: 14px;
   text-align: right;
+}
+.form-item input[type=text],
+.form-item textarea {
+  width: 11em;
+}
+.form-item textarea {
+  text-align: start;
+}
+.form-item input:not([type=color]),
+.form-item textarea,
+.form-item select {
+  border-radius: 99px;
+  background-color: var(--bg-input);
+  border: none;
+  color: var(--text-color);
 }
 .form-item input[type="checkbox"] {
   width: 1.25em;
@@ -592,13 +829,14 @@ input[type="date"] {
   min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
+  margin: 0;
   position: relative;
   display: inline-block;
   appearance: none;
   width: 40px;
-  height: 24px;
-  border-radius: 24px;
-  background: #ccc;
+  height: 25px;
+  border-radius: 25px;
+  background: var(--bg-input);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']::before {
@@ -606,10 +844,11 @@ input[type='checkbox'][role='switch']::before {
   position: absolute;
   left: 2px;
   top: 2px;
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px 0 rgba(0, 0, 0, 0.15), 0 2px 1px 0 rgba(0, 0, 0, 0.06);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']:checked {
@@ -620,15 +859,18 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .actions {
   margin: 15px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 12px;
 }
 .copyright {
   margin: 15px;
   margin-inline: 18px;
   font-size: 12px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 .copyright a {
-  color: #515154;
+  color: var(--text-color);
   text-decoration: none;
 }
 .preview.loading {
@@ -646,32 +888,29 @@ input[type='checkbox'][role='switch']:checked::before {
     transform: rotate(1turn);
   }
 }
+@media (prefers-color-scheme: light) {
+  .form-item[media="(prefers-color-scheme: light)"] {
+    display: flex;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :root {
-    --divider-color: rgba(84,84,88,0.65);
-    --card-background: #1c1c1e;
-    --list-header-color: rgba(235,235,245,0.6);
+    --text-color: #eeeef0;
+    --text-secondary: #6c6e79;
+    --divider-color: #222325;
+    --card-background: #19191b;
+    --bg-input: #303136;
   }
   body {
-    background: #000;
-    color: #fff;
-  }
-  input {
-    background-color: rgb(58, 57, 57);
-    color: var(--color-primary);
-  }
-  input[type='checkbox'][role='switch'] {
-    background-color: rgb(56, 56, 60);
+    background: #111113;
   }
   input[type='checkbox'][role='switch']::before {
     background-color: rgb(206, 206, 206);
   }
-  select {
-    background-color: rgb(82, 82, 82);
-    border: none;
+  .form-item[media="(prefers-color-scheme: dark)"] {
+    display: flex;
   }
-}
-`;
+}`;
 
   const js =
 `(() => {
@@ -692,6 +931,9 @@ input[type='checkbox'][role='switch']:checked::before {
     formData[item.name] = value;
     const label = document.createElement("label");
     label.className = "form-item";
+    if (item.media) {
+      label.setAttribute('media', item.media)
+    }
     const div = document.createElement("div");
     div.innerText = item.label;
     label.appendChild(div);
@@ -754,11 +996,12 @@ input[type='checkbox'][role='switch']:checked::before {
         }
       })
     } else {
-      const input = document.createElement("input")
+      const input = document.createElement(item.type ==='textarea' ? 'textarea' : "input")
       input.className = 'form-item__input'
       input.name = item.name
       input.type = item.type || "text";
-      input.enterKeyHint = 'done'
+      input.enterKeyHint = item.type ==='textarea' ? 'enter' : 'done'
+      if (item.type === 'textarea') input.rows = '1'
       input.value = value
       // Switch
       if (item.type === 'switch') {
@@ -774,7 +1017,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'number') {
         input.inputMode = 'decimal'
       }
-      if (input.type === 'text') {
+      if (input.type === 'text' || input.type === 'textarea') {
         input.size = 12
       }
       input.addEventListener("change", (e) => {
@@ -929,7 +1172,7 @@ input[type='checkbox'][role='switch']:checked::before {
       }
     },
     native (data) {
-      onWebEvent?.(data);
+      return onWebEvent?.(data)
     }
   };
   await loadHTML(
@@ -993,13 +1236,15 @@ const withSettings = async (options) => {
                   {
                     name: 'backgroundColorLight',
                     type: 'color',
-                    label: i18n(['Background color (light)', '背景色（白天）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: light)',
                     default: '#ffffff'
                   },
                   {
                     name: 'backgroundColorDark',
                     type: 'color',
-                    label: i18n(['Background color (dark)', '背景色（夜间）']),
+                    label: i18n(['Background color', '背景色']),
+                    media: '(prefers-color-scheme: dark)',
                     default: '#242426'
                   },
                   {
@@ -1022,35 +1267,6 @@ const withSettings = async (options) => {
             ]
           },
           {
-            label: i18n(['Config', '配置']),
-            type: 'page',
-            name: 'config',
-            formItems: [
-              {
-                label: i18n(['Export settings', '导出配置']),
-                type: 'cell',
-                name: 'export'
-              },
-              {
-                label: i18n(['Import settings', '导入配置']),
-                type: 'cell',
-                name: 'import'
-              }
-            ],
-            onItemClick: (item) => {
-              const { name } = item;
-              if (name === 'export') {
-                exportSettings();
-              }
-              if (name === 'import') {
-                importSettings().catch((err) => {
-                  console.error(err);
-                  throw err
-                });
-              }
-            }
-          },
-          {
             label: i18n(['Reset', '重置']),
             type: 'cell',
             name: 'reset'
@@ -1070,15 +1286,35 @@ const withSettings = async (options) => {
   }, true)
 };
 
+const preference = {
+  showDate: true,
+  useTextShadow: true
+};
+
+const rpt = (n) => {
+  const designWith = { small: 155, medium: 329 };
+  const { widgetFamily } = config;
+  return vw(n * 100 / (designWith[widgetFamily] || designWith.medium), widgetFamily)
+};
+
+const $12Animals = {
+  子: '鼠',
+  丑: '牛',
+  寅: '虎',
+  卯: '兔',
+  辰: '龙',
+  巳: '蛇',
+  午: '马',
+  未: '羊',
+  申: '猴',
+  酉: '鸡',
+  戌: '狗',
+  亥: '猪'
+};
+
 const render = async () => {
-  const fmt = new DateFormatter();
-  fmt.dateFormat = 'yyyy-MM-dd';
-  const date = fmt.string(new Date());
-  const url = `https://frodo.douban.com/api/v2/calendar/today?apikey=0ab215a8b1977939201640fa14c66bab&date=${date}&alt=json&_sig=tuOyn%2B2uZDBFGAFBLklc2GkuQk4%3D&_ts=1610703479`;
+  const url = 'https://www.imarkr.com/api/douban/daily';
   const request = new Request(url);
-  request.headers = {
-    'User-Agent': 'api-client/0.1.3 com.douban.frodo/8.0.0'
-  };
   const data = await request.loadJSON();
 
   const widgetFamily = config.widgetFamily;
@@ -1087,68 +1323,211 @@ const render = async () => {
       return renderSmall(data)
     case 'medium':
       return renderMedium(data)
+    case 'large':
+      return renderLarge(data)
     default:
       return renderMedium(data)
   }
 };
 
 const renderSmall = async (data) => {
+  const { showDate, useTextShadow } = preference;
   const widget = new ListWidget();
-  widget.url = data.subject.url;
-  widget.setPadding(8, 8, 16, 8);
-  const image = await getImage(data.comment.poster);
-  widget.backgroundImage = await shadowImage(image);
+  widget.url = data.url;
+  widget.setPadding(rpt(12), rpt(12), rpt(12), rpt(12));
+  const image = await getImage(data.poster);
+  shadowBgImage(widget, image);
+
+  if (showDate) {
+    const now = new Date();
+    const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const top = widget.addStack();
+    top.centerAlignContent();
+    const day = top.addText(`${now.getDate()}`.padStart(2, '0'));
+    day.font = new Font('DIN Alternate', rpt(28));
+    day.textColor = Color.white();
+    top.addSpacer(rpt(4));
+    const dateWrap = top.addStack();
+    dateWrap.layoutVertically();
+    const df = new DateFormatter();
+    df.locale = 'zh-CN';
+    df.dateFormat = 'MMMM｜E';
+    const week = dateWrap.addText(df.string(now));
+    week.font = Font.mediumSystemFont(rpt(8));
+    week.textColor = Color.white();
+    dateWrap.addSpacer(rpt(2));
+    const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`);
+    lunar.font = Font.mediumSystemFont(rpt(8));
+    lunar.textColor = Color.white();
+    if (useTextShadow) {
+      const color = new Color('#192319', 0.4);
+      const offset = new Point(0, 0);
+      const radius = 3;
+      day.shadowColor = color;
+      day.shadowOffset = offset;
+      day.shadowRadius = radius;
+      week.shadowColor = color;
+      week.shadowOffset = offset;
+      week.shadowRadius = radius;
+      lunar.shadowColor = color;
+      lunar.shadowOffset = offset;
+      lunar.shadowRadius = radius;
+    }
+  }
+
   widget.addSpacer();
-  const textTitle = widget.addText(`《${data.subject.title}》`);
-  textTitle.font = Font.boldSystemFont(15);
+  const textTitle = widget.addText(`《${data.title}》`);
+  textTitle.font = Font.boldSystemFont(rpt(12));
   textTitle.textColor = Color.white();
   textTitle.lineLimit = 1;
   textTitle.minimumScaleFactor = 0.5;
-  widget.addSpacer(5);
+  widget.addSpacer(rpt(4));
   const stackRating = widget.addStack();
   await widgetRating(stackRating, data);
   return widget
 };
 
 const renderMedium = async (data) => {
+  const { showDate, useTextShadow } = preference;
   const widget = new ListWidget();
-  widget.url = data.subject.url;
-  widget.setPadding(8, 8, 16, 8);
-  const image = await getImage(data.comment.poster);
-  widget.backgroundImage = await shadowImage(image);
+  widget.url = data.url;
+  widget.setPadding(rpt(12), rpt(12), rpt(12), rpt(12));
+  const image = await getImage(data.poster);
+  shadowBgImage(widget, image);
+
+  if (showDate) {
+    const now = new Date();
+    const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const top = widget.addStack();
+    top.addSpacer();
+    const dateWrap = top.addStack();
+    dateWrap.layoutVertically();
+    const dayWrap = dateWrap.addStack();
+    dayWrap.size = new Size(rpt(48), -1);
+    const day = dayWrap.addText(`${now.getDate()}`.padStart(2, '0'));
+    day.font = new Font('DIN Alternate', rpt(28));
+    day.textColor = Color.white();
+    const df = new DateFormatter();
+    df.locale = 'zh-CN';
+    df.dateFormat = 'MMMM｜E';
+    const week = dateWrap.addText(df.string(now));
+    week.font = Font.mediumSystemFont(rpt(8));
+    week.textColor = Color.white();
+    dateWrap.addSpacer(rpt(2));
+    const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`);
+    lunar.font = Font.mediumSystemFont(rpt(8));
+    lunar.textColor = Color.white();
+    if (useTextShadow) {
+      const color = new Color('#192319', 0.4);
+      const offset = new Point(0, 0);
+      const radius = 3;
+      day.shadowColor = color;
+      day.shadowOffset = offset;
+      day.shadowRadius = radius;
+      week.shadowColor = color;
+      week.shadowOffset = offset;
+      week.shadowRadius = radius;
+      lunar.shadowColor = color;
+      lunar.shadowOffset = offset;
+      lunar.shadowRadius = radius;
+    }
+  }
+
   widget.addSpacer();
   const stackRating = widget.addStack();
   stackRating.centerAlignContent();
-  const textTitle = stackRating.addText(`《${data.subject.title}》`);
-  textTitle.font = Font.boldSystemFont(15);
+  const textTitle = stackRating.addText(`《${data.title}》`);
+  textTitle.font = Font.mediumSystemFont(rpt(12));
   textTitle.textColor = Color.white();
   textTitle.lineLimit = 1;
   textTitle.minimumScaleFactor = 0.5;
-  stackRating.addSpacer(6);
+  stackRating.addSpacer(rpt(4));
   await widgetRating(stackRating, data);
   stackRating.addSpacer();
-  widget.addSpacer(5);
+  widget.addSpacer(rpt(4));
   const stackContent = widget.addStack();
-  const textContent = stackContent.addText(`“${data.comment.content}”`);
-  textContent.font = Font.boldSystemFont(12);
+  const textContent = stackContent.addText(data.content);
+  textContent.font = Font.systemFont(rpt(10));
   textContent.textColor = Color.white();
   textContent.lineLimit = 2;
   textContent.minimumScaleFactor = 0.5;
   return widget
 };
 
-const widgetRating = async (widget, data) => {
+const renderLarge = async (data) => {
+  const widget = new ListWidget();
+  widget.url = data.url;
+  widget.setPadding(rpt(12), rpt(12), rpt(12), rpt(12));
+  const img = widget.addStack();
+  img.size = new Size(-1, rpt(180));
+  img.addStack().addSpacer();
+  img.cornerRadius = rpt(8);
+  const image = await getImage(data.poster);
+  img.backgroundImage = image;
+
+  const now = new Date();
+  const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  const dateWrap = widget.addStack();
+  dateWrap.setPadding(rpt(12), 0, rpt(12), 0);
+  dateWrap.centerAlignContent();
+  const df = new DateFormatter();
+  df.locale = 'zh-CN';
+  df.dateFormat = 'MM月dd日｜E';
+  const date = dateWrap.addText(df.string(now));
+  date.font = Font.boldSystemFont(rpt(16));
+  date.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
+  dateWrap.addSpacer();
+  const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`);
+  lunar.font = Font.systemFont(rpt(12));
+  lunar.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'));
+
+  const line = widget.addStack();
+  line.size = new Size(-1, 1);
+  line.addSpacer();
+  const gradient = new LinearGradient();
+  const colors = [];
+  const locations = [];
+  const steps = 45;
+  const stepSize = 1 / steps;
+  for (let i = 0; i < steps; i++) {
+    const color = Color.dynamic(new Color('#E5EAE5', (i + 1) % 2), new Color('#363C38', (i + 1) % 2));
+    colors.push(color, color);
+    locations.push(stepSize * i, stepSize * (i + 1));
+  }
+  gradient.colors = colors;
+  gradient.locations = locations;
+  gradient.startPoint = new Point(0, 0);
+  gradient.endPoint = new Point(1, 0);
+  line.backgroundGradient = gradient;
+  widget.addSpacer();
+  const name = widget.addText(`《${data.title}》`);
+  name.font = Font.mediumSystemFont(rpt(14));
+  name.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
+  widget.addSpacer(rpt(6));
+  const extra = widget.addStack();
+  extra.centerAlignContent();
+  extra.spacing = rpt(4);
+  widgetRating(extra, data);
+  const man = extra.addText(`${data.subtitle.replace(/\n/g, ' / ')}`);
+  man.font = Font.systemFont(rpt(10));
+  man.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'));
+  widget.addSpacer(rpt(6));
+  const content = widget.addText(data.content);
+  content.font = Font.systemFont(rpt(12));
+  content.lineLimit = 2;
+  content.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
+  return widget
+};
+
+const widgetRating = (widget, data) => {
   const stack = widget.addStack();
-  stack.size = new Size(64, 15);
-  stack.backgroundColor = new Color('#feac2d');
-  stack.cornerRadius = 7.5;
-  stack.centerAlignContent();
-  const ratingText = data.subject.rating === null ? '无' : data.subject.rating.value;
+  stack.setPadding(rpt(2), rpt(4), rpt(2), rpt(4));
+  stack.backgroundColor = Color.dynamic(new Color('#20D770'), new Color('#1FA85A'));
+  stack.cornerRadius = rpt(4);
+  const ratingText = data.rating === null ? '无' : data.rating.toFixed(1);
   const textTitle = stack.addText(`豆瓣评分 ${ratingText}`);
-  textTitle.font = Font.boldSystemFont(9);
-  textTitle.textColor = Color.black();
-  textTitle.lineLimit = 1;
-  textTitle.minimumScaleFactor = 0.5;
+  textTitle.font = Font.mediumSystemFont(rpt(8));
+  textTitle.textColor = new Color('#fff');
 };
 
 const getImage = async (url) => {
@@ -1160,21 +1539,42 @@ const getImage = async (url) => {
   return image
 };
 
-const shadowImage = async (image) => {
-  const size = image.size;
-  const ctx = new DrawContext();
-  ctx.size = size;
-  ctx.drawImageInRect(image, new Rect(0, 0, size.width, size.height));
-  ctx.setFillColor(new Color('#000000', 0.2));
-  ctx.fillRect(new Rect(0, 0, size.width, size.height));
-  const res = await ctx.getImage();
-  return res
+/**
+ * @param {ListWidget} widget
+ * @param {Image} image
+ */
+const shadowBgImage = (widget, image) => {
+  widget.backgroundImage = image;
+  const gradient = new LinearGradient();
+  gradient.startPoint = new Point(0, 0);
+  gradient.endPoint = new Point(0, 1);
+  gradient.colors = [
+    new Color('#192319', 0.1),
+    new Color('#192319', 0),
+    new Color('#192319', 1)
+  ];
+  gradient.locations = [0, 0.5, 1];
+  widget.backgroundGradient = gradient;
 };
 
 await withSettings({
-  formItems: [],
-  render: ({ family }) => {
+  formItems: [
+    {
+      label: i18n(['Show Date', '显示日期']),
+      name: 'showDate',
+      type: 'switch',
+      default: preference.showDate
+    },
+    {
+      label: i18n(['Text Shadow', '文字阴影']),
+      name: 'useTextShadow',
+      type: 'switch',
+      default: preference.useTextShadow
+    }
+  ],
+  render: ({ family, settings }) => {
     family && (config.widgetFamily = family);
+    Object.assign(preference, settings);
     return render()
   }
 });
