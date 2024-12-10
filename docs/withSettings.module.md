@@ -51,10 +51,14 @@ interface NormalFormItem {
    * - `color`: 颜色选择器
    * - `date`: 日期选择器
    * - `select`: 选择器
+   * - `switch`: 开关
    * - `cell`: 可点击项
    */
-  type: 'text' | 'number' | 'color' | 'date' | 'select' | 'cell'
-  /** 用于区分不同主题的配置 */
+  type: 'text' | 'number' | 'color' | 'date' | 'select' | 'switch' | 'cell'
+  /**
+   * 用于区分不同主题的配置
+   * 配置此属性后仅满足条件时才显示此表单项
+   */
   media: '(prefers-color-scheme: light)' | '(prefers-color-scheme: dark)'
   /** 默认值 */
   default?: unknown

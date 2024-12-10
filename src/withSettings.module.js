@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.1
+ * @version 1.7.2
  * @author Honye
  */
 
@@ -23,7 +23,13 @@ const toast = (message) => {
 }
 
 const isUseICloud = () => {
-  const ifm = useFileManager({ useICloud: true })
+  let ifm
+  try {
+    ifm = useFileManager({ useICloud: true })
+  } catch (e) {
+    return false
+  }
+
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName)
   return fm.fileExists(filePath)
 }
@@ -79,7 +85,7 @@ const moveSettings = (useICloud, data) => {
  * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'|'switch'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
  * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
