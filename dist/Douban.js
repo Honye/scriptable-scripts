@@ -7,7 +7,7 @@
  * - Only support small and medium
  * - Tap widget to open the movie web page
  *
- * @version 1.1.0
+ * @version 1.1.1
  * @author Honye
  */
 
@@ -248,8 +248,8 @@ const widgetSize = () => {
 /**
  * @param {number} num
  */
-const vw = (num, widgetFamily) => {
-  const family = widgetFamily || config.widgetFamily;
+const vw = (num) => {
+  const family = config.widgetFamily;
   if (!family) throw new Error('`vw` only work in widget')
   const size = widgetSize();
   const width = size[family === 'large' ? 'medium' : family];
@@ -362,7 +362,6 @@ const useFileManager = (options = {}) => {
 
   /**
    * @param {string} filePath
-   * @returns {Image|null}
    */
   const readImage = (filePath) => {
     const fullPath = safePath(filePath);
@@ -524,7 +523,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.1
+ * @version 1.7.2
  * @author Honye
  */
 
@@ -539,7 +538,13 @@ const toast = (message) => {
 };
 
 const isUseICloud = () => {
-  const ifm = useFileManager({ useICloud: true });
+  let ifm;
+  try {
+    ifm = useFileManager({ useICloud: true });
+  } catch (e) {
+    return false
+  }
+
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
 };
@@ -595,7 +600,7 @@ const moveSettings = (useICloud, data) => {
  * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'|'switch'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
  * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
@@ -719,7 +724,7 @@ body {
   accent-color: var(--color-primary);
   color: var(--text-color);
 }
-input, textarea {
+input {
   -webkit-user-select: auto;
   user-select: auto;
 }
@@ -798,20 +803,11 @@ button .iconfont {
   margin-right: 4px;
 }
 .form-item input,
-.form-item textarea,
 .form-item select {
   font-size: 14px;
   text-align: right;
 }
-.form-item input[type=text],
-.form-item textarea {
-  width: 11em;
-}
-.form-item textarea {
-  text-align: start;
-}
 .form-item input:not([type=color]),
-.form-item textarea,
 .form-item select {
   border-radius: 99px;
   background-color: var(--bg-input);
@@ -996,12 +992,11 @@ input[type='checkbox'][role='switch']:checked::before {
         }
       })
     } else {
-      const input = document.createElement(item.type ==='textarea' ? 'textarea' : "input")
+      const input = document.createElement("input")
       input.className = 'form-item__input'
       input.name = item.name
       input.type = item.type || "text";
-      input.enterKeyHint = item.type ==='textarea' ? 'enter' : 'done'
-      if (item.type === 'textarea') input.rows = '1'
+      input.enterKeyHint = 'done'
       input.value = value
       // Switch
       if (item.type === 'switch') {
@@ -1017,7 +1012,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'number') {
         input.inputMode = 'decimal'
       }
-      if (input.type === 'text' || input.type === 'textarea') {
+      if (input.type === 'text') {
         input.size = 12
       }
       input.addEventListener("change", (e) => {
@@ -1294,7 +1289,7 @@ const preference = {
 const rpt = (n) => {
   const designWith = { small: 155, medium: 329 };
   const { widgetFamily } = config;
-  return vw(n * 100 / (designWith[widgetFamily] || designWith.medium), widgetFamily)
+  return vw(n * 100 / (designWith[widgetFamily] || designWith.medium))
 };
 
 const $12Animals = {
@@ -1455,6 +1450,7 @@ const renderMedium = async (data) => {
 };
 
 const renderLarge = async (data) => {
+  const { showDate } = preference;
   const widget = new ListWidget();
   widget.url = data.url;
   widget.setPadding(rpt(12), rpt(12), rpt(12), rpt(12));
@@ -1465,41 +1461,45 @@ const renderLarge = async (data) => {
   const image = await getImage(data.poster);
   img.backgroundImage = image;
 
-  const now = new Date();
-  const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  const dateWrap = widget.addStack();
-  dateWrap.setPadding(rpt(12), 0, rpt(12), 0);
-  dateWrap.centerAlignContent();
-  const df = new DateFormatter();
-  df.locale = 'zh-CN';
-  df.dateFormat = 'MM月dd日｜E';
-  const date = dateWrap.addText(df.string(now));
-  date.font = Font.boldSystemFont(rpt(16));
-  date.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
-  dateWrap.addSpacer();
-  const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`);
-  lunar.font = Font.systemFont(rpt(12));
-  lunar.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'));
+  if (showDate) {
+    const now = new Date();
+    const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const dateWrap = widget.addStack();
+    dateWrap.setPadding(rpt(12), 0, rpt(12), 0);
+    dateWrap.centerAlignContent();
+    const df = new DateFormatter();
+    df.locale = 'zh-CN';
+    df.dateFormat = 'MM月dd日｜E';
+    const date = dateWrap.addText(df.string(now));
+    date.font = Font.boldSystemFont(rpt(16));
+    date.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
+    dateWrap.addSpacer();
+    const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`);
+    lunar.font = Font.systemFont(rpt(12));
+    lunar.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'));
 
-  const line = widget.addStack();
-  line.size = new Size(-1, 1);
-  line.addSpacer();
-  const gradient = new LinearGradient();
-  const colors = [];
-  const locations = [];
-  const steps = 45;
-  const stepSize = 1 / steps;
-  for (let i = 0; i < steps; i++) {
-    const color = Color.dynamic(new Color('#E5EAE5', (i + 1) % 2), new Color('#363C38', (i + 1) % 2));
-    colors.push(color, color);
-    locations.push(stepSize * i, stepSize * (i + 1));
+    const line = widget.addStack();
+    line.size = new Size(-1, 1);
+    line.addSpacer();
+    const gradient = new LinearGradient();
+    const colors = [];
+    const locations = [];
+    const steps = 45;
+    const stepSize = 1 / steps;
+    for (let i = 0; i < steps; i++) {
+      const color = Color.dynamic(new Color('#E5EAE5', (i + 1) % 2), new Color('#363C38', (i + 1) % 2));
+      colors.push(color, color);
+      locations.push(stepSize * i, stepSize * (i + 1));
+    }
+    gradient.colors = colors;
+    gradient.locations = locations;
+    gradient.startPoint = new Point(0, 0);
+    gradient.endPoint = new Point(1, 0);
+    line.backgroundGradient = gradient;
+    widget.addSpacer();
+  } else {
+    widget.addSpacer(rpt(12));
   }
-  gradient.colors = colors;
-  gradient.locations = locations;
-  gradient.startPoint = new Point(0, 0);
-  gradient.endPoint = new Point(1, 0);
-  line.backgroundGradient = gradient;
-  widget.addSpacer();
   const name = widget.addText(`《${data.title}》`);
   name.font = Font.mediumSystemFont(rpt(14));
   name.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
@@ -1514,8 +1514,9 @@ const renderLarge = async (data) => {
   widget.addSpacer(rpt(6));
   const content = widget.addText(data.content);
   content.font = Font.systemFont(rpt(12));
-  content.lineLimit = 2;
+  if (showDate) content.lineLimit = 2;
   content.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'));
+  if (!showDate) widget.addSpacer();
   return widget
 };
 

@@ -172,6 +172,7 @@ const renderMedium = async (data) => {
 }
 
 const renderLarge = async (data) => {
+  const { showDate } = preference
   const widget = new ListWidget()
   widget.url = data.url
   widget.setPadding(rpt(12), rpt(12), rpt(12), rpt(12))
@@ -182,41 +183,45 @@ const renderLarge = async (data) => {
   const image = await getImage(data.poster)
   img.backgroundImage = image
 
-  const now = new Date()
-  const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate())
-  const dateWrap = widget.addStack()
-  dateWrap.setPadding(rpt(12), 0, rpt(12), 0)
-  dateWrap.centerAlignContent()
-  const df = new DateFormatter()
-  df.locale = 'zh-CN'
-  df.dateFormat = 'MM月dd日｜E'
-  const date = dateWrap.addText(df.string(now))
-  date.font = Font.boldSystemFont(rpt(16))
-  date.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'))
-  dateWrap.addSpacer()
-  const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`)
-  lunar.font = Font.systemFont(rpt(12))
-  lunar.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'))
+  if (showDate) {
+    const now = new Date()
+    const { lunarYear, lunarMonth, lunarDay } = sloarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate())
+    const dateWrap = widget.addStack()
+    dateWrap.setPadding(rpt(12), 0, rpt(12), 0)
+    dateWrap.centerAlignContent()
+    const df = new DateFormatter()
+    df.locale = 'zh-CN'
+    df.dateFormat = 'MM月dd日｜E'
+    const date = dateWrap.addText(df.string(now))
+    date.font = Font.boldSystemFont(rpt(16))
+    date.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'))
+    dateWrap.addSpacer()
+    const lunar = dateWrap.addText(`${$12Animals[lunarYear[1]]}年${lunarMonth}月${lunarDay}`)
+    lunar.font = Font.systemFont(rpt(12))
+    lunar.textColor = Color.dynamic(new Color('#7A8679'), new Color('#ADB7B1'))
 
-  const line = widget.addStack()
-  line.size = new Size(-1, 1)
-  line.addSpacer()
-  const gradient = new LinearGradient()
-  const colors = []
-  const locations = []
-  const steps = 45
-  const stepSize = 1 / steps
-  for (let i = 0; i < steps; i++) {
-    const color = Color.dynamic(new Color('#E5EAE5', (i + 1) % 2), new Color('#363C38', (i + 1) % 2))
-    colors.push(color, color)
-    locations.push(stepSize * i, stepSize * (i + 1))
+    const line = widget.addStack()
+    line.size = new Size(-1, 1)
+    line.addSpacer()
+    const gradient = new LinearGradient()
+    const colors = []
+    const locations = []
+    const steps = 45
+    const stepSize = 1 / steps
+    for (let i = 0; i < steps; i++) {
+      const color = Color.dynamic(new Color('#E5EAE5', (i + 1) % 2), new Color('#363C38', (i + 1) % 2))
+      colors.push(color, color)
+      locations.push(stepSize * i, stepSize * (i + 1))
+    }
+    gradient.colors = colors
+    gradient.locations = locations
+    gradient.startPoint = new Point(0, 0)
+    gradient.endPoint = new Point(1, 0)
+    line.backgroundGradient = gradient
+    widget.addSpacer()
+  } else {
+    widget.addSpacer(rpt(12))
   }
-  gradient.colors = colors
-  gradient.locations = locations
-  gradient.startPoint = new Point(0, 0)
-  gradient.endPoint = new Point(1, 0)
-  line.backgroundGradient = gradient
-  widget.addSpacer()
   const name = widget.addText(`《${data.title}》`)
   name.font = Font.mediumSystemFont(rpt(14))
   name.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'))
@@ -231,8 +236,9 @@ const renderLarge = async (data) => {
   widget.addSpacer(rpt(6))
   const content = widget.addText(data.content)
   content.font = Font.systemFont(rpt(12))
-  content.lineLimit = 2
+  if (showDate) content.lineLimit = 2
   content.textColor = Color.dynamic(new Color('#192319'), new Color('#fff'))
+  if (!showDate) widget.addSpacer()
   return widget
 }
 
