@@ -15,13 +15,10 @@ const WIDGET_TITLE = "财联社电报";
 // 小、中、大组件分别最多显示多少条
 const MAX_ITEMS_SMALL  = 3;
 const MAX_ITEMS_MEDIUM = 3;
-const MAX_ITEMS_LARGE  = 9; // 大组件可减小些, 给多行文本更多空间
+const MAX_ITEMS_LARGE  = 12; // 具有动态调整数量功能，最多12条
 
 // RSS 地址
 const RSS_URL = "https://pyrsshub.vercel.app/cls/telegraph/";
-
-// Keychain 缓存键
-const CACHE_KEY = "CLS_TELEGRAPH_CACHE_V5";
 
 // 标题最大长度，超过则截断
 const MAX_TITLE_LENGTH = 80; 
@@ -39,6 +36,11 @@ const fm = FileManager.local();
 const CACHE_FILE_NAME = "rss_cache.json";
 const CACHE_FILE_PATH = fm.joinPath(fm.documentsDirectory(), `${Script.name()}/${CACHE_FILE_NAME}`);
 
+// 动态调整参数
+const CHARS_PER_LINE = 20;      // 每行可容纳的字符数
+const MAX_LINES_LARGE = 18;     // 小组件可用的总行数
+const MAX_TITLE_LINES = 3;      // 每条新闻最多显示 3 行
+
 // ========== Logo ==========
 
 const LOGO_BASE64 = `
@@ -49,25 +51,26 @@ const LOGO_BASE64 = `
 // ========== 工具函数部分 ==========
 ////////////////////////////////////////////////////////////////////////////////
 
-/** 解析 Atom Feed + 清洗标题 */
+// 解析 Atom Feed，提取标题和发布时间。
 function parseRSS(rssText) {
   const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
   let items = [];
   let match;
+
   while ((match = entryRegex.exec(rssText)) !== null) {
     let entryBlock = match[1];
-    let titleMatch = entryBlock.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
-    let linkMatch = entryBlock.match(/<link\s+[^>]*?href="([^"]+)"[^>]*>/i);
-    let publishedMatch = entryBlock.match(/<published>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/published>/i);
 
-    if (titleMatch && linkMatch && publishedMatch) {
-      // 去除多余空白(含换行)
-      let title = (titleMatch[1] || "").replace(/\s+/g, " ").trim();
-      let link = linkMatch[1].trim();
-      let pubDate = publishedMatch[1].trim();
-      items.push({ title, link, pubDate });
+    // 提取标题
+    let titleMatch = entryBlock.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+    let pubDateMatch = entryBlock.match(/<published>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/published>/i);
+
+    if (titleMatch && pubDateMatch) {
+      let title = titleMatch[1].trim().replace(/\s+/g, " "); // 清理标题多余空格
+      let pubDate = pubDateMatch[1].trim(); // 发布时间
+      items.push({ title, pubDate });
     }
   }
+
   return items;
 }
 
@@ -158,6 +161,33 @@ async function fetchLogo() {
   return Image.fromData(data);
 }
 
+/** 动态调整大尺寸Widget item数量 */
+function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxItems) {
+  const MAX_TITLE_LENGTH = MAX_TITLE_LINES * charsPerLine;
+
+  let totalLines = 0;
+  let itemCount = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const title = items[i].title;
+
+    // 限制标题长度
+    const truncatedTitle = title.length > MAX_TITLE_LENGTH ? title.slice(0, MAX_TITLE_LENGTH) : title;
+
+    // 计算行数
+    const linesNeeded = Math.ceil(truncatedTitle.length / charsPerLine);
+
+    // 如果总行数超过限制或条目数超出最大值，停止
+    if (totalLines + linesNeeded > maxLines || itemCount >= maxItems) {
+      break;
+    }
+
+    totalLines += linesNeeded; // 累加行数
+    itemCount++;               // 增加条目数
+  }
+
+  return itemCount;
+}
 ////////////////////////////////////////////////////////////////////////////////
 // ========== 创建小组件 ==========
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,16 +230,16 @@ function createWidget(items, logoImage) {
   
   // 中间区域（新闻部分）
   // 条目数
-  switch (widgetFamily) {
-    case "small":
-      itemCount = MAX_ITEMS_SMALL;
-      break;
-    case "medium":
-      itemCount = MAX_ITEMS_MEDIUM;
-      break;
-    case "large":
-      itemCount = MAX_ITEMS_LARGE;
-      break;
+  let itemCount;
+  if (widgetFamily === "large") {
+    itemCount = calculateDynamicItemCountByLines(
+    items,
+    MAX_LINES_LARGE,  // 小组件总可用行数
+    CHARS_PER_LINE,   // 每行可容纳字符数
+    MAX_ITEMS_LARGE   // 最大条目数
+  );
+  } else {
+    itemCount = widgetFamily === "small" ? MAX_ITEMS_SMALL : MAX_ITEMS_MEDIUM;
   }
   let showList = items.slice(0, itemCount);
 
@@ -253,7 +283,6 @@ function createWidget(items, logoImage) {
     }
   }
     // 调整大尺寸小组件底部空隙
-    //*
     if (isLarge) {
       w.addSpacer();
     }
