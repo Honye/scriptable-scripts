@@ -5,7 +5,7 @@
 // Scriptable Widget：财联社电报
 // Author: YT
 // RSS Source: Zhihai Liao (https://github.com/hillerliao)
-// Version: 1.2
+// Version: 1.2.1
 // Date: 2024.12.31
 // ================================
 
@@ -38,17 +38,16 @@ const CACHE_CONFIG = {
 };
 
 // 显示设置
-const ROW_SPACING = 4; // 行间距
-const FONT_SIZE = 12; // 字体大小
+const ROW_SPACING = 4;   // 行间距
+const FONT_SIZE = 12;    // 字体大小
 
 // 基础配置
 const CONFIG_BASE = {
-  CHARS_PER_LINE: 23, // 每行字符权重上限
-  WEIGHTS: { // 不同字符类型的权重
-    chinese: 1,       // 汉字权重
-    english: 0.6,     // 英文字母、数字权重
-    punctuation: 0.6, // 标点符号权重
-    others: 1         // 其他字符权重
+  CHARS_PER_LINE: 22.5, // 每行字符宽度上限
+  WEIGHTS: { // 不同字符类型的宽度
+    chinese: 1,         // 汉字宽度
+    english: 0.66,      // 英文字母、数字宽度
+    others: 0.5         // 其他字符宽度
   }
 };
 
@@ -57,14 +56,12 @@ const CONFIG = {
   LARGE: {
     ...CONFIG_BASE,
     MAX_LINES: 17,        // 最大行数
-    MAX_TITLE_LINES: 3,   // 每条新闻标题的最大行数
-    MAX_ITEMS: 17         // 最大新闻条目数
+    MAX_TITLE_LINES: 3    // 每条新闻标题的最大行数
   },
   MEDIUM: {
     ...CONFIG_BASE,
     MAX_LINES: 6,
-    MAX_TITLE_LINES: 2,
-    MAX_ITEMS: 6
+    MAX_TITLE_LINES: 2
   },
   SMALL: {
     MESSAGE: "仅适配中大尺寸" // 小尺寸不支持显示内容时的提示信息
@@ -266,117 +263,102 @@ function getCurrentHHMM() {
 }
 
 /**
- * 截断字符串，根据字符类型赋予不同权重
- * 汉字 = 1，英文字母和标点符号 = 0.6，其他字符 = 1
- * 超出部分用 "..." 表示
- * @param {string} str - 需要截断的字符串
- * @param {number} maxChars - 最大允许的字符权重数
- * @returns {string} - 截断后的字符串
- */
-function truncate(str, maxChars) {
-  if (!str) return "";
-
-  let currentChars = 0;
-  let result = "";
-
-  for (let char of str) {
-    let charWeight = getCharWeight(char);
-
-    // 检查是否超出最大字符数，包括"..."的长度
-    if (currentChars + charWeight > maxChars - 1.5) { // "..."计为1.5个字符
-      result += "...";
-      break;
-    }
-
-    result += char;
-    currentChars += charWeight;
-  }
-
-  return result;
-}
-
-/**
- * 根据字符类型返回对应的权重
+ * 根据字符类型返回对应的宽度
+ * 1. 中文字符 / 中文标点  => chinese
+ * 2. 英文字母 / 英文标点 / 数字 => english
+ * 3. 其他字符 => others
  * @param {string} char - 单个字符
- * @returns {number} - 该字符的权重
+ * @returns {number} - 该字符的宽度
  */
 function getCharWeight(char) {
-  if (isChinese(char)) {
+  // 中文字符或中文标点 => chinese
+  if (isChineseChar(char) || isChinesePunctuation(char)) {
     return CONFIG_BASE.WEIGHTS.chinese;
-  } else if (isEnglishLetter(char) || isNumber(char)) {
-    return CONFIG_BASE.WEIGHTS.english; // 英文字母和数字共享相同权重
-  } else if (isPunctuation(char)){
-    return CONFIG_BASE.WEIGHTS.punctuation;
-  } else {
+  }
+  // 英文字母、英文标点、数字 => english
+  else if (isEnglishLetter(char) || isEnglishPunctuation(char) || isNumber(char)) {
+    return CONFIG_BASE.WEIGHTS.english;
+  }
+  // 其他 => others
+  else {
     return CONFIG_BASE.WEIGHTS.others;
   }
 }
 
 /**
- * 判断是否为汉字
- * @param {string} char - 单个字符
- * @returns {boolean} - 是否为汉字
+ * 判断是否为中文字符（含常见汉字区间）
+ * @param {string} char 
+ * @returns {boolean}
  */
-function isChinese(char) {
+function isChineseChar(char) {
+  // 常规CJK汉字 Unicode区间：\u4E00-\u9FA5
+  // 如果需要兼容更多扩展汉字，可再加大范围
   return /[\u4e00-\u9fa5]/.test(char);
 }
 
 /**
- * 判断是否为英文字母
- * @param {string} char - 单个字符
- * @returns {boolean} - 是否为英文字母
+ * 判断是否为中文标点符号
+ * @param {string} char 
+ * @returns {boolean}
+ */
+function isChinesePunctuation(char) {
+  // 这里只举例常用的中文标点，可按需求添加
+  // 包括：，。！？；：（）【】《》“”‘’
+  return /[，。！？；：（）【】《》「」『』“”‘’…]/.test(char);
+}
+
+/**
+ * 判断是否为英文字符
+ * @param {string} char 
+ * @returns {boolean}
  */
 function isEnglishLetter(char) {
   return /[A-Za-z]/.test(char);
 }
 
 /**
+ * 判断是否为英文标点符号
+ * @param {string} char 
+ * @returns {boolean}
+ */
+function isEnglishPunctuation(char) {
+  // 常见英文标点，按需增补
+  // 包括: . , ! ? ; : ' " ( ) 等等
+  return /[.,!?;:'"()]/.test(char);
+}
+
+/**
  * 判断是否为数字
- * @param {string} char - 单个字符
- * @returns {boolean} - 是否为数字
+ * @param {string} char 
+ * @returns {boolean}
  */
 function isNumber(char) {
   return /\d/.test(char);
 }
 
 /**
- * 判断是否为标点符号
- * 包含常见中英文标点符号，可根据需要扩展
- * @param {string} char - 单个字符
- * @returns {boolean} - 是否为标点符号
- */
-function isPunctuation(char) {
-  return /[.,!?;:，。！？；：‘’“”（）【】《》〈〉]/.test(char);
-}
-
-/**
- * 计算可展示条目数（动态行数），基于截断后的标题权重
+ * 计算可展示条目数（动态行数）
  * @param {Array<{title:string}>} items - 新闻条目数组
  * @param {number} maxLines - 小组件可容纳的最大行数
- * @param {number} charsPerLine - 每行可展示的字符权重数
- * @param {number} maxItems - 最大新闻条目数
- * @param {number} maxTitleLines - 单条最多行数
+ * @param {number} charsPerLine - 每行可展示的字符宽度
+ * @param {number} maxTitleLines - 单条新闻展示行数上限
  * @returns {{itemCount: number, totalLines: number}} - 实际可展示的条目数和总行数
  */
-function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxItems, maxTitleLines) {
+function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxTitleLines) {
   let totalLines = 0;
   let itemCount = 0;
 
   for (let i = 0; i < items.length; i++) {
     const { title } = items[i];
-    const maxCharsPerTitle = charsPerLine * maxTitleLines;
 
-    // 先截断标题
-    const truncatedTitle = truncate(title, maxCharsPerTitle);
+    // 计算单条标题的总宽度
+    const titleWeight = getStringWeight(title);
 
-    // 计算截断后标题的总权重
-    const titleWeight = getStringWeight(truncatedTitle);
-
-    // 计算需要的行数
+    // 计算单条新闻需要的行数
     const linesNeeded = Math.min(Math.ceil(titleWeight / charsPerLine), maxTitleLines);
 
-    // 检查是否超出总行数或条目数
-    if (totalLines + linesNeeded > maxLines || itemCount >= maxItems) {
+    // 检查是否超出总行数或条目数限制
+    if (totalLines + linesNeeded > maxLines) {
       break;
     }
 
@@ -388,9 +370,9 @@ function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxItem
 }
 
 /**
- * 计算字符串的总权重
- * @param {string} str - 需要计算权重的字符串
- * @returns {number} - 字符串的总权重
+ * 计算字符串的总宽度
+ * @param {string} str - 需要计算宽度的字符串
+ * @returns {number} - 字符串的总宽度
  */
 function getStringWeight(str) {
   let weight = 0;
@@ -450,6 +432,7 @@ function createWidget(items, logoImage) {
   if (logoImage) {
     const logoImg = leftStack.addImage(logoImage);
     logoImg.imageSize = new Size(18, 18); // Logo尺寸
+    logoImg.cornerRadius = 4;
     logoImg.leftAlignImage();
   } else {
     const defaultLogo = SFSymbol.named("photo"); // 默认图标
@@ -461,7 +444,7 @@ function createWidget(items, logoImage) {
   leftStack.addSpacer(6);
 
   const titleTxt = leftStack.addText(WIDGET_TITLE);
-  titleTxt.font = Font.mediumSystemFont(14);
+  titleTxt.font = Font.mediumSystemFont(16);
   titleTxt.textColor = Color.white();
 
   headerStack.addSpacer();
@@ -480,12 +463,11 @@ function createWidget(items, logoImage) {
   const listStack = widget.addStack();
   listStack.layoutVertically();
 
-  // 计算可展示的新闻条目数
+  // 计算可展示的新闻条目数及总行数
   const { itemCount, totalLines } = calculateDynamicItemCountByLines(
     items,
     widgetConfig.MAX_LINES,
     widgetConfig.CHARS_PER_LINE,
-    widgetConfig.MAX_ITEMS,
     widgetConfig.MAX_TITLE_LINES
   );
   const showList = items.slice(0, itemCount);
@@ -493,8 +475,6 @@ function createWidget(items, logoImage) {
   // 遍历并添加新闻条目
   for (let i = 0; i < showList.length; i++) {
     const { title, pubDate } = showList[i];
-    const MAX_TITLE_LENGTH = widgetConfig.MAX_TITLE_LINES * widgetConfig.CHARS_PER_LINE;
-    const shortTitle = truncate(title, MAX_TITLE_LENGTH);
 
     // 创建单条新闻的水平堆栈
     const rowStack = listStack.addStack();
@@ -514,7 +494,7 @@ function createWidget(items, logoImage) {
     rowStack.addSpacer(4);
 
     // 新闻标题区域
-    const newsTxt = rowStack.addText(shortTitle);
+    const newsTxt = rowStack.addText(title);
     newsTxt.font = Font.systemFont(FONT_SIZE);
     newsTxt.textColor = new Color("#cccccc");
     newsTxt.lineLimit = widgetConfig.MAX_TITLE_LINES;
@@ -527,7 +507,7 @@ function createWidget(items, logoImage) {
     }
   }
 
-  // 根据总行数调整底部间距
+  // 调整底部间距
   if (totalLines < 6 || isLarge) {
     widget.addSpacer();
   }
@@ -545,7 +525,6 @@ async function run() {
   try {
     const fetched = await fetchRSSData(); // 拉取最新的RSS数据
     // 按发布时间降序排序
-    fetched.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
     finalItems = fetched;
     saveCache(fetched); // 保存最新数据到缓存
   } catch (err) {
