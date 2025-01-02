@@ -73,7 +73,7 @@ const addBarChart = (widget, data) => {
   const monthlyData = []
   /** @type {{ value: number; level: number }[]} */
   let seven = []
-  const { mothEleList } = data.monthElecQuantity
+  const { mothEleList = [] } = data.monthElecQuantity
   let yearTotal = 0
   for (const { monthEleNum } of mothEleList) {
     const n = Number(monthEleNum)
@@ -393,11 +393,11 @@ const createMediumWidget = async () => {
   }))
   await add((stack) => addLabelValue(stack, {
     label: '年度电费',
-    value: data.monthElecQuantity.dataInfo.totalEleCost
+    value: data.monthElecQuantity.dataInfo?.totalEleCost || 0
   }))
   await add((stack) => addLabelValue(stack, {
     label: '年度电量',
-    value: data.monthElecQuantity.dataInfo.totalEleNum
+    value: data.monthElecQuantity.dataInfo?.totalEleNum || 0
   }))
   right.addSpacer(rpt(6))
   addMediumSteps(right, data, { width: sizes.medium - widgetPadding * 2 - leftWidth - lrGap })

@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.3.2
+ * @version 1.3.3
  * @author Honye
  */
 
@@ -350,7 +350,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.1
+ * @version 1.7.2
  * @author Honye
  */
 
@@ -365,7 +365,13 @@ const toast = (message) => {
 };
 
 const isUseICloud = () => {
-  const ifm = useFileManager({ useICloud: true });
+  let ifm;
+  try {
+    ifm = useFileManager({ useICloud: true });
+  } catch (e) {
+    return false
+  }
+
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
 };
@@ -421,7 +427,7 @@ const moveSettings = (useICloud, data) => {
  * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'|'switch'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
  * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
@@ -1124,12 +1130,8 @@ const useGrid = async (stack, options) => {
   }
 
   let i = -1;
-  /** @type {WidgetStack[]} */
   const rows = [];
 
-  /**
-   * @param {(stack: WidgetStack) => void} fn
-   */
   const add = async (fn) => {
     i++;
     const r = Math.floor(i / column);
@@ -1226,7 +1228,7 @@ const addBarChart = (widget, data) => {
   const monthlyData = [];
   /** @type {{ value: number; level: number }[]} */
   let seven = [];
-  const { mothEleList } = data.monthElecQuantity;
+  const { mothEleList = [] } = data.monthElecQuantity;
   let yearTotal = 0;
   for (const { monthEleNum } of mothEleList) {
     const n = Number(monthEleNum);
@@ -1546,11 +1548,11 @@ const createMediumWidget = async () => {
   }));
   await add((stack) => addLabelValue(stack, {
     label: '年度电费',
-    value: data.monthElecQuantity.dataInfo.totalEleCost
+    value: data.monthElecQuantity.dataInfo?.totalEleCost || 0
   }));
   await add((stack) => addLabelValue(stack, {
     label: '年度电量',
-    value: data.monthElecQuantity.dataInfo.totalEleNum
+    value: data.monthElecQuantity.dataInfo?.totalEleNum || 0
   }));
   right.addSpacer(rpt(6));
   addMediumSteps(right, data, { width: sizes.medium - widgetPadding * 2 - leftWidth - lrGap });
