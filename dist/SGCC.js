@@ -6,7 +6,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js
  *
- * @version 1.3.3
+ * @version 1.3.4
  * @author Honye
  */
 
@@ -1196,6 +1196,9 @@ const getData = async () => {
     console.error(e);
     console.log('[INFO] An exception occurred during the request; using cached data...');
     data = cache.readJSON(filename);
+    if (!data) {
+      console.error('Data request failed and no cached data is available. Please check the proxy configuration.');
+    }
     respDate = mDate;
   }
   return data
@@ -1228,7 +1231,7 @@ const addBarChart = (widget, data) => {
   const monthlyData = [];
   /** @type {{ value: number; level: number }[]} */
   let seven = [];
-  const { mothEleList = [] } = data.monthElecQuantity;
+  const { mothEleList = [] } = data.monthElecQuantity || {};
   let yearTotal = 0;
   for (const { monthEleNum } of mothEleList) {
     const n = Number(monthEleNum);
@@ -1253,7 +1256,7 @@ const addBarChart = (widget, data) => {
             0,
             Math.min(monthlyData.length - 1, month > monthlyData.length ? monthlyData.length - 1 : month - 1)
           );
-          level = monthlyData[safeIndex].level;
+          level = monthlyData[safeIndex]?.level || level;
         }
         seven.unshift({ value: Number(dayElePq), level });
       }

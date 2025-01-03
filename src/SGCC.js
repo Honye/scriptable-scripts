@@ -41,6 +41,9 @@ const getData = async () => {
     console.error(e)
     console.log('[INFO] An exception occurred during the request; using cached data...')
     data = cache.readJSON(filename)
+    if (!data) {
+      console.error('Data request failed and no cached data is available. Please check the proxy configuration.')
+    }
     respDate = mDate
   }
   return data
@@ -73,7 +76,7 @@ const addBarChart = (widget, data) => {
   const monthlyData = []
   /** @type {{ value: number; level: number }[]} */
   let seven = []
-  const { mothEleList = [] } = data.monthElecQuantity
+  const { mothEleList = [] } = data.monthElecQuantity || {}
   let yearTotal = 0
   for (const { monthEleNum } of mothEleList) {
     const n = Number(monthEleNum)
@@ -98,7 +101,7 @@ const addBarChart = (widget, data) => {
             0,
             Math.min(monthlyData.length - 1, month > monthlyData.length ? monthlyData.length - 1 : month - 1)
           )
-          level = monthlyData[safeIndex].level
+          level = monthlyData[safeIndex]?.level || level
         }
         seven.unshift({ value: Number(dayElePq), level })
       }
