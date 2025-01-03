@@ -1,65 +1,39 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: yellow; icon-glyph: newspaper;
+// icon-color: orange; icon-glyph: newspaper;
 // ================================
 // Scriptable Widget：财联社电报
 // Author: YT
 // RSS Source: Zhihai Liao (https://github.com/hillerliao)
-// Version: 1.2.1
-// Date: 2024.12.31
+// Version: 1.3
+// Date: 2025.1.2
+// Description: Display newest Cailian Press Telegraphs. 
 // ================================
 
 /* ========== 可自定义部分 ========== */
 
-// 小组件标题
-const WIDGET_TITLE = "财联社电报";
+// 脚本名称
+const WIDGET_NAME = Script.name() || "财联社电报";
 
 // RSS源地址
 const RSS_URL = "https://pyrsshub.vercel.app/cls/telegraph/";
 
 // 预览尺寸设置（仅在非小组件模式下生效）
-const PREVIEW_SIZE = "large"; // 可选值："small" | "medium" | "large"
-
-// 缓存方式配置
-const CACHE_METHOD = "FileManager"; // 可选值："Keychain" | "FileManager"
-
-// 缓存配置
-const CACHE_CONFIG = {
-  method: CACHE_METHOD,
-  keychain: {
-    cacheKey: "CLS_TELEGRAPH_CACHE", // Keychain缓存键名
-    version: 1 // Keychain缓存版本
-  },
-  fileManager: {
-    storageType: "local", // 可选值："iCloud" | "local"
-    cacheFileName: "财联社电报数据缓存.json", // FileManager缓存文件名
-    version: 1 // FileManager缓存版本
-  }
-};
+const PREVIEW_SIZE = "large"; // 可选值："medium" | "large"
 
 // 显示设置
-const ROW_SPACING = 4;   // 行间距
-const FONT_SIZE = 12;    // 字体大小
-
-// 基础配置
-const CONFIG_BASE = {
-  CHARS_PER_LINE: 22.5, // 每行字符宽度上限
-  WEIGHTS: { // 不同字符类型的宽度
-    chinese: 1,         // 汉字宽度
-    english: 0.66,      // 英文字母、数字宽度
-    others: 0.5         // 其他字符宽度
-  }
-};
+const ROW_SPACING = 4;    // 行间距
+const FONT_SIZE = 12;     // 字体大小
+const WIDGET_WIDTH = 330; // 信息展示宽度，根据手机屏幕大小调整到合适的数值
+const TIME_WIDTH = 44;    // 时间区域宽度，若时间显示不完整，调高此数值
 
 // 根据小组件尺寸的不同，定义不同的配置
 const CONFIG = {
   LARGE: {
-    ...CONFIG_BASE,
-    MAX_LINES: 17,        // 最大行数
+    MAX_LINES: 17,        // 最大显示行数
     MAX_TITLE_LINES: 3    // 每条新闻标题的最大行数
   },
   MEDIUM: {
-    ...CONFIG_BASE,
     MAX_LINES: 6,
     MAX_TITLE_LINES: 2
   },
@@ -68,38 +42,85 @@ const CONFIG = {
   }
 };
 
+// 缓存方式配置
+const CACHE_METHOD = "FileManager"; // 可选值："Keychain" | "FileManager"
+
+// 缓存配置
+const CACHE_CONFIG = {
+  method: CACHE_METHOD,
+  status: "unloaded",
+  keychain: {
+    cacheKey: "CLS_TELEGRAPH_CACHE", // Keychain缓存键名
+    version: 1 // Keychain缓存版本
+  },
+  fileManager: {
+    storageType: "local", // 可选值："iCloud" | "local"
+    cacheFileName: `${WIDGET_NAME}数据缓存.json`, // FileManager缓存文件名
+    version: 1 // FileManager缓存版本
+  }
+};
+
+// 字符宽度
+const CHARS_WIDTH = {   
+    chinese: 1,           // 汉字宽度
+    englishcap: 0.685,    // 英文字母宽度
+    english: 0.536,
+    number: 0.613,        // 数字宽度
+    others: 0.3,          // 其他字符宽度
+};
+
 // Logo 配置
 const ICON = {
   // 您可以自行替换为您的Logo图片链接
   url: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d8/03/5d/d8035d9a-bd09-dc3a-6aa4-fe29a805568e/AppIcon-0-0-1x_U007epad-0-0-0-sRGB-85-220.png/434x0w.webp", 
-  cacheName: "财联社电报图标缓存.webp" // 本地缓存Logo的文件名
+  cacheName: `${WIDGET_NAME}图标缓存.webp` // 本地缓存Logo的文件名
 };
 
 /* ========== 工具函数部分 ========== */
 
 /**
- * 解析 Atom Feed，提取标题和发布时间
+ * 解析 Atom Feed，提取标题、发布时间、正文
  * @param {string} rssText - RSS源的XML文本内容
- * @returns {Array<{title:string, pubDate:string}>} - 解析后的新闻条目数组
+ * @returns {Array<{title:string, pubDate:string, content:string}>} - 解析后的新闻条目数组
  */
 function parseRSS(rssText) {
+  // 找到所有 <entry> ... </entry> 块
   const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
   let items = [];
   let match;
 
   while ((match = entryRegex.exec(rssText)) !== null) {
     const entryBlock = match[1];
-    const titleMatch = entryBlock.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
-    const pubDateMatch = entryBlock.match(/<published>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/published>/i);
 
-    if (titleMatch && pubDateMatch) {
-      const title = titleMatch[1].trim().replace(/\s+/g, " ");
+    // 1. 解析标题 <title>...</title>
+    const titleMatch = entryBlock.match(
+      /<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i
+    );
+
+    // 2. 解析发布时间 <published>...</published>
+    const pubDateMatch = entryBlock.match(
+      /<published>([\s\S]*?)<\/published>/i
+    );
+
+    // 3. 解析正文 <content>...</content>
+    // 注意：有时 content 标签上还会带有 type="html"、src="xxx" 等属性，因此用 <content[^>]*> 来匹配
+    const contentMatch = entryBlock.match(
+      /<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i
+    );
+
+    // 如果 title & pubDate & content 存在，则将它们加入结果
+    if (titleMatch && pubDateMatch && contentMatch) {
+      const title = titleMatch[1].trim();
       const pubDate = pubDateMatch[1].trim();
-      items.push({ title, pubDate });
+      const content = contentMatch ? contentMatch[1].trim() : "";
+
+      items.push({ title, pubDate, content });
     }
   }
+
   return items;
 }
+
 
 /**
  * 拉取 RSS 数据
@@ -263,25 +284,46 @@ function getCurrentHHMM() {
 }
 
 /**
+ * 计算字符串的总宽度
+ * @param {string} str - 需要计算宽度的字符串
+ * @returns {number} - 字符串的总宽度
+ */
+function getStringWidth(str) {
+  let weight = 0;
+  for (let char of str) {
+    weight += getCharWidth(char);
+  }
+  return weight;
+}
+
+/**
  * 根据字符类型返回对应的宽度
  * 1. 中文字符 / 中文标点  => chinese
- * 2. 英文字母 / 英文标点 / 数字 => english
- * 3. 其他字符 => others
+ * 2. 英文字母 => english
+ * 3. 数字 => number
+ * 4. 其他字符 => others
  * @param {string} char - 单个字符
  * @returns {number} - 该字符的宽度
  */
-function getCharWeight(char) {
+function getCharWidth(char) {
   // 中文字符或中文标点 => chinese
   if (isChineseChar(char) || isChinesePunctuation(char)) {
-    return CONFIG_BASE.WEIGHTS.chinese;
+    return CHARS_WIDTH.chinese;
   }
-  // 英文字母、英文标点、数字 => english
-  else if (isEnglishLetter(char) || isEnglishPunctuation(char) || isNumber(char)) {
-    return CONFIG_BASE.WEIGHTS.english;
+  // 英文字母 => english(cap)
+  else if (isCapitalEnglishLetter(char)) {
+    return CHARS_WIDTH.englishcap;
+  }
+  else if (isEnglishLetter(char)) {
+    return CHARS_WIDTH.english;
+  }
+  // 数字 => number
+  else if (isNumber(char)) {
+    return CHARS_WIDTH.number;
   }
   // 其他 => others
   else {
-    return CONFIG_BASE.WEIGHTS.others;
+    return CHARS_WIDTH.others;
   }
 }
 
@@ -303,28 +345,26 @@ function isChineseChar(char) {
  */
 function isChinesePunctuation(char) {
   // 这里只举例常用的中文标点，可按需求添加
-  // 包括：，。！？；：（）【】《》“”‘’
-  return /[，。！？；：（）【】《》「」『』“”‘’…]/.test(char);
+  // 包括：，。！？；：（）【】《》“”‘’…%
+  return /[，。！？；：（）【】《》「」『』“”‘’…%]/.test(char);
 }
 
 /**
- * 判断是否为英文字符
+ * 判断是否为英文大写字符
+ * @param {string} char 
+ * @returns {boolean}
+ */
+function isCapitalEnglishLetter(char) {
+  return /[A-Z]/.test(char);
+}
+
+/**
+ * 判断是否为英文小写字符
  * @param {string} char 
  * @returns {boolean}
  */
 function isEnglishLetter(char) {
-  return /[A-Za-z]/.test(char);
-}
-
-/**
- * 判断是否为英文标点符号
- * @param {string} char 
- * @returns {boolean}
- */
-function isEnglishPunctuation(char) {
-  // 常见英文标点，按需增补
-  // 包括: . , ! ? ; : ' " ( ) 等等
-  return /[.,!?;:'"()]/.test(char);
+  return /[a-z]/.test(char);
 }
 
 /**
@@ -344,7 +384,7 @@ function isNumber(char) {
  * @param {number} maxTitleLines - 单条新闻展示行数上限
  * @returns {{itemCount: number, totalLines: number}} - 实际可展示的条目数和总行数
  */
-function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxTitleLines) {
+function dynamicItemCount(items, maxLines, maxTitleLines,charsPerLine) {
   let totalLines = 0;
   let itemCount = 0;
 
@@ -352,10 +392,10 @@ function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxTitl
     const { title } = items[i];
 
     // 计算单条标题的总宽度
-    const titleWeight = getStringWeight(title);
+    const titleWidth = getStringWidth(title);
 
     // 计算单条新闻需要的行数
-    const linesNeeded = Math.min(Math.ceil(titleWeight / charsPerLine), maxTitleLines);
+    const linesNeeded = Math.min(Math.ceil(titleWidth / charsPerLine), maxTitleLines);
 
     // 检查是否超出总行数或条目数限制
     if (totalLines + linesNeeded > maxLines) {
@@ -367,19 +407,6 @@ function calculateDynamicItemCountByLines(items, maxLines, charsPerLine, maxTitl
   }
 
   return { itemCount, totalLines };
-}
-
-/**
- * 计算字符串的总宽度
- * @param {string} str - 需要计算宽度的字符串
- * @returns {number} - 字符串的总宽度
- */
-function getStringWeight(str) {
-  let weight = 0;
-  for (let char of str) {
-    weight += getCharWeight(char);
-  }
-  return weight;
 }
 
 /* ========== 创建小组件 ========== */
@@ -394,7 +421,7 @@ function createWidget(items, logoImage) {
   const widget = new ListWidget();
   const widgetFamily = config.widgetFamily || PREVIEW_SIZE;
 
-  // 根据系统外观设置背景色
+  // 根据系统外观设置背景色。若为自动切换用户，注释掉 if (!Device...){}，仅保留widget.backgroundColor...
   if (!Device.isUsingDarkAppearance()) {
     // 系统处于亮模式，设置背景为深色
     widget.backgroundColor = new Color("#1C1C1E");
@@ -414,7 +441,7 @@ function createWidget(items, logoImage) {
   // 根据小组件尺寸选择相应的配置
   const isLarge = (widgetFamily === "large");
   const widgetConfig = isLarge ? CONFIG.LARGE : CONFIG.MEDIUM;
-  const widgetWidth = 328; // 小组件宽度（可根据实际情况进行调整）
+  const widgetWidth = WIDGET_WIDTH;
 
   // 创建顶部区域（标题栏）
   const headerStack = widget.addStack();
@@ -443,7 +470,7 @@ function createWidget(items, logoImage) {
 
   leftStack.addSpacer(6);
 
-  const titleTxt = leftStack.addText(WIDGET_TITLE);
+  const titleTxt = leftStack.addText(WIDGET_NAME);
   titleTxt.font = Font.mediumSystemFont(16);
   titleTxt.textColor = Color.white();
 
@@ -453,7 +480,17 @@ function createWidget(items, logoImage) {
   const refreshTime = headerStack.addText("更新于 " + getCurrentHHMM());
   refreshTime.font = Font.regularMonospacedSystemFont(10);
   refreshTime.textColor = new Color("#cccccc");
-  refreshTime.url = "scriptable:///run/财联社电报"; // 点击刷新小组件
+  refreshTime.url = `scriptable:///run/${encodeURIComponent(WIDGET_NAME)}`; // 点击运行小组件
+  
+  // 当使用缓存数据时显示标识“C”
+  if (CACHE_CONFIG.status === "loaded") {
+    
+    headerStack.addSpacer(4);
+    
+    const loadCache = headerStack.addText("C");
+    loadCache.font = Font.boldSystemFont(10);
+    loadCache.textColor = new Color("#cccccc");
+  }
 
   headerStack.addSpacer(8);
 
@@ -462,13 +499,18 @@ function createWidget(items, logoImage) {
   // 新闻展示区域
   const listStack = widget.addStack();
   listStack.layoutVertically();
+  const timeWidth = TIME_WIDTH;
+  const newsWidth = widgetWidth - timeWidth - 10;
+  
+  // 计算每行字数
+  const charsPerLine = (newsWidth - 8) / FONT_SIZE;
 
   // 计算可展示的新闻条目数及总行数
-  const { itemCount, totalLines } = calculateDynamicItemCountByLines(
+  const { itemCount, totalLines } = dynamicItemCount(
     items,
     widgetConfig.MAX_LINES,
-    widgetConfig.CHARS_PER_LINE,
-    widgetConfig.MAX_TITLE_LINES
+    widgetConfig.MAX_TITLE_LINES,
+    charsPerLine
   );
   const showList = items.slice(0, itemCount);
 
@@ -480,24 +522,28 @@ function createWidget(items, logoImage) {
     const rowStack = listStack.addStack();
     rowStack.layoutHorizontally();
     rowStack.size = new Size(widgetWidth, 0);
-    
+
+    // 让每条新闻可点击 -> 跳转到脚本并发送通知
+    // 传递参数 type = notify & index = i
+    rowStack.url = `scriptable:///run/${encodeURIComponent(WIDGET_NAME)}?type=notify&index=${i}`;
+
     rowStack.addSpacer(4);
 
     // 时间区域
     const timeStack = rowStack.addStack();
-    timeStack.size = new Size(44, 0);
+    timeStack.size = new Size(timeWidth, 0);
     const timeTxt = timeStack.addText(formatTimeStr(pubDate));
-    timeTxt.font = Font.regularMonospacedSystemFont(12);
+    timeTxt.font = Font.regularMonospacedSystemFont(FONT_SIZE);
     timeTxt.textColor = new Color("#cccccc");
     timeTxt.lineLimit = 1;
 
-    rowStack.addSpacer(4);
+    rowStack.addSpacer(6);
 
     // 新闻标题区域
-    const newsTxt = rowStack.addText(title);
-    newsTxt.font = Font.systemFont(FONT_SIZE);
-    newsTxt.textColor = new Color("#cccccc");
-    newsTxt.lineLimit = widgetConfig.MAX_TITLE_LINES;
+    const newsTitle = rowStack.addText(title);
+    newsTitle.font = Font.systemFont(FONT_SIZE);
+    newsTitle.textColor = new Color("#cccccc");
+    newsTitle.lineLimit = widgetConfig.MAX_TITLE_LINES;
     
     rowStack.addSpacer();
 
@@ -508,7 +554,7 @@ function createWidget(items, logoImage) {
   }
 
   // 调整底部间距
-  if (totalLines < 6 || isLarge) {
+  if (totalLines < widgetConfig.MAX_LINES || isLarge) {
     widget.addSpacer();
   }
   
@@ -521,30 +567,54 @@ function createWidget(items, logoImage) {
  * 主运行函数
  */
 async function run() {
-  let finalItems = loadCache(); // 尝试加载缓存数据
+  // 从缓存读取数据
+  let finalItems = loadCache();
+  
+  // 检查是否为「通知模式」：点击某条新闻后跳转到脚本，带 query 参数 type = notify & index = i
+  if (args.queryParameters.type === "notify") {
+    // 获取要通知的索引
+    const idx = parseInt(args.queryParameters.index || "0", 10);
+    
+    // 如果缓存中对应索引的数据存在，则发送通知
+    if (finalItems.length > idx) {
+      const item = finalItems[idx];
+      let n = new Notification();
+      n.title = `${WIDGET_NAME}`
+      n.body = `${formatTimeStr(item.pubDate)} ${item.content}`;
+      await n.schedule();
+      App.close()
+    } else {
+      // 缓存中无数据或索引无效，可考虑给出提示
+      console.warn("缓存无可用数据，无法发送通知");
+    }
+    // 结束脚本，不再渲染小组件
+    return;
+  }
+
+  // 如果不是「通知模式」，执行正常的小组件逻辑
   try {
-    const fetched = await fetchRSSData(); // 拉取最新的RSS数据
-    // 按发布时间降序排序
+    // fetch最新数据
+    const fetched = await fetchRSSData();
     finalItems = fetched;
-    saveCache(fetched); // 保存最新数据到缓存
+    saveCache(finalItems); // 刷新缓存
   } catch (err) {
     console.warn("拉取RSS失败:", err);
     if (finalItems.length === 0) {
       console.warn("无可用缓存，将显示空白小组件");
     } else {
+      // 标记从缓存加载
+      CACHE_CONFIG.status = "loaded";
       console.warn("使用缓存数据");
     }
   }
 
   // 拉取并缓存Logo
   const logoImage = await fetchLogo();
-
   // 创建小组件
   const widget = createWidget(finalItems, logoImage);
 
-  // 预览或设置小组件
   if (!config.runsInWidget) {
-    // 非小组件模式下的预览
+    // 预览
     switch (PREVIEW_SIZE) {
       case "small":
         await widget.presentSmall();
@@ -560,7 +630,6 @@ async function run() {
         break;
     }
   } else {
-    // 设置为当前小组件
     Script.setWidget(widget);
     Script.complete();
   }
