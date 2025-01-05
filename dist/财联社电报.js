@@ -1,12 +1,12 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: orange; icon-glyph: newspaper;
+// icon-color: yellow; icon-glyph: newspaper;
 // ================================
 // Scriptable Widget：财联社电报
 // Author: YT
 // RSS Source: Zhihai Liao (https://github.com/hillerliao)
-// Version: 1.3
-// Date: 2025.1.2
+// Version: 1.3.2
+// Date: 2025.1.5
 // Description: Display newest Cailian Press Telegraphs. 
 // ================================
 
@@ -22,9 +22,9 @@ const RSS_URL = "https://pyrsshub.vercel.app/cls/telegraph/";
 const PREVIEW_SIZE = "large"; // 可选值："medium" | "large"
 
 // 显示设置
-const ROW_SPACING = 4;    // 行间距
-const FONT_SIZE = 12;     // 字体大小
-const WIDGET_WIDTH = 330; // 信息展示宽度，根据手机屏幕大小调整到合适的数值
+const ROW_SPACING = 3;    // 行间距
+const FONT_SIZE = 12;     // 字体大小// 
+const WIDGET_WIDTH = 330; // 信息展示宽度，根据手机屏幕大小调整到合适的数值 
 const TIME_WIDTH = 44;    // 时间区域宽度，若时间显示不完整，调高此数值
 
 // 根据小组件尺寸的不同，定义不同的配置
@@ -112,7 +112,7 @@ function parseRSS(rssText) {
     if (titleMatch && pubDateMatch && contentMatch) {
       const title = titleMatch[1].trim();
       const pubDate = pubDateMatch[1].trim();
-      const content = contentMatch ? contentMatch[1].trim() : "";
+      const content = contentMatch[1].trim();
 
       items.push({ title, pubDate, content });
     }
@@ -120,7 +120,6 @@ function parseRSS(rssText) {
 
   return items;
 }
-
 
 /**
  * 拉取 RSS 数据
@@ -289,11 +288,11 @@ function getCurrentHHMM() {
  * @returns {number} - 字符串的总宽度
  */
 function getStringWidth(str) {
-  let weight = 0;
+  let width = 0;
   for (let char of str) {
-    weight += getCharWidth(char);
+    width += getCharWidth(char);
   }
-  return weight;
+  return width;
 }
 
 /**
@@ -345,68 +344,128 @@ function isChineseChar(char) {
  */
 function isChinesePunctuation(char) {
   // 这里只举例常用的中文标点，可按需求添加
-  // 包括：，。！？；：（）【】《》“”‘’…%
-  return /[，。！？；：（）【】《》「」『』“”‘’…%]/.test(char);
+  return /[，。！？；：《》「」『』‘’…%]/.test(char);
 }
 
 /**
- * 判断是否为英文大写字符
+ * 判断是否为英文大写字符 & 符号 ~ 0.685
  * @param {string} char 
  * @returns {boolean}
  */
 function isCapitalEnglishLetter(char) {
-  return /[A-Z]/.test(char);
+  return /[A-Z]/.test(char) || /[【】]/.test(char);
 }
 
 /**
- * 判断是否为英文小写字符
+ * 判断是否为英文小写字符 & 符号 ~0.536
  * @param {string} char 
  * @returns {boolean}
  */
 function isEnglishLetter(char) {
-  return /[a-z]/.test(char);
+  return /[a-z]/.test(char) || /[@#$^&*()•·\-_""“”]/.test(char);
 }
 
 /**
- * 判断是否为数字
+ * 判断是否为数字 & 符号 ~ 0.613
  * @param {string} char 
  * @returns {boolean}
  */
 function isNumber(char) {
-  return /\d/.test(char);
+  return /\d/.test(char) || /[（）]/.test(char);
 }
 
 /**
- * 计算可展示条目数（动态行数）
- * @param {Array<{title:string}>} items - 新闻条目数组
- * @param {number} maxLines - 小组件可容纳的最大行数
- * @param {number} charsPerLine - 每行可展示的字符宽度
- * @param {number} maxTitleLines - 单条新闻展示行数上限
- * @returns {{itemCount: number, totalLines: number}} - 实际可展示的条目数和总行数
+ * 计算动态可显示条目数和行数，并记录每条新闻的“额外行数”扩容情况
+ * 
+ * @param {Array<{ title:string }>} items - 新闻数组，每个对象起码要有 title
+ * @param {number} maxLines - 小组件总行数限制（中尺寸可能是6、大尺寸17等）
+ * @param {number} maxTitleLines - 默认给每条新闻的行数限制（中尺寸2行、大尺寸3行等）
+ * @param {number} charsPerLine - 单行可容纳多少“字符宽度”（用于估算标题需要几行）
+ * @returns {{
+ *   finalItemCount: number,
+ *   finalLineCount: number,
+ *   expansions: number[],
+ * }}
+ * 
+ * 说明：
+ *   - finalItemCount：最终展示的新闻条数
+ *   - finalLineCount：实际使用的总行数
+ *   - expansions：与 items 等长的数组，expansions[i] 表示第 i 条新闻最大显示行数调整参数
  */
-function dynamicItemCount(items, maxLines, maxTitleLines,charsPerLine) {
-  let totalLines = 0;
-  let itemCount = 0;
+function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
+  let totalLines = 0
+  let itemCount = 0
 
+  // 1. 先预计算每条新闻需要多少行（needed），只算一次
+  //    neededLines[i] = ceil(字符串宽度 / charsPerLine)
+  const neededLines = items.map(item => {
+    const needed = Math.ceil(getStringWidth(item.title) / charsPerLine)
+    return needed
+  })
+
+  // 用于记录“额外行数”，默认都为 0
+  // expansions[i] + maxTitleLines => 实际给第 i 条新闻的行数
+  const expansions = new Array(items.length).fill(0)
+
+  // 2. 第一步：按默认 lineLimit，计算能放多少条
   for (let i = 0; i < items.length; i++) {
-    const { title } = items[i];
+    // 该条新闻按默认 lineLimit 需要行数
+    const linesNeeded = Math.min(neededLines[i], maxTitleLines)
 
-    // 计算单条标题的总宽度
-    const titleWidth = getStringWidth(title);
-
-    // 计算单条新闻需要的行数
-    const linesNeeded = Math.min(Math.ceil(titleWidth / charsPerLine), maxTitleLines);
-
-    // 检查是否超出总行数或条目数限制
     if (totalLines + linesNeeded > maxLines) {
-      break;
+      break
     }
-
-    totalLines += linesNeeded;
-    itemCount++;
+    totalLines += linesNeeded
+    itemCount++
   }
 
-  return { itemCount, totalLines };
+  // 3. 第二步：若 totalLines < maxLines，尝试给已有条目扩容
+  //    (一次只给一个条目多+1行，再检查是否还有余量)
+  let canExpand = true
+  while (canExpand && totalLines < maxLines) {
+    canExpand = false
+
+    // 遍历当前已加入的前 itemCount 条
+    for (let i = 0; i < itemCount; i++) {
+      // 该条新闻需要多少行
+      const needed = neededLines[i]
+      // 当前给了多少行
+      const currentLimit = maxTitleLines + expansions[i]
+
+      // 如果它的需要行数大于当前给的行数 => 说明被截断了，可多加1行
+      if (needed > currentLimit) {
+        // 判断是否还剩余1行空间
+        if (totalLines + 1 <= maxLines) {
+          expansions[i] += 1
+          totalLines += 1
+          canExpand = true
+          break
+        }
+      }
+    }
+  }
+
+  // 4. 第三步：若还有剩余行数 && 还有新闻没展示 => 再多展示 1 条新闻
+  if (totalLines < maxLines - 1 && itemCount < items.length) {
+    const index = itemCount
+    const leftover = maxLines - totalLines
+
+    expansions[index] = leftover - maxTitleLines
+    totalLines = maxLines
+    itemCount += 1
+    
+  }
+  
+  let expLable = "No"
+  if (expansions.some(x => x!== 0)) {
+    expLable = expansions.some(x => x > 0) ? "E" : "+"
+  }
+  console.log({itemCount, totalLines, expLable})
+  return {
+    finalItemCount: itemCount,
+    finalLineCount: totalLines,
+    expansions
+  }
 }
 
 /* ========== 创建小组件 ========== */
@@ -437,17 +496,39 @@ function createWidget(items, logoImage) {
     widget.addSpacer();
     return widget;
   }
-
+  
+  // ===== 参数设置及数据处理 =====
   // 根据小组件尺寸选择相应的配置
   const isLarge = (widgetFamily === "large");
   const widgetConfig = isLarge ? CONFIG.LARGE : CONFIG.MEDIUM;
   const widgetWidth = WIDGET_WIDTH;
+  const timeWidth = TIME_WIDTH;
+  const newsWidth = widgetWidth - timeWidth - 10;
+  
+  // 计算每行字数
+  const charsPerLine = (newsWidth - 8) / FONT_SIZE;
 
+  // 计算可展示的新闻条目数及总行数
+  const {
+    finalItemCount,
+    finalLineCount,
+    expansions
+  } = dynamicItemCount(
+    items,
+    widgetConfig.MAX_LINES,
+    widgetConfig.MAX_TITLE_LINES,
+    charsPerLine);
+  
+  // 提取最终展示新闻数据
+  const showList = items.slice(0, finalItemCount);
+
+  // ======== 展示设置 ========
   // 创建顶部区域（标题栏）
   const headerStack = widget.addStack();
   headerStack.layoutHorizontally();
   headerStack.centerAlignContent();
   headerStack.size = new Size(widgetWidth, 0);
+  
   headerStack.addSpacer(6);
 
   // 左侧区域：Logo + 标题
@@ -455,7 +536,8 @@ function createWidget(items, logoImage) {
   leftStack.layoutHorizontally();
   leftStack.centerAlignContent();
   leftStack.url = "https://m.cls.cn";  // 点击跳转的链接
-
+  
+  // Logo
   if (logoImage) {
     const logoImg = leftStack.addImage(logoImage);
     logoImg.imageSize = new Size(18, 18); // Logo尺寸
@@ -469,7 +551,8 @@ function createWidget(items, logoImage) {
   }
 
   leftStack.addSpacer(6);
-
+  
+  // 标题
   const titleTxt = leftStack.addText(WIDGET_NAME);
   titleTxt.font = Font.mediumSystemFont(16);
   titleTxt.textColor = Color.white();
@@ -482,14 +565,26 @@ function createWidget(items, logoImage) {
   refreshTime.textColor = new Color("#cccccc");
   refreshTime.url = `scriptable:///run/${encodeURIComponent(WIDGET_NAME)}`; // 点击运行小组件
   
-  // 当使用缓存数据时显示标识“C”
+  // 右侧区域：当使用缓存数据时显示标识“C”
   if (CACHE_CONFIG.status === "loaded") {
     
     headerStack.addSpacer(4);
     
-    const loadCache = headerStack.addText("C");
-    loadCache.font = Font.boldSystemFont(10);
-    loadCache.textColor = new Color("#cccccc");
+    const loadCacheLable = headerStack.addText("C");
+    loadCacheLable.font = Font.boldSystemFont(10);
+    loadCacheLable.textColor = new Color("#cccccc");
+  }
+  
+  // 右侧区域：动态调整显示标识"E"/"+"
+  if (expansions.some(x => x !== 0)) {
+    
+    headerStack.addSpacer(4);
+    
+    const lable = expansions.some(x => x > 0) ? "E" : "+";
+    
+    const expLable = headerStack.addText(lable);
+    expLable.font =Font.boldSystemFont(10);
+    expLable.textColor = new Color("#cccccc");
   }
 
   headerStack.addSpacer(8);
@@ -499,21 +594,7 @@ function createWidget(items, logoImage) {
   // 新闻展示区域
   const listStack = widget.addStack();
   listStack.layoutVertically();
-  const timeWidth = TIME_WIDTH;
-  const newsWidth = widgetWidth - timeWidth - 10;
   
-  // 计算每行字数
-  const charsPerLine = (newsWidth - 8) / FONT_SIZE;
-
-  // 计算可展示的新闻条目数及总行数
-  const { itemCount, totalLines } = dynamicItemCount(
-    items,
-    widgetConfig.MAX_LINES,
-    widgetConfig.MAX_TITLE_LINES,
-    charsPerLine
-  );
-  const showList = items.slice(0, itemCount);
-
   // 遍历并添加新闻条目
   for (let i = 0; i < showList.length; i++) {
     const { title, pubDate } = showList[i];
@@ -539,22 +620,22 @@ function createWidget(items, logoImage) {
 
     rowStack.addSpacer(6);
 
-    // 新闻标题区域
+    // 新闻标题
     const newsTitle = rowStack.addText(title);
-    newsTitle.font = Font.systemFont(FONT_SIZE);
-    newsTitle.textColor = new Color("#cccccc");
-    newsTitle.lineLimit = widgetConfig.MAX_TITLE_LINES;
+    newsTitle.font = Font.systemFont(12);
+    newsTitletextColor = new Color("#cccccc");
+    newsTitle.lineLimit = widgetConfig.MAX_TITLE_LINES + expansions[i];   // 第 i 条新闻的显示行数
     
     rowStack.addSpacer();
 
-    // 行间距
+    // 条目间距
     if (i < showList.length - 1) {
       listStack.addSpacer(ROW_SPACING);
     }
   }
 
   // 调整底部间距
-  if (totalLines < widgetConfig.MAX_LINES || isLarge) {
+  if (finalLineCount < widgetConfig.MAX_LINES || isLarge) {
     widget.addSpacer();
   }
   
@@ -626,7 +707,7 @@ async function run() {
         await widget.presentLarge();
         break;
       default:
-        await widget.presentMedium();
+        await widget.presentLarge();
         break;
     }
   } else {
