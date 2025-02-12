@@ -1,0 +1,8 @@
+{
+  "name": "Send Photo",
+  "version": "1.0.0",
+  "setting": {
+    "icon-color": "pink",
+    "icon-glyph": "camera-retro"
+  }
+}
