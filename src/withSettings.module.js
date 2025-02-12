@@ -6,7 +6,7 @@
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.2
+ * @version 1.7.3
  * @author Honye
  */
 
@@ -47,9 +47,9 @@ const readSettings = async () => {
 
 /**
  * @param {Record<string, unknown>} data
- * @param {{ useICloud: boolean; }} options
+ * @param {{ useICloud: boolean; }} [options]
  */
-const writeSettings = async (data, { useICloud }) => {
+const writeSettings = async (data, { useICloud } = { useICloud: isUseICloud() }) => {
   const fm = useFileManager({ useICloud })
   fm.writeJSON(fileName, data)
 }
@@ -209,7 +209,7 @@ body {
   accent-color: var(--color-primary);
   color: var(--text-color);
 }
-input {
+input, textarea {
   -webkit-user-select: auto;
   user-select: auto;
 }
@@ -288,11 +288,20 @@ button .iconfont {
   margin-right: 4px;
 }
 .form-item input,
+.form-item textarea,
 .form-item select {
   font-size: 14px;
   text-align: right;
 }
+.form-item input[type=text],
+.form-item textarea {
+  width: 11em;
+}
+.form-item textarea {
+  text-align: start;
+}
 .form-item input:not([type=color]),
+.form-item textarea,
 .form-item select {
   border-radius: 99px;
   background-color: var(--bg-input);
@@ -477,11 +486,12 @@ input[type='checkbox'][role='switch']:checked::before {
         }
       })
     } else {
-      const input = document.createElement("input")
+      const input = document.createElement(item.type ==='textarea' ? 'textarea' : "input")
       input.className = 'form-item__input'
       input.name = item.name
       input.type = item.type || "text";
-      input.enterKeyHint = 'done'
+      input.enterKeyHint = item.type ==='textarea' ? 'enter' : 'done'
+      if (item.type === 'textarea') input.rows = '1'
       input.value = value
       // Switch
       if (item.type === 'switch') {
@@ -497,7 +507,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'number') {
         input.inputMode = 'decimal'
       }
-      if (input.type === 'text') {
+      if (input.type === 'text' || input.type === 'textarea') {
         input.size = 12
       }
       input.addEventListener("change", (e) => {
@@ -769,5 +779,6 @@ const withSettings = async (options) => {
 module.exports = {
   withSettings,
   writeSettings,
+  readSettings,
   present
 }
