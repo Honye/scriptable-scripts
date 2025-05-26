@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "description": "财联社电报",
+  "setting": {
+    "icon-glyph": "newspaper",
+    "icon-color": "red"
+  }
+}
