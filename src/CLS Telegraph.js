@@ -136,7 +136,7 @@ const createWidgt = async () => {
       new Color(textColorLight),
       new Color(textColorDark)
     )
-    const time = row.addText(`[${formatTime(new Date(item.ctime))}]`)
+    const time = row.addText(`[${formatTime(new Date(item.ctime * 1000))}]`)
     time.size = new Size(timeWidth, -1)
     time.font = Font.systemFont(fontSize)
     time.textColor = Color.dynamic(
