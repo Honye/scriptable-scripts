@@ -8,7 +8,8 @@ const preference = {
   textColorDark: '#ffffff',
   itemTimeColorLight: '#232323',
   itemTimeColorDark: '#ffffff',
-  lineLimit: 2
+  lineLimit: 2,
+  space: 2
 }
 
 const cache = useCache()
@@ -76,8 +77,15 @@ const createWidgt = async () => {
   const {
     data: { roll_data: rollData }
   } = await requestData()
+  const sizes = widgetSize()
+  const widgetWidth = config.widgetFamily === 'small' ? sizes.small : sizes.medium
+  const widgetHeight =
+    config.widgetFamily === 'large' ? sizes.large : sizes.small
+  let leftHeight = widgetHeight
   const widget = new ListWidget()
   widget.setPadding(0, 12, 0, 12)
+  // 上下预留间距
+  leftHeight -= 24
 
   const head = widget.addStack()
   head.size = new Size(-1, 20)
@@ -102,25 +110,23 @@ const createWidgt = async () => {
     new Color(textColorLight, 0.8),
     new Color(textColorDark, 0.8)
   )
+  // 减去头部高度
+  leftHeight -= 20
 
-  const sizes = widgetSize()
-  const widgetWidth = config.widgetFamily === 'small' ? sizes.small : sizes.medium
-  const widgetHeight =
-    config.widgetFamily === 'large' ? sizes.large : sizes.small
   const titleCWidth = widgetWidth - 24 - timeWidth - space
-  const itemsHeight = widgetHeight - 24 - 20
-  const maxLines = Math.floor(itemsHeight / (fontSize * lineHeight))
 
-  /** 已显示行数 */
-  let addedLines = 0
   for (const item of rollData) {
+    if (preference.space > 0) {
+      widget.addSpacer(preference.space)
+      leftHeight -= preference.space
+    }
     const titleText = item.title || item.content
     const { width: titleWidth } = await measureText(titleText, fontSize)
 
     // 此条文本需要多少行
     let lines = Math.ceil(titleWidth / titleCWidth)
     lines = Math.min(lines, lineLimit)
-    const limit = Math.min(maxLines - addedLines, lineLimit)
+    const limit = Math.min(Math.floor(leftHeight / (fontSize * lineHeight)), lineLimit)
     // 文本实际渲染行数
     lines = Math.min(lines, limit)
 
@@ -143,8 +149,8 @@ const createWidgt = async () => {
     title.textColor = textColor
     title.lineLimit = limit
 
-    addedLines += lines
-    if (addedLines >= maxLines) break
+    leftHeight -= lines * (fontSize * lineHeight)
+    if (leftHeight < (fontSize * lineHeight + (preference.space || 0))) break
   }
 
   return widget
@@ -185,6 +191,18 @@ await withSettings({
       type: 'color',
       media: '(prefers-color-scheme: dark)',
       default: preference.itemTimeColorDark
+    },
+    {
+      label: i18n(['Line limit', '行数限制']),
+      name: 'lineLimit',
+      type: 'number',
+      default: preference.lineLimit
+    },
+    {
+      label: i18n(['Space', '间距']),
+      name: 'space',
+      type: 'number',
+      default: preference.space
     }
   ],
   render: ({ settings, family }) => {
