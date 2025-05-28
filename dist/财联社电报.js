@@ -1,31 +1,33 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: yellow; icon-glyph: newspaper;
-// ================================
+// ==============================================
 // Scriptable Widget：财联社电报
 // Author: YT
 // RSS Source: Zhihai Liao (https://github.com/hillerliao)
-// Version: 1.3.2
-// Date: 2025.1.5
+// Version: 1.3.3
+// Date: 2025.1.14
 // Description: Display newest Cailian Press Telegraphs. 
-// ================================
+// ==============================================
 
-/* ========== 可自定义部分 ========== */
+/* ================= 可自定义部分 ================= */
 
 // 脚本名称
 const WIDGET_NAME = Script.name() || "财联社电报";
 
 // RSS源地址
 const RSS_URL = "https://pyrsshub.vercel.app/cls/telegraph/";
+//const RSS_URL = "https://www.cls.cn/nodeapi/telegraphList";
 
-// 预览尺寸设置（仅在非小组件模式下生效）
+// 预览尺寸设置
 const PREVIEW_SIZE = "large"; // 可选值："medium" | "large"
 
 // 显示设置
-const ROW_SPACING = 3;    // 行间距
-const FONT_SIZE = 12;     // 字体大小// 
-const WIDGET_WIDTH = 330; // 信息展示宽度，根据手机屏幕大小调整到合适的数值 
-const TIME_WIDTH = 44;    // 时间区域宽度，若时间显示不完整，调高此数值
+const ROW_SPACING = 3;       // 行间距
+const FONT_SIZE = 12;        // 字体大小
+const WIDGET_WIDTH = 330;    // 信息展示宽度，根据手机屏幕大小调整到合适的数值 
+const TIME_WIDTH = 44;       // 时间区域宽度，若时间显示不完整，调高此数值
+const DISPLAY_MODE = "dark"; // 展示模式，可选值：深色模式"dark", 浅色模式"light", 自动切换模式"auto"
 
 // 根据小组件尺寸的不同，定义不同的配置
 const CONFIG = {
@@ -35,7 +37,7 @@ const CONFIG = {
   },
   MEDIUM: {
     MAX_LINES: 6,
-    MAX_TITLE_LINES: 2
+    MAX_TITLE_LINES: 3
   },
   SMALL: {
     MESSAGE: "仅适配中大尺寸" // 小尺寸不支持显示内容时的提示信息
@@ -76,10 +78,10 @@ const ICON = {
   cacheName: `${WIDGET_NAME}图标缓存.webp` // 本地缓存Logo的文件名
 };
 
-/* ========== 工具函数部分 ========== */
+/* ================= 工具函数部分 ================== */
 
 /**
- * 解析 Atom Feed，提取标题、发布时间、正文
+ * 解析 Atom Feed，提取标题、发布时间、正文，并过滤掉不需要的新闻
  * @param {string} rssText - RSS源的XML文本内容
  * @returns {Array<{title:string, pubDate:string, content:string}>} - 解析后的新闻条目数组
  */
@@ -88,6 +90,9 @@ function parseRSS(rssText) {
   const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
   let items = [];
   let match;
+
+  // 要过滤掉的关键词
+  const excludeKeywords = ["盘中宝","机构调研","财联社早知道","风口研报","机构龙虎榜解读","风口专家会议","金牌纪要库","电报解读","大佬持仓跟踪","九点特供","点金互动易","寻找年报预期差","公告全知道","研选","掘金行业龙头","季报高增长"];
 
   while ((match = entryRegex.exec(rssText)) !== null) {
     const entryBlock = match[1];
@@ -103,7 +108,6 @@ function parseRSS(rssText) {
     );
 
     // 3. 解析正文 <content>...</content>
-    // 注意：有时 content 标签上还会带有 type="html"、src="xxx" 等属性，因此用 <content[^>]*> 来匹配
     const contentMatch = entryBlock.match(
       /<content[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/content>/i
     );
@@ -114,7 +118,14 @@ function parseRSS(rssText) {
       const pubDate = pubDateMatch[1].trim();
       const content = contentMatch[1].trim();
 
-      items.push({ title, pubDate, content });
+      // 新功能：将内容中的空格替换为逗号
+      // content = content.replace(/\s+/g, "，");
+
+      // 检查标题中是否包含需要过滤的关键词
+      const isExcluded = excludeKeywords.some(keyword => title.includes(keyword));
+      if (!isExcluded) {
+        items.push({ title, pubDate, content });
+      }
     }
   }
 
@@ -127,6 +138,7 @@ function parseRSS(rssText) {
  */
 async function fetchRSSData() {
   const req = new Request(RSS_URL);
+  req.timeoutInterval = 10;
   const resp = await req.loadString();
   const items = parseRSS(resp);
   if (!items || items.length === 0) {
@@ -256,30 +268,16 @@ async function fetchLogo() {
  * @param {string} dateStr - GMT/UTC格式的日期字符串
  * @returns {string} - 格式化后的时间字符串，例如"[14:30]"
  */
-function formatTimeStr(dateStr) {
+function formatTime(dateStr) {
   const dateObj = new Date(dateStr);
-  if (isNaN(dateObj.getTime())) return "[??:??]";
+  if (isNaN(dateObj.getTime())) return "??:??";
 
   const formatter = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false  
   });
-  return `[${formatter.format(dateObj)}]`;
-}
-
-/**
- * 获取当前系统本地时间，格式为"HH:MM"
- * @returns {string} - 当前时间字符串，例如"14:30"
- */
-function getCurrentHHMM() {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-  return formatter.format(now);
+  return `${formatter.format(dateObj)}`;
 }
 
 /**
@@ -305,19 +303,23 @@ function getStringWidth(str) {
  * @returns {number} - 该字符的宽度
  */
 function getCharWidth(char) {
-  // 中文字符或中文标点 => chinese
-  if (isChineseChar(char) || isChinesePunctuation(char)) {
+  // 中文字符或中文标点 => chinese ~1
+  if (/[\u4e00-\u9fa5]/.test(char)
+   || /[，。！？；：《》「」『』‘’…%+]/.test(char)) {
     return CHARS_WIDTH.chinese;
   }
-  // 英文字母 => english(cap)
-  else if (isCapitalEnglishLetter(char)) {
+  // 英文字母 => english(cap) ~0.685 / 0.538
+  else if (/[A-Z]/.test(char)
+        || /[【】]/.test(char)) {
     return CHARS_WIDTH.englishcap;
   }
-  else if (isEnglishLetter(char)) {
+  else if (/[a-z]/.test(char)
+        || /[-@#$^&*()•·_""“”/]/.test(char)) {
     return CHARS_WIDTH.english;
   }
-  // 数字 => number
-  else if (isNumber(char)) {
+  // 数字 => number ~0.613
+  else if (/\d/.test(char)
+        || /[（）]/.test(char)) {
     return CHARS_WIDTH.number;
   }
   // 其他 => others
@@ -327,76 +329,30 @@ function getCharWidth(char) {
 }
 
 /**
- * 判断是否为中文字符（含常见汉字区间）
- * @param {string} char 
- * @returns {boolean}
- */
-function isChineseChar(char) {
-  // 常规CJK汉字 Unicode区间：\u4E00-\u9FA5
-  // 如果需要兼容更多扩展汉字，可再加大范围
-  return /[\u4e00-\u9fa5]/.test(char);
-}
-
-/**
- * 判断是否为中文标点符号
- * @param {string} char 
- * @returns {boolean}
- */
-function isChinesePunctuation(char) {
-  // 这里只举例常用的中文标点，可按需求添加
-  return /[，。！？；：《》「」『』‘’…%]/.test(char);
-}
-
-/**
- * 判断是否为英文大写字符 & 符号 ~ 0.685
- * @param {string} char 
- * @returns {boolean}
- */
-function isCapitalEnglishLetter(char) {
-  return /[A-Z]/.test(char) || /[【】]/.test(char);
-}
-
-/**
- * 判断是否为英文小写字符 & 符号 ~0.536
- * @param {string} char 
- * @returns {boolean}
- */
-function isEnglishLetter(char) {
-  return /[a-z]/.test(char) || /[@#$^&*()•·\-_""“”]/.test(char);
-}
-
-/**
- * 判断是否为数字 & 符号 ~ 0.613
- * @param {string} char 
- * @returns {boolean}
- */
-function isNumber(char) {
-  return /\d/.test(char) || /[（）]/.test(char);
-}
-
-/**
  * 计算动态可显示条目数和行数，并记录每条新闻的“额外行数”扩容情况
  * 
- * @param {Array<{ title:string }>} items - 新闻数组，每个对象起码要有 title
- * @param {number} maxLines - 小组件总行数限制（中尺寸可能是6、大尺寸17等）
- * @param {number} maxTitleLines - 默认给每条新闻的行数限制（中尺寸2行、大尺寸3行等）
+ * @param {Array<{ title:string }>} items - 新闻数组
+ * @param {number} maxLines - 小组件总行数限制
+ * @param {number} maxTitleLines - 默认给每条新闻的行数限制
  * @param {number} charsPerLine - 单行可容纳多少“字符宽度”（用于估算标题需要几行）
  * @returns {{
  *   finalItemCount: number,
  *   finalLineCount: number,
  *   expansions: number[],
+ *.  expLable: string
  * }}
  * 
  * 说明：
  *   - finalItemCount：最终展示的新闻条数
  *   - finalLineCount：实际使用的总行数
- *   - expansions：与 items 等长的数组，expansions[i] 表示第 i 条新闻最大显示行数调整参数
+ *   - expansions: 与 items 等长的数组，expansions[i] 表示第 i 条新闻最大显示行数调整参数
+ *   - expLable: 扩展标识
  */
 function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
   let totalLines = 0
   let itemCount = 0
 
-  // 1. 先预计算每条新闻需要多少行（needed），只算一次
+  // 0. 先预计算每条新闻需要多少行（needed）
   //    neededLines[i] = ceil(字符串宽度 / charsPerLine)
   const neededLines = items.map(item => {
     const needed = Math.ceil(getStringWidth(item.title) / charsPerLine)
@@ -407,7 +363,7 @@ function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
   // expansions[i] + maxTitleLines => 实际给第 i 条新闻的行数
   const expansions = new Array(items.length).fill(0)
 
-  // 2. 第一步：按默认 lineLimit，计算能放多少条
+  // 1. 第一步：按计算条目数与总行数
   for (let i = 0; i < items.length; i++) {
     // 该条新闻按默认 lineLimit 需要行数
     const linesNeeded = Math.min(neededLines[i], maxTitleLines)
@@ -419,7 +375,7 @@ function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
     itemCount++
   }
 
-  // 3. 第二步：若 totalLines < maxLines，尝试给已有条目扩容
+  // 2. 第二步：若 totalLines < maxLines，尝试给已有条目扩容
   //    (一次只给一个条目多+1行，再检查是否还有余量)
   let canExpand = true
   while (canExpand && totalLines < maxLines) {
@@ -445,7 +401,7 @@ function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
     }
   }
 
-  // 4. 第三步：若还有剩余行数 && 还有新闻没展示 => 再多展示 1 条新闻
+  // 3. 第三步：若还有剩余行数 && 还有新闻没展示 => 再多展示 1 条新闻
   if (totalLines < maxLines - 1 && itemCount < items.length) {
     const index = itemCount
     const leftover = maxLines - totalLines
@@ -453,22 +409,26 @@ function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
     expansions[index] = leftover - maxTitleLines
     totalLines = maxLines
     itemCount += 1
-    
   }
   
-  let expLable = "No"
-  if (expansions.some(x => x!== 0)) {
+  // 扩展标识
+  let expLable = "null"
+  if (expansions.some(x => x !== 0)) {
     expLable = expansions.some(x => x > 0) ? "E" : "+"
+  } else if (totalLines < maxLines) {
+    expLable = "-"
   }
+  
   console.log({itemCount, totalLines, expLable})
   return {
     finalItemCount: itemCount,
     finalLineCount: totalLines,
-    expansions
+    expansions,
+    expLable
   }
 }
 
-/* ========== 创建小组件 ========== */
+/* ================= 创建小组件 =================== */
 
 /**
  * 创建小组件
@@ -479,19 +439,40 @@ function dynamicItemCount(items, maxLines, maxTitleLines, charsPerLine) {
 function createWidget(items, logoImage) {
   const widget = new ListWidget();
   const widgetFamily = config.widgetFamily || PREVIEW_SIZE;
-
-  // 根据系统外观设置背景色。若为自动切换用户，注释掉 if (!Device...){}，仅保留widget.backgroundColor...
-  if (!Device.isUsingDarkAppearance()) {
-    // 系统处于亮模式，设置背景为深色
-    widget.backgroundColor = new Color("#1C1C1E");
+  
+  // 设置展示模式
+  let textColor;
+  let secondTextColor;
+  // 深色模式
+  if (DISPLAY_MODE === "dark"){
+    textColor = Color.white();
+    secondTextColor = new Color("#cccccc");
+    widget.backgroundColor = new Color("#1C1C1E", 0.3);
+  } 
+  // 浅色模式
+  else if (DISPLAY_MODE === "light") {
+    textColor = Color.black();
+    secondTextColor = new Color("#666666");
+    widget.backgroundColor = Color.white();
+  } 
+  // 自动切换模式
+  else {
+    textColor = Color.dynamic(
+      Color.black(),
+      Color.white()
+    );
+    secondTextColor = Color.dynamic(
+      new Color("#666666"),
+      new Color("#cccccc")
+    );
   }
-
+  
   // 如果是小尺寸，显示适配提示信息
   if (widgetFamily === "small") {
     widget.addSpacer();
     const tipTxt = widget.addText(CONFIG.SMALL.MESSAGE);
     tipTxt.font = Font.mediumSystemFont(14);
-    tipTxt.textColor = Color.white();
+    tipTxt.textColor = textColor;
     tipTxt.centerAlignText();
     widget.addSpacer();
     return widget;
@@ -512,7 +493,8 @@ function createWidget(items, logoImage) {
   const {
     finalItemCount,
     finalLineCount,
-    expansions
+    expansions,
+    expLable
   } = dynamicItemCount(
     items,
     widgetConfig.MAX_LINES,
@@ -555,14 +537,14 @@ function createWidget(items, logoImage) {
   // 标题
   const titleTxt = leftStack.addText(WIDGET_NAME);
   titleTxt.font = Font.mediumSystemFont(16);
-  titleTxt.textColor = Color.white();
+  titleTxt.textColor = textColor;
 
   headerStack.addSpacer();
 
   // 右侧区域：更新时间
-  const refreshTime = headerStack.addText("更新于 " + getCurrentHHMM());
+  const refreshTime = headerStack.addText("更新于 " + formatTime(new Date()));
   refreshTime.font = Font.regularMonospacedSystemFont(10);
-  refreshTime.textColor = new Color("#cccccc");
+  refreshTime.textColor = secondTextColor;
   refreshTime.url = `scriptable:///run/${encodeURIComponent(WIDGET_NAME)}`; // 点击运行小组件
   
   // 右侧区域：当使用缓存数据时显示标识“C”
@@ -570,21 +552,19 @@ function createWidget(items, logoImage) {
     
     headerStack.addSpacer(4);
     
-    const loadCacheLable = headerStack.addText("C");
-    loadCacheLable.font = Font.boldSystemFont(10);
-    loadCacheLable.textColor = new Color("#cccccc");
+    const lable = headerStack.addText("C");
+    lable.font = Font.boldSystemFont(10);
+    lable.textColor = secondTextColor;
   }
   
   // 右侧区域：动态调整显示标识"E"/"+"
-  if (expansions.some(x => x !== 0)) {
+  if (expLable !== "null") {
     
     headerStack.addSpacer(4);
     
-    const lable = expansions.some(x => x > 0) ? "E" : "+";
-    
-    const expLable = headerStack.addText(lable);
-    expLable.font =Font.boldSystemFont(10);
-    expLable.textColor = new Color("#cccccc");
+    const lable = headerStack.addText(expLable);
+    lable.font =Font.boldSystemFont(10);
+    lable.textColor = secondTextColor;
   }
 
   headerStack.addSpacer(8);
@@ -613,17 +593,19 @@ function createWidget(items, logoImage) {
     // 时间区域
     const timeStack = rowStack.addStack();
     timeStack.size = new Size(timeWidth, 0);
-    const timeTxt = timeStack.addText(formatTimeStr(pubDate));
+    const timeTxt = timeStack.addText(`${ formatTime(pubDate)}  |`);
     timeTxt.font = Font.regularMonospacedSystemFont(FONT_SIZE);
-    timeTxt.textColor = new Color("#cccccc");
+    timeTxt.textColor = secondTextColor;
     timeTxt.lineLimit = 1;
 
     rowStack.addSpacer(6);
 
     // 新闻标题
     const newsTitle = rowStack.addText(title);
-    newsTitle.font = Font.systemFont(12);
-    newsTitletextColor = new Color("#cccccc");
+    //const customMonoFont = new Font("Sarasa Mono SC", 12);
+    newsTitle.font = Font.regularMonospacedSystemFont(12);
+    //newsTitle.font = customMonoFont;
+    newsTitle.textColor = textColor;
     newsTitle.lineLimit = widgetConfig.MAX_TITLE_LINES + expansions[i];   // 第 i 条新闻的显示行数
     
     rowStack.addSpacer();
@@ -642,7 +624,7 @@ function createWidget(items, logoImage) {
   return widget;
 }
 
-/* ========== 主函数 ========== */
+/* =================== 主函数 ==================== */
 
 /**
  * 主运行函数
@@ -661,7 +643,7 @@ async function run() {
       const item = finalItems[idx];
       let n = new Notification();
       n.title = `${WIDGET_NAME}`
-      n.body = `${formatTimeStr(item.pubDate)} ${item.content}`;
+      n.body = `[${formatTime(item.pubDate)}] ${item.content}`;
       await n.schedule();
       App.close()
     } else {
@@ -719,7 +701,7 @@ async function run() {
 // 执行主函数
 await run();
 
-/* ================ 辅助函数部分 =================== */
+/* ================ 辅助函数部分 ================== */
 
 /**
  * 获取 FileManager 实例
