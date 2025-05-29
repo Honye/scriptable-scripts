@@ -1,0 +1,8 @@
+#!name=湖北联通公众号
+#!desc=湖北联通公众号授权凭证获取
+[Script]
+10010HBReq = type=http-request,script-path=https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts/scripts/10010hb.js,pattern=https\:\/\/wap\.10010hb\.net\/zinfo\/front\/user\/findLeftPackage,max-size=131072,requires-body=false,timeout=10,script-update-interval=0,tag=Scriptable,enable=true
+10010HBRes = type=http-response,script-path=https://cdn.jsdelivr.net/gh/Honye/scriptable-scripts/scripts/10010hb.js,pattern=https\:\/\/wap\.10010hb\.net\/zinfo\/front\/user\/findLeftPackage,max-size=131072,requires-body=true,timeout=10,script-update-interval=0,tag=Scriptable,enable=true
+
+[MITM]
+hostname = %INSERT% wap.10010hb.net
