@@ -4,7 +4,7 @@
 /**
  * 财联社电报
  *
- * @version 1.1.1
+ * @version 1.2.0
  * @author Honye
  */
 
@@ -1107,15 +1107,15 @@ const preference = {
   fontSize: 12,
   textColorLight: '#232323',
   textColorDark: '#ffffff',
-  itemTimeColorLight: '#232323',
-  itemTimeColorDark: '#ffffff',
+  itemTimeColorLight: '#707070',
+  itemTimeColorDark: '#c2c2c2',
   lineLimit: 2,
-  space: 2
+  space: 2,
+  exclude: ''
 };
 
 const cache = useCache();
 const lineHeight = 1.24;
-const timeWidth = 34;
 const space = 4;
 
 const requestData = async () => {
@@ -1173,7 +1173,8 @@ const createWidgt = async () => {
     textColorDark,
     itemTimeColorLight,
     itemTimeColorDark,
-    lineLimit
+    lineLimit,
+    exclude
   } = preference;
   const {
     data: { roll_data: rollData }
@@ -1186,19 +1187,19 @@ const createWidgt = async () => {
   const widget = new ListWidget();
   widget.setPadding(0, 12, 0, 12);
   // 上下预留间距
-  leftHeight -= 24;
+  leftHeight -= 20;
 
   const head = widget.addStack();
-  head.size = new Size(-1, 20);
+  head.size = new Size(-1, fontSize * 1.2 + 2);
   head.centerAlignContent();
   const logo = head.addImage(await getLogoImage());
-  logo.imageSize = new Size(18, 18);
+  logo.imageSize = new Size(fontSize * 1.2 + 2, fontSize * 1.2 + 2);
   logo.cornerRadius = 4;
   logo.url = 'https://m.cls.cn';
   head.addSpacer(4);
   if (config.widgetFamily !== 'small') {
     const title = head.addText('财联社电报');
-    title.font = Font.mediumSystemFont(16);
+    title.font = Font.mediumSystemFont(fontSize * 1.2);
     title.textColor = Color.dynamic(
       new Color(textColorLight),
       new Color(textColorDark)
@@ -1212,16 +1213,20 @@ const createWidgt = async () => {
     new Color(textColorDark, 0.8)
   );
   // 减去头部高度
-  leftHeight -= 20;
+  leftHeight -= fontSize * 1.2 + 2;
 
+  const { width: timeWidth } = await measureText('04:44', fontSize);
   const titleCWidth = widgetWidth - 24 - timeWidth - space;
 
   for (const item of rollData) {
+    const titleText = item.title || item.content;
+    if (exclude && new RegExp(exclude, 'i').test(titleText)) {
+      continue
+    }
     if (preference.space > 0) {
       widget.addSpacer(preference.space);
       leftHeight -= preference.space;
     }
-    const titleText = item.title || item.content;
     const { width: titleWidth } = await measureText(titleText, fontSize);
 
     // 此条文本需要多少行
@@ -1237,8 +1242,9 @@ const createWidgt = async () => {
       new Color(textColorLight),
       new Color(textColorDark)
     );
-    const time = row.addText(`[${formatTime(new Date(item.ctime * 1000))}]`);
-    time.size = new Size(timeWidth, -1);
+    const timeStack = row.addStack();
+    timeStack.size = new Size(timeWidth, -1);
+    const time = timeStack.addText(`${formatTime(new Date(item.ctime * 1000))}`);
     time.font = Font.systemFont(fontSize);
     time.textColor = Color.dynamic(
       new Color(itemTimeColorLight),
@@ -1304,6 +1310,12 @@ await withSettings({
       name: 'space',
       type: 'number',
       default: preference.space
+    },
+    {
+      label: i18n(['Exclude', '过滤排除']),
+      name: 'exclude',
+      type: 'text',
+      default: preference.exclude
     }
   ],
   render: ({ settings, family }) => {
