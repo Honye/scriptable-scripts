@@ -2,9 +2,9 @@
 
 工具集
 
-## phoneSize
+## phoneSize()
 
-获取小组件尺寸信息
+获取小组件尺寸和位置信息
 
 类型：
 
@@ -54,6 +54,54 @@ const createWidget = () => {
   // 宽高，单位 pt
   const height = heightPX / scale
   const width = widthPX / scale
+
+  const widget = new ListWidget()
+  widget.addText(`${width} x ${height} pt`)
+
+  return widget
+}
+
+if (config.runsInWidget) {
+  const widget = createWidget()
+  Script.setWidget(widget)
+} else if (config.runsInApp) {
+  config.widgetFamily = 'medium'
+  const widget = createWidget()
+  widget.presentMedium()
+}
+```
+
+## widgetSize()
+
+获取小组件尺寸信息。单位 pt
+
+类型：
+
+```ts
+interface Size {
+  /** 小号组件宽和高，宽和高相同 */
+  small: number
+  /** 中号组件宽，中号组件的高和小号组件的高相同 */
+  medium: number
+  /** 大号组件高，大号组件的宽和中号组件的宽相同 */
+  large: number
+}
+
+function widgetSize(): Size
+```
+
+示例：
+
+```js
+const { widgetSize } = importModule('utils.module')
+
+const size = widgetSize()
+
+const createWidget = () => {
+  const { widgetFamily } = config
+
+  const width = widgetFamily === 'large' ? size.medium : size[widgetFamily]
+  const height = widgetFamily === 'medium' ? size.small : size[widgetFamily]
 
   const widget = new ListWidget()
   widget.addText(`${width} x ${height} pt`)
