@@ -1,5 +1,5 @@
 /**
- * @version 1.2.2
+ * @version 1.2.3
  */
 
 const name = 'Utils'
@@ -42,6 +42,33 @@ const presentSheet = async (options) => {
 }
 
 /**
+ * 比较两个版本号的大小
+ * @param {string} version1 第一个版本号
+ * @param {string} version2 第二个版本号
+ * @returns {number} 如果 version1 > version2 返回 1, 如果 version1 < version2 返回 -1, 否则返回 0。
+ */
+const compareVersion = (version1, version2) => {
+  const arr1 = version1.split('.')
+  const arr2 = version2.split('.')
+
+  const maxLength = Math.max(arr1.length, arr2.length)
+
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parseInt(arr1[i] || 0, 10)
+    const num2 = parseInt(arr2[i] || 0, 10)
+
+    if (num1 > num2) {
+      return 1
+    }
+    if (num1 < num2) {
+      return -1
+    }
+  }
+
+  return 0
+}
+
+/**
  * Thanks @mzeryck
  *
  * @param {number} [height] The screen height measured in pixels
@@ -59,16 +86,28 @@ const phoneSize = (height) => {
       middle: 912,
       bottom: 1548
     },
-    /** 16 Pro */
+    /** 16 Pro, 17 Pro */
     2622: {
-      small: 486,
-      medium: 1032,
-      large: 1098,
-      left: 87,
-      right: 633,
-      top: 261,
-      middle: 873,
-      bottom: 1485
+      ios26: {
+        small: 493,
+        medium: 1049,
+        large: 1095,
+        left: 79,
+        right: 634,
+        top: 270,
+        middle: 872,
+        bottom: 1474
+      },
+      ios: {
+        small: 486,
+        medium: 1032,
+        large: 1098,
+        left: 87,
+        right: 633,
+        top: 261,
+        middle: 873,
+        bottom: 1485
+      }
     },
     /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     2796: {
@@ -217,7 +256,10 @@ const phoneSize = (height) => {
 
   const phone = phones[height]
   if (phone) {
-    return phone
+    if (compareVersion(Device.systemVersion(), '26') > -1 && phone.ios26) {
+      return phone.ios26
+    }
+    return phone.ios || phone
   }
 
   if (config.runsInWidget) {
@@ -244,8 +286,11 @@ const widgetSize = () => {
   const phones = {
     /** 16 Pro Max */
     956: { small: 170, medium: 364, large: 382 },
-    /** 16 Pro */
-    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Pro, 17 Pro */
+    874: {
+      ios26: { small: 164, medium: 349, large: 365 },
+      ios: { small: 162, medium: 344, large: 366 }
+    },
     /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     932: { small: 170, medium: 364, large: 382 },
     /** 13 Pro Max, 12 Pro Max */
@@ -255,7 +300,7 @@ const widgetSize = () => {
     /** Plus phones */
     736: { small: 157, medium: 348, large: 357 },
     /** 16, 15 Pro, 15, 14 Pro */
-    852: { small: 158, medium: 338, large: 354 },
+    852: { small: 158, medium: 339, large: 354 },
     /** 13, 13 Pro, 12, 12 Pro */
     844: { small: 158, medium: 338, large: 354 },
     /** 13 mini, 12 mini / 11 Pro, XS, X */
@@ -270,7 +315,13 @@ const widgetSize = () => {
   let { width, height } = Device.screenSize()
   if (width > height) height = width
 
-  if (phones[height]) return phones[height]
+  const sizes = phones[height]
+  if (sizes) {
+    if (compareVersion(Device.systemVersion(), '26') > -1 && sizes.ios26) {
+      return sizes.ios26
+    }
+    return sizes.ios || sizes
+  }
 
   if (config.runsInWidget) {
     const pc = { small: 164, medium: 344, large: 344 }
