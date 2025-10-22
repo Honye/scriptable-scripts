@@ -4,17 +4,7 @@ const { withSettings } = require('./withSettings.module')
 const { useGrid } = require('./widgets.module')
 
 const paddingVertical = 10
-const themes = {
-  light: {
-    background: new Color('#fff')
-  },
-  dark: {
-    background: new Color('#242426')
-  }
-}
 const preference = {
-  /** @type {'light'|'dark'|'system'} */
-  colorScheme: 'system',
   /** @type {'h5'|'international'} */
   client: 'h5',
   fontSize: 14,
@@ -45,11 +35,6 @@ const H5Page = {
 const conf = {}
 const size = widgetSize()
 const cache = useCache()
-
-if (config.runsInWidget) {
-  const [colorScheme] = (args.widgetParameter || '').split(';').map(text => text.trim())
-  preference.colorScheme = colorScheme || preference.colorScheme
-}
 
 const Pages = () => {
   switch (preference.client) {
@@ -100,7 +85,6 @@ const getLogoImage = async () => {
 const createWidget = async ({ data, updatedAt }) => {
   const {
     fontSize,
-    colorScheme,
     logoSize,
     padding,
     gap,
@@ -120,9 +104,6 @@ const createWidget = async ({ data, updatedAt }) => {
   let stackBottom
   let widgetBottom
   const widget = new ListWidget()
-  widget.backgroundColor = colorScheme === 'system'
-    ? Color.dynamic(themes.light.background, themes.dark.background)
-    : themes[colorScheme].background
   widget.url = Pages().hotSearch()
   const paddingY = paddingVertical - (gap / 2)
   widget.setPadding(paddingY, padding[1], paddingY, padding[3])
@@ -189,7 +170,6 @@ const addItem = async (widget, item) => {
     darkColor,
     indexLightColor,
     indexDarkColor,
-    colorScheme,
     gap
   } = preference
   const stack = widget.addStack()
@@ -221,11 +201,7 @@ const addItem = async (widget, item) => {
   stack.addSpacer(4)
   const textTitle = stack.addText(item.title)
   textTitle.font = Font.systemFont(fontSize)
-  textTitle.textColor = colorScheme === 'system'
-    ? Color.dynamic(new Color(lightColor), new Color(darkColor))
-    : colorScheme === 'light'
-      ? new Color(lightColor)
-      : new Color(darkColor)
+  textTitle.textColor = Color.dynamic(new Color(lightColor), new Color(darkColor))
   textTitle.lineLimit = 1
   if (useShadow) {
     textTitle.shadowColor = Color.dynamic(

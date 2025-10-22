@@ -4,14 +4,42 @@
 /**
  * Top trending searches on Weibo
  *
- * @version 2.4.2
+ * @version 2.4.3
  * @author Honye
  */
 
 /**
- * @version 1.2.1
+ * utils
+ * @version 1.2.3
  */
 
+
+/**
+ * 比较两个版本号的大小
+ * @param {string} version1 第一个版本号
+ * @param {string} version2 第二个版本号
+ * @returns {number} 如果 version1 > version2 返回 1, 如果 version1 < version2 返回 -1, 否则返回 0。
+ */
+const compareVersion = (version1, version2) => {
+  const arr1 = version1.split('.');
+  const arr2 = version2.split('.');
+
+  const maxLength = Math.max(arr1.length, arr2.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parseInt(arr1[i] || 0, 10);
+    const num2 = parseInt(arr2[i] || 0, 10);
+
+    if (num1 > num2) {
+      return 1
+    }
+    if (num1 < num2) {
+      return -1
+    }
+  }
+
+  return 0
+};
 
 /**
  * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
@@ -20,8 +48,11 @@ const widgetSize = () => {
   const phones = {
     /** 16 Pro Max */
     956: { small: 170, medium: 364, large: 382 },
-    /** 16 Pro */
-    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Pro, 17 Pro */
+    874: {
+      ios26: { small: 164, medium: 349, large: 365 },
+      ios: { small: 162, medium: 344, large: 366 }
+    },
     /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     932: { small: 170, medium: 364, large: 382 },
     /** 13 Pro Max, 12 Pro Max */
@@ -31,7 +62,7 @@ const widgetSize = () => {
     /** Plus phones */
     736: { small: 157, medium: 348, large: 357 },
     /** 16, 15 Pro, 15, 14 Pro */
-    852: { small: 158, medium: 338, large: 354 },
+    852: { small: 158, medium: 339, large: 354 },
     /** 13, 13 Pro, 12, 12 Pro */
     844: { small: 158, medium: 338, large: 354 },
     /** 13 mini, 12 mini / 11 Pro, XS, X */
@@ -42,14 +73,20 @@ const widgetSize = () => {
     /** SE1 */
     568: { small: 141, medium: 292, large: 311 },
     /** iPad Pro 2 */
-    1194: { small: 155, medium: 342, extraLarge: 715.5 },
+    1194: { small: 155, medium: 342, large: 342, extraLarge: 715.5 },
     /** iPad 6 */
-    1024: { small: 141, medium: 305.5, extraLarge: 634.5 }
+    1024: { small: 141, medium: 305.5, large: 305.5, extraLarge: 634.5 }
   };
   let { width, height } = Device.screenSize();
   if (width > height) height = width;
 
-  if (phones[height]) return phones[height]
+  const sizes = phones[height];
+  if (sizes) {
+    if (compareVersion(Device.systemVersion(), '26') > -1 && sizes.ios26) {
+      return sizes.ios26
+    }
+    return sizes.ios || sizes
+  }
 
   if (config.runsInWidget) {
     const pc = { small: 164, medium: 344, large: 344 };
@@ -321,7 +358,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.6.1
+ * @version 1.7.3
  * @author Honye
  */
 
@@ -336,7 +373,13 @@ const toast = (message) => {
 };
 
 const isUseICloud = () => {
-  const ifm = useFileManager({ useICloud: true });
+  let ifm;
+  try {
+    ifm = useFileManager({ useICloud: true });
+  } catch (e) {
+    return false
+  }
+
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
 };
@@ -354,9 +397,9 @@ const readSettings = async () => {
 
 /**
  * @param {Record<string, unknown>} data
- * @param {{ useICloud: boolean; }} options
+ * @param {{ useICloud: boolean; }} [options]
  */
-const writeSettings = async (data, { useICloud }) => {
+const writeSettings = async (data, { useICloud } = { useICloud: isUseICloud() }) => {
   const fm = useFileManager({ useICloud });
   fm.writeJSON(fileName, data);
 };
@@ -392,7 +435,7 @@ const moveSettings = (useICloud, data) => {
  * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'|'switch'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
  * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
@@ -444,7 +487,7 @@ const previewsHTML =
 
 const copyrightHTML =
 `<footer>
-  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a>.</div>
+  <div class="copyright">© UI powered by <a href="javascript:invoke('safari','https://www.imarkr.com');">iMarkr</a></div>
 </footer>`;
 
 /**
@@ -495,35 +538,48 @@ const present = async (options, isFirstPage, others = {}) => {
   const style =
 `:root {
   --color-primary: #007aff;
-  --divider-color: rgba(60,60,67,0.36);
+  --text-color: #1e1f24;
+  --text-secondary: #8b8d98;
+  --divider-color: #eff0f3;
   --card-background: #fff;
   --card-radius: 10px;
-  --list-header-color: rgba(60,60,67,0.6);
+  --bg-input: #f9f9fb;
 }
 * {
   -webkit-user-select: none;
   user-select: none;
+}
+:focus-visible {
+  outline-width: 2px;
 }
 body {
   margin: 10px 0;
   -webkit-font-smoothing: antialiased;
   font-family: "SF Pro Display","SF Pro Icons","Helvetica Neue","Helvetica","Arial",sans-serif;
   accent-color: var(--color-primary);
+  color: var(--text-color);
 }
-input {
+input, textarea {
   -webkit-user-select: auto;
   user-select: auto;
+}
+input:where([type="date"], [type="time"], [type="datetime-local"], [type="month"], [type="week"]) {
+  accent-color: var(--text-color);
+  white-space: nowrap;
+}
+select {
+  accent-color: var(--text-color);
 }
 body {
   background: #f2f2f7;
 }
 button {
   font-size: 16px;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   border: none;
-  padding: 0.24em 0.5em;
+  padding: 0.5em;
 }
 button .iconfont {
   margin-right: 6px;
@@ -533,7 +589,7 @@ button .iconfont {
 }
 .list__header {
   margin: 0 20px;
-  color: var(--list-header-color);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 .list__body {
@@ -569,19 +625,38 @@ button .iconfont {
 }
 .form-item__input-wrapper {
   flex: 1;
-  overflow: hidden;
   text-align: right;
+  box-sizing: border-box;
+  padding: 2px;
+  margin-right: -2px;
+  overflow: hidden;
 }
 .form-item__input {
-  max-width: 100%;
+  max-width: calc(100% - 4px);
 }
 .form-item .iconfont {
   margin-right: 4px;
 }
 .form-item input,
+.form-item textarea,
 .form-item select {
   font-size: 14px;
   text-align: right;
+}
+.form-item input[type=text],
+.form-item textarea {
+  width: 11em;
+}
+.form-item textarea {
+  text-align: start;
+}
+.form-item input:not([type=color]),
+.form-item textarea,
+.form-item select {
+  border-radius: 99px;
+  background-color: var(--bg-input);
+  border: none;
+  color: var(--text-color);
 }
 .form-item input[type="checkbox"] {
   width: 1.25em;
@@ -594,13 +669,14 @@ input[type="date"] {
   min-width: 6.4em;
 }
 input[type='checkbox'][role='switch'] {
+  margin: 0;
   position: relative;
   display: inline-block;
   appearance: none;
   width: 40px;
-  height: 24px;
-  border-radius: 24px;
-  background: #ccc;
+  height: 25px;
+  border-radius: 25px;
+  background: var(--bg-input);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']::before {
@@ -608,10 +684,11 @@ input[type='checkbox'][role='switch']::before {
   position: absolute;
   left: 2px;
   top: 2px;
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 2px 6px 0 rgba(0, 0, 0, 0.15), 0 2px 1px 0 rgba(0, 0, 0, 0.06);
   transition: 0.3s ease-in-out;
 }
 input[type='checkbox'][role='switch']:checked {
@@ -622,15 +699,18 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 .actions {
   margin: 15px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 12px;
 }
 .copyright {
   margin: 15px;
   margin-inline: 18px;
   font-size: 12px;
-  color: #86868b;
+  color: var(--text-secondary);
 }
 .copyright a {
-  color: #515154;
+  color: var(--text-color);
   text-decoration: none;
 }
 .preview.loading {
@@ -655,33 +735,22 @@ input[type='checkbox'][role='switch']:checked::before {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --divider-color: rgba(84,84,88,0.65);
-    --card-background: #1c1c1e;
-    --list-header-color: rgba(235,235,245,0.6);
+    --text-color: #eeeef0;
+    --text-secondary: #6c6e79;
+    --divider-color: #222325;
+    --card-background: #19191b;
+    --bg-input: #303136;
   }
   body {
-    background: #000;
-    color: #fff;
-  }
-  input {
-    background-color: rgb(58, 57, 57);
-    color: var(--color-primary);
-  }
-  input[type='checkbox'][role='switch'] {
-    background-color: rgb(56, 56, 60);
+    background: #111113;
   }
   input[type='checkbox'][role='switch']::before {
     background-color: rgb(206, 206, 206);
   }
-  select {
-    background-color: rgb(82, 82, 82);
-    border: none;
-  }
   .form-item[media="(prefers-color-scheme: dark)"] {
     display: flex;
   }
-}
-`;
+}`;
 
   const js =
 `(() => {
@@ -767,11 +836,12 @@ input[type='checkbox'][role='switch']:checked::before {
         }
       })
     } else {
-      const input = document.createElement("input")
+      const input = document.createElement(item.type ==='textarea' ? 'textarea' : "input")
       input.className = 'form-item__input'
       input.name = item.name
       input.type = item.type || "text";
-      input.enterKeyHint = 'done'
+      input.enterKeyHint = item.type ==='textarea' ? 'enter' : 'done'
+      if (item.type === 'textarea') input.rows = '1'
       input.value = value
       // Switch
       if (item.type === 'switch') {
@@ -787,7 +857,7 @@ input[type='checkbox'][role='switch']:checked::before {
       if (item.type === 'number') {
         input.inputMode = 'decimal'
       }
-      if (input.type === 'text') {
+      if (input.type === 'text' || input.type === 'textarea') {
         input.size = 12
       }
       input.addEventListener("change", (e) => {
@@ -942,7 +1012,7 @@ input[type='checkbox'][role='switch']:checked::before {
       }
     },
     native (data) {
-      onWebEvent?.(data);
+      return onWebEvent?.(data)
     }
   };
   await loadHTML(
@@ -1078,8 +1148,12 @@ const useGrid = async (stack, options) => {
   }
 
   let i = -1;
+  /** @type {WidgetStack[]} */
   const rows = [];
 
+  /**
+   * @param {(stack: WidgetStack) => void} fn
+   */
   const add = async (fn) => {
     i++;
     const r = Math.floor(i / column);
@@ -1106,17 +1180,7 @@ const useGrid = async (stack, options) => {
 };
 
 const paddingVertical = 10;
-const themes = {
-  light: {
-    background: new Color('#fff')
-  },
-  dark: {
-    background: new Color('#242426')
-  }
-};
 const preference = {
-  /** @type {'light'|'dark'|'system'} */
-  colorScheme: 'system',
   /** @type {'h5'|'international'} */
   client: 'h5',
   fontSize: 14,
@@ -1147,11 +1211,6 @@ const H5Page = {
 const conf = {};
 const size = widgetSize();
 const cache = useCache();
-
-if (config.runsInWidget) {
-  const [colorScheme] = (args.widgetParameter || '').split(';').map(text => text.trim());
-  preference.colorScheme = colorScheme || preference.colorScheme;
-}
 
 const Pages = () => {
   switch (preference.client) {
@@ -1202,7 +1261,6 @@ const getLogoImage = async () => {
 const createWidget = async ({ data, updatedAt }) => {
   const {
     fontSize,
-    colorScheme,
     logoSize,
     padding,
     gap,
@@ -1222,9 +1280,6 @@ const createWidget = async ({ data, updatedAt }) => {
   let stackBottom;
   let widgetBottom;
   const widget = new ListWidget();
-  widget.backgroundColor = colorScheme === 'system'
-    ? Color.dynamic(themes.light.background, themes.dark.background)
-    : themes[colorScheme].background;
   widget.url = Pages().hotSearch();
   const paddingY = paddingVertical - (gap / 2);
   widget.setPadding(paddingY, padding[1], paddingY, padding[3]);
@@ -1291,7 +1346,6 @@ const addItem = async (widget, item) => {
     darkColor,
     indexLightColor,
     indexDarkColor,
-    colorScheme,
     gap
   } = preference;
   const stack = widget.addStack();
@@ -1323,11 +1377,7 @@ const addItem = async (widget, item) => {
   stack.addSpacer(4);
   const textTitle = stack.addText(item.title);
   textTitle.font = Font.systemFont(fontSize);
-  textTitle.textColor = colorScheme === 'system'
-    ? Color.dynamic(new Color(lightColor), new Color(darkColor))
-    : colorScheme === 'light'
-      ? new Color(lightColor)
-      : new Color(darkColor);
+  textTitle.textColor = Color.dynamic(new Color(lightColor), new Color(darkColor));
   textTitle.lineLimit = 1;
   if (useShadow) {
     textTitle.shadowColor = Color.dynamic(
