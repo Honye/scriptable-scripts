@@ -6,14 +6,42 @@
  * 添加到桌面前需先在 APP 内运行选择图片
  * 有特殊字体，可下载相关字体或者清空字体配置
  *
- * @version 1.0.1
+ * @version 1.1.0
  * @author Honye
  */
 
 /**
- * @version 1.2.2
+ * utils
+ * @version 1.2.3
  */
 
+
+/**
+ * 比较两个版本号的大小
+ * @param {string} version1 第一个版本号
+ * @param {string} version2 第二个版本号
+ * @returns {number} 如果 version1 > version2 返回 1, 如果 version1 < version2 返回 -1, 否则返回 0。
+ */
+const compareVersion = (version1, version2) => {
+  const arr1 = version1.split('.');
+  const arr2 = version2.split('.');
+
+  const maxLength = Math.max(arr1.length, arr2.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parseInt(arr1[i] || 0, 10);
+    const num2 = parseInt(arr2[i] || 0, 10);
+
+    if (num1 > num2) {
+      return 1
+    }
+    if (num1 < num2) {
+      return -1
+    }
+  }
+
+  return 0
+};
 
 /**
  * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
@@ -22,8 +50,11 @@ const widgetSize = () => {
   const phones = {
     /** 16 Pro Max */
     956: { small: 170, medium: 364, large: 382 },
-    /** 16 Pro */
-    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Pro, 17 Pro */
+    874: {
+      ios26: { small: 164, medium: 349, large: 365 },
+      ios: { small: 162, medium: 344, large: 366 }
+    },
     /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     932: { small: 170, medium: 364, large: 382 },
     /** 13 Pro Max, 12 Pro Max */
@@ -33,7 +64,7 @@ const widgetSize = () => {
     /** Plus phones */
     736: { small: 157, medium: 348, large: 357 },
     /** 16, 15 Pro, 15, 14 Pro */
-    852: { small: 158, medium: 338, large: 354 },
+    852: { small: 158, medium: 339, large: 354 },
     /** 13, 13 Pro, 12, 12 Pro */
     844: { small: 158, medium: 338, large: 354 },
     /** 13 mini, 12 mini / 11 Pro, XS, X */
@@ -48,7 +79,13 @@ const widgetSize = () => {
   let { width, height } = Device.screenSize();
   if (width > height) height = width;
 
-  if (phones[height]) return phones[height]
+  const sizes = phones[height];
+  if (sizes) {
+    if (compareVersion(Device.systemVersion(), '26') > -1 && sizes.ios26) {
+      return sizes.ios26
+    }
+    return sizes.ios || sizes
+  }
 
   if (config.runsInWidget) {
     const pc = { small: 164, medium: 344, large: 344 };
@@ -179,7 +216,6 @@ const useFileManager = (options = {}) => {
 
   /**
    * @param {string} filePath
-   * @returns {Image|null}
    */
   const readImage = (filePath) => {
     const fullPath = safePath(filePath);
@@ -526,7 +562,7 @@ const loadHTML = async (webView, args, options = {}) => {
  *
  * GitHub: https://github.com/honye
  *
- * @version 1.7.1
+ * @version 1.7.3
  * @author Honye
  */
 
@@ -541,7 +577,13 @@ const toast = (message) => {
 };
 
 const isUseICloud = () => {
-  const ifm = useFileManager({ useICloud: true });
+  let ifm;
+  try {
+    ifm = useFileManager({ useICloud: true });
+  } catch (e) {
+    return false
+  }
+
   const filePath = fm.joinPath(ifm.cacheDirectory, fileName);
   return fm.fileExists(filePath)
 };
@@ -559,9 +601,9 @@ const readSettings = async () => {
 
 /**
  * @param {Record<string, unknown>} data
- * @param {{ useICloud: boolean; }} options
+ * @param {{ useICloud: boolean; }} [options]
  */
-const writeSettings = async (data, { useICloud }) => {
+const writeSettings = async (data, { useICloud } = { useICloud: isUseICloud() }) => {
   const fm = useFileManager({ useICloud });
   fm.writeJSON(fileName, data);
 };
@@ -597,7 +639,7 @@ const moveSettings = (useICloud, data) => {
  * @typedef {object} NormalFormItem
  * @property {string} name
  * @property {string} label
- * @property {'text'|'number'|'color'|'select'|'date'|'cell'} [type]
+ * @property {'text'|'number'|'color'|'select'|'date'|'cell'|'switch'} [type]
  *  - HTML <input> type 属性
  *  - `'cell'`: 可点击的
  * @property {'(prefers-color-scheme: light)'|'(prefers-color-scheme: dark)'} [media]
@@ -1388,10 +1430,13 @@ const createWidget = async () => {
   photos.centerAlignContent();
 
   const addOne = async (filename) => {
-    const image = photos.addStack();
-    image.size = new Size(rpt(80), rpt(152));
-    image.backgroundImage = await getPhoto(filename);
-    image.cornerRadius = imageRadius;
+    const size = new Size(rpt(80), rpt(152));
+    const stack = photos.addStack();
+    stack.size = size;
+    stack.cornerRadius = imageRadius;
+    const image = stack.addImage(await getPhoto(filename));
+    image.imageSize = size;
+    image.applyFillingContentMode();
     return image
   };
   await addOne('photo_1');
@@ -1404,15 +1449,21 @@ const createWidget = async () => {
   photosRight.layoutVertically();
 
   const third = photosRight.addStack();
-  third.size = new Size(rpt(125), rpt(121));
+  const thirdSize = new Size(rpt(125), rpt(121));
+  third.size = thirdSize;
   third.cornerRadius = imageRadius;
-  third.backgroundImage = await getPhoto('photo_3');
+  const thirdImage = third.addImage(await getPhoto('photo_3'));
+  thirdImage.imageSize = thirdSize;
+  thirdImage.applyFillingContentMode();
 
   photosRight.addSpacer(rpt(4));
   const fourth = photosRight.addStack();
-  fourth.size = new Size(rpt(125), rpt(100));
+  const fourthSize = new Size(rpt(125), rpt(100));
+  fourth.size = fourthSize;
   fourth.cornerRadius = imageRadius;
-  fourth.backgroundImage = await getPhoto('photo_4');
+  const fourthImage = fourth.addImage(await getPhoto('photo_4'));
+  fourthImage.imageSize = fourthSize;
+  fourthImage.applyFillingContentMode();
   return widget
 };
 

@@ -103,10 +103,13 @@ const createWidget = async () => {
   photos.centerAlignContent()
 
   const addOne = async (filename) => {
-    const image = photos.addStack()
-    image.size = new Size(rpt(80), rpt(152))
-    image.backgroundImage = await getPhoto(filename)
-    image.cornerRadius = imageRadius
+    const size = new Size(rpt(80), rpt(152))
+    const stack = photos.addStack()
+    stack.size = size
+    stack.cornerRadius = imageRadius
+    const image = stack.addImage(await getPhoto(filename))
+    image.imageSize = size
+    image.applyFillingContentMode()
     return image
   }
   await addOne('photo_1')
@@ -119,15 +122,21 @@ const createWidget = async () => {
   photosRight.layoutVertically()
 
   const third = photosRight.addStack()
-  third.size = new Size(rpt(125), rpt(121))
+  const thirdSize = new Size(rpt(125), rpt(121))
+  third.size = thirdSize
   third.cornerRadius = imageRadius
-  third.backgroundImage = await getPhoto('photo_3')
+  const thirdImage = third.addImage(await getPhoto('photo_3'))
+  thirdImage.imageSize = thirdSize
+  thirdImage.applyFillingContentMode()
 
   photosRight.addSpacer(rpt(4))
   const fourth = photosRight.addStack()
-  fourth.size = new Size(rpt(125), rpt(100))
+  const fourthSize = new Size(rpt(125), rpt(100))
+  fourth.size = fourthSize
   fourth.cornerRadius = imageRadius
-  fourth.backgroundImage = await getPhoto('photo_4')
+  const fourthImage = fourth.addImage(await getPhoto('photo_4'))
+  fourthImage.imageSize = fourthSize
+  fourthImage.applyFillingContentMode()
   return widget
 }
 
