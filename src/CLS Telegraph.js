@@ -18,7 +18,7 @@ const lineHeight = 1.24
 const space = 4
 
 const requestData = async () => {
-  const url = 'https://www.cls.cn/nodeapi/telegraphList'
+  const url = 'https://api.xtoors.com/api/cls/telegraph?limit=20'
   const request = new Request(url)
   const data = await request.loadJSON()
   return data
@@ -76,7 +76,7 @@ const createWidgt = async () => {
     exclude
   } = preference
   const {
-    data: { roll_data: rollData }
+    data: { items: rollData }
   } = await requestData()
   const sizes = widgetSize()
   const widgetWidth = config.widgetFamily === 'small' ? sizes.small : sizes.medium
@@ -136,14 +136,14 @@ const createWidgt = async () => {
     lines = Math.min(lines, limit)
 
     const row = widget.addStack()
-    row.url = item.shareurl
+    row.url = item.url
     const textColor = Color.dynamic(
       new Color(textColorLight),
       new Color(textColorDark)
     )
     const timeStack = row.addStack()
     timeStack.size = new Size(timeWidth, -1)
-    const time = timeStack.addText(`${formatTime(new Date(item.ctime * 1000))}`)
+    const time = timeStack.addText(`${formatTime(new Date(item.time * 1000))}`)
     time.font = Font.systemFont(fontSize)
     time.textColor = Color.dynamic(
       new Color(itemTimeColorLight),

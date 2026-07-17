@@ -4,15 +4,41 @@
 /**
  * 财联社电报
  *
- * @version 1.2.0
+ * @version 1.2.1
  * @author Honye
  */
 
 /**
- * utils
- * @version 1.2.2
+ * @version 1.2.3
  */
 
+
+/**
+ * 比较两个版本号的大小
+ * @param {string} version1 第一个版本号
+ * @param {string} version2 第二个版本号
+ * @returns {number} 如果 version1 > version2 返回 1, 如果 version1 < version2 返回 -1, 否则返回 0。
+ */
+const compareVersion = (version1, version2) => {
+  const arr1 = version1.split('.');
+  const arr2 = version2.split('.');
+
+  const maxLength = Math.max(arr1.length, arr2.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parseInt(arr1[i] || 0, 10);
+    const num2 = parseInt(arr2[i] || 0, 10);
+
+    if (num1 > num2) {
+      return 1
+    }
+    if (num1 < num2) {
+      return -1
+    }
+  }
+
+  return 0
+};
 
 /**
  * @returns {Record<'small'|'medium'|'large'|'extraLarge', number>}
@@ -21,8 +47,11 @@ const widgetSize = () => {
   const phones = {
     /** 16 Pro Max */
     956: { small: 170, medium: 364, large: 382 },
-    /** 16 Pro */
-    874: { small: 162, medium: 344, large: 366 },
+    /** 16 Pro, 17 Pro */
+    874: {
+      ios26: { small: 164, medium: 349, large: 365 },
+      ios: { small: 162, medium: 344, large: 366 }
+    },
     /** 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max */
     932: { small: 170, medium: 364, large: 382 },
     /** 13 Pro Max, 12 Pro Max */
@@ -32,7 +61,7 @@ const widgetSize = () => {
     /** Plus phones */
     736: { small: 157, medium: 348, large: 357 },
     /** 16, 15 Pro, 15, 14 Pro */
-    852: { small: 158, medium: 338, large: 354 },
+    852: { small: 158, medium: 339, large: 354 },
     /** 13, 13 Pro, 12, 12 Pro */
     844: { small: 158, medium: 338, large: 354 },
     /** 13 mini, 12 mini / 11 Pro, XS, X */
@@ -47,7 +76,13 @@ const widgetSize = () => {
   let { width, height } = Device.screenSize();
   if (width > height) height = width;
 
-  if (phones[height]) return phones[height]
+  const sizes = phones[height];
+  if (sizes) {
+    if (compareVersion(Device.systemVersion(), '26') > -1 && sizes.ios26) {
+      return sizes.ios26
+    }
+    return sizes.ios || sizes
+  }
 
   if (config.runsInWidget) {
     const pc = { small: 164, medium: 344, large: 344 };
@@ -1119,7 +1154,7 @@ const lineHeight = 1.24;
 const space = 4;
 
 const requestData = async () => {
-  const url = 'https://www.cls.cn/nodeapi/telegraphList';
+  const url = 'https://api.xtoors.com/api/cls/telegraph?limit=20';
   const request = new Request(url);
   const data = await request.loadJSON();
   return data
@@ -1177,7 +1212,7 @@ const createWidgt = async () => {
     exclude
   } = preference;
   const {
-    data: { roll_data: rollData }
+    data: { items: rollData }
   } = await requestData();
   const sizes = widgetSize();
   const widgetWidth = config.widgetFamily === 'small' ? sizes.small : sizes.medium;
@@ -1237,14 +1272,14 @@ const createWidgt = async () => {
     lines = Math.min(lines, limit);
 
     const row = widget.addStack();
-    row.url = item.shareurl;
+    row.url = item.url;
     const textColor = Color.dynamic(
       new Color(textColorLight),
       new Color(textColorDark)
     );
     const timeStack = row.addStack();
     timeStack.size = new Size(timeWidth, -1);
-    const time = timeStack.addText(`${formatTime(new Date(item.ctime * 1000))}`);
+    const time = timeStack.addText(`${formatTime(new Date(item.time * 1000))}`);
     time.font = Font.systemFont(fontSize);
     time.textColor = Color.dynamic(
       new Color(itemTimeColorLight),
