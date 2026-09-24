@@ -183,6 +183,20 @@ Clean Files 的重构版本，支持多选/全选
 
 [快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FCountdown.js)（需先安装 [Installer](#Installer)）
 
+## Days Dots
+
+用圆点可视化本年/本月的时间进度，已过去的天数为实心亮点，剩余天数为暗点
+
+- 支持小、中、大三种尺寸
+- 支持深浅色主题自动切换，颜色可分别配置
+- 本月进度按日历月视图 7 列排列，可设置每周从周日或周一开始
+- 在 App 中运行可进行可视化配置（进度类型、每周开始日、百分比、颜色、背景）和预览
+- 小组件参数填 `year` 显示本年剩余天数，填 `month` 显示本月剩余天数，优先于应用内配置
+
+[源码](https://raw.githubusercontent.com/Honye/scriptable-scripts/master/dist/Days%20Dots.js)
+
+[快速安装](https://open.scriptable.app/run/Installer?url=https%3A%2F%2Fraw.githubusercontent.com%2FHonye%2Fscriptable-scripts%2Fmaster%2Fdist%2FDays%2520Dots.js)（需先安装 [Installer](#Installer)）
+
 ## TODO
 
 查看 [Projects](https://github.com/Honye/scriptable-scripts/projects/1) 面板
