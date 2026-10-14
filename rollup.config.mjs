@@ -2,7 +2,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import glob from 'glob'
 import serve from 'rollup-plugin-serve'
-import pkg from './package.json' assert { type: 'json' }
+import pkg from './package.json' with { type: 'json' }
 
 const { version } = pkg
 console.info(`Scriptable Template v${version}\r\n`)
@@ -29,7 +29,7 @@ for (const filename of files) {
     let conf = {}
     try {
       const confPath = path.resolve(filename.replace(new RegExp(`${suffix}$`), '.json'))
-      const confModule = await import(pathToFileURL(confPath), { assert: { type: 'json' } })
+      const confModule = await import(pathToFileURL(confPath), { with: { type: 'json' } })
       conf = confModule.default
     } catch (e) {}
     const annotations = []
