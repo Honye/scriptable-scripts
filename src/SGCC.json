@@ -1,9 +1,10 @@
 {
-  "version": "1.3.4",
+  "version": "1.4.0",
   "description": [
     "网上国网小组件",
+    "使用前在设置中填写网上国网手机号和密码，首次登录需在设置中发送并填入短信验证码",
     "如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推",
-    "重写: https://raw.githubusercontent.com/dompling/Script/master/wsgw/index.js"
+    "数据：直连网上国网 App 接口，协议移植自 https://github.com/stevenjoezhang/hass-state-grid (MIT)"
   ],
   "setting": {
     "icon-glyph": "globe",

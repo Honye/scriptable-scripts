@@ -2,9 +2,13 @@ if (typeof require === 'undefined') require = importModule
 const { getImage, i18n, useCache, vmin, widgetSize } = require('./utils.module')
 const { withSettings } = require('./withSettings.module')
 const { useGrid } = require('./widgets.module')
+const { SgApp, queryAccount, K } = require('./sgcc.module')
 const rpt = (n) => vmin(n * 100 / 155, config.widgetFamily)
 
 const preference = {
+  phone: '',
+  password: '',
+  smsCode: '',
   /** @type {'daily'|'monthly'} */
   dimension: 'daily',
   barCount: 7,
@@ -15,38 +19,145 @@ const preference = {
 
 const cache = useCache()
 const sizes = widgetSize()
+const dataFilename = 'data.v2.json'
 /** @type {Date} */
 let respDate
 
+const KEYCHAIN_PREFIX = 'honye.sgcc.'
+
+/**
+ * SgApp 运行所需的存储与网络适配
+ * @param {string} [smsCode] 新设备短信验证码
+ */
+const createCtx = (smsCode = '') => ({
+  env: { SGCC_SMS: smsCode },
+  storage: {
+    getJSON: (k) => {
+      const key = KEYCHAIN_PREFIX + k
+      return Keychain.contains(key) ? JSON.parse(Keychain.get(key)) : null
+    },
+    setJSON: (k, v) => Keychain.set(KEYCHAIN_PREFIX + k, JSON.stringify(v))
+  },
+  http: {
+    post: async (url, { headers = {}, body = '', timeout = 20000 }) => {
+      const request = new Request(url)
+      request.method = 'POST'
+      request.headers = Object.fromEntries(
+        Object.entries(headers).map(([k, v]) => [k, v == null ? '' : String(v)])
+      )
+      request.body = body
+      request.timeoutInterval = timeout / 1000
+      const text = await request.loadString()
+      return {
+        status: request.response?.statusCode ?? 200,
+        text: async () => text
+      }
+    }
+  }
+})
+
+const createApp = () => {
+  const { phone, password, smsCode } = preference
+  if (!phone || !password) {
+    throw new Error('请先在设置中填写网上国网手机号和密码')
+  }
+  return new SgApp(createCtx(String(smsCode || '').trim()), phone, password)
+}
+
+const fetchData = async () => {
+  const app = createApp()
+  const { accounts = [] } = await app.ensure()
+  if (!accounts.length) throw new Error('该网上国网账号未绑定户号')
+
+  const list = []
+  let error
+  for (const account of accounts.slice(0, 6)) {
+    try {
+      list.push(await queryAccount(app, account))
+    } catch (e) {
+      console.error(e)
+      error = e
+      // 占位保证 Parameter 下标与户号顺序一致
+      list.push(null)
+    }
+  }
+  if (list.every((item) => !item)) throw error
+  return list
+}
+
 const getData = async () => {
-  const url = 'http://api.wsgw-rewrite.com/electricity/bill/all?monthElecQuantity=1&dayElecQuantity31=1&stepElecQuantity=1&eleBill=1'
-  const filename = 'data.json'
   const fm = FileManager.local()
-  const filePath = fm.joinPath(cache.cacheDirectory, filename)
+  const filePath = fm.joinPath(cache.cacheDirectory, dataFilename)
   const mDate = fm.modificationDate(filePath)
   if (mDate && Date.now() - mDate.getTime() < 14400000) {
     console.log('[INFO] Request too frequent, using local cached data...')
-    const data = cache.readJSON(filename)
+    respDate = mDate
+    return cache.readJSON(dataFilename)
+  }
+
+  try {
+    const data = await fetchData()
+    cache.writeJSON(dataFilename, data)
+    respDate = new Date()
+    return data
+  } catch (e) {
+    console.error(e)
+    const data = cache.readJSON(dataFilename)
+    if (!data) throw e
+    console.log('[INFO] An exception occurred during the request; using cached data...')
     respDate = mDate
     return data
   }
+}
 
-  const request = new Request(url)
-  let data
-  try {
-    data = await request.loadJSON()
-    cache.writeJSON(filename, data)
-    respDate = new Date()
-  } catch (e) {
-    console.error(e)
-    console.log('[INFO] An exception occurred during the request; using cached data...')
-    data = cache.readJSON(filename)
-    if (!data) {
-      console.error('Data request failed and no cached data is available. Please check the proxy configuration.')
-    }
-    respDate = mDate
+const toNumber = (value) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+const currentYm = () => {
+  const now = new Date()
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * 将接口数据整理为组件所需字段
+ */
+const normalize = (data) => {
+  const { eleBill = {}, dayElecQuantity31 = {}, monthElecQuantity = {} } = data
+  const daily = (dayElecQuantity31.sevenEleList || [])
+    .filter(({ dayElePq }) => dayElePq !== '' && dayElePq != null && !Number.isNaN(Number(dayElePq)))
+    .map(({ day, dayElePq }) => ({ day: String(day), value: Number(dayElePq) }))
+    .sort((a, b) => a.day.localeCompare(b.day))
+  const monthly = (monthElecQuantity.mothEleList || [])
+    .map(({ month, monthEleNum, monthEleCost }) => ({
+      month: String(month),
+      pq: toNumber(monthEleNum),
+      cost: toNumber(monthEleCost)
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+
+  const ym = currentYm()
+  // 最近一个已结算月份作为“上期”
+  const settled = monthly.filter(({ month, pq, cost }) => month < ym && (pq > 0 || cost > 0))
+  const last = settled[settled.length - 1]
+  const yearPq = toNumber(monthElecQuantity.dataInfo?.totalEleNum)
+  // 阶梯电量 = 年度已结算电量 + 本月未结算的日用电
+  const pendingPq = monthly.some(({ month }) => month === ym)
+    ? 0
+    : daily.filter(({ day }) => day.startsWith(ym)).reduce((sum, { value }) => sum + value, 0)
+
+  return {
+    arrearsOfFees: !!data.arrearsOfFees,
+    balance: toNumber(eleBill.sumMoney).toFixed(2),
+    lastAmount: last ? last.cost.toFixed(2) : '0.00',
+    lastPq: last ? last.pq : 0,
+    yearPq,
+    yearAmount: toNumber(monthElecQuantity.dataInfo?.totalEleCost).toFixed(2),
+    stepPq: Math.round(yearPq + pendingPq),
+    daily,
+    monthly
   }
-  return data
 }
 
 const getWidgetData = async () => {
@@ -55,7 +166,9 @@ const getWidgetData = async () => {
     .map((item) => item.trim() || undefined)
   const index = Number(i || 0)
   const data = await getData()
-  return data[index]
+  const item = data[index]
+  if (!item) throw new Error(`户号 ${index} 不存在或查询失败`)
+  return normalize(item)
 }
 
 const getLogo = async () => {
@@ -72,39 +185,35 @@ const getLogo = async () => {
  */
 const addBarChart = (widget, data) => {
   const { barCount, dimension, oneLevelPq, twoLevelPq } = preference
-  /** @type {{yearTotal:number;monthElec:number;level:number}[]} */
-  const monthlyData = []
+  const getLevel = (total) => total > Number(twoLevelPq) ? 3 : total > Number(oneLevelPq) ? 2 : 1
+  /** 每月对应的阶梯，按年累计 */
+  const monthLevels = {}
   /** @type {{ value: number; level: number }[]} */
   let seven = []
-  const { mothEleList = [] } = data.monthElecQuantity || {}
+  let year = ''
   let yearTotal = 0
-  for (const { monthEleNum } of mothEleList) {
-    const n = Number(monthEleNum)
-    yearTotal += n
-    const level = yearTotal > Number(twoLevelPq) ? 3 : yearTotal > Number(oneLevelPq) ? 2 : 1
-    monthlyData.push({ yearTotal, monthElec: n, level })
+  for (const { month, pq } of data.monthly) {
+    if (month.slice(0, 4) !== year) {
+      year = month.slice(0, 4)
+      yearTotal = 0
+    }
+    yearTotal += pq
+    const level = getLevel(yearTotal)
+    monthLevels[month] = level
     if (dimension === 'monthly') {
-      seven.push({ value: n, level })
+      seven.push({ value: pq, level })
     }
   }
   if (dimension === 'daily') {
-    const { sevenEleList } = data.dayElecQuantity31
-    for (const { day, dayElePq } of sevenEleList) {
-      if (dayElePq && !Number.isNaN(Number(dayElePq))) {
-        let [, year, month] = day.match(/^(\d{4})(\d{2})/)
-        year = Number(year)
-        month = Number(month)
-        // 非今年数据默认阶梯为 1
-        let level = 1
-        if (new Date().getFullYear() === year) {
-          const safeIndex = Math.max(
-            0,
-            Math.min(monthlyData.length - 1, month > monthlyData.length ? monthlyData.length - 1 : month - 1)
-          )
-          level = monthlyData[safeIndex]?.level || level
-        }
-        seven.unshift({ value: Number(dayElePq), level })
-      }
+    const thisYear = String(new Date().getFullYear())
+    const thisYearMonths = Object.keys(monthLevels).filter((m) => m.startsWith(thisYear))
+    // 本月未结算时沿用今年最近一个月的阶梯
+    const latestLevel = monthLevels[thisYearMonths[thisYearMonths.length - 1]] || 1
+    for (const { day, value } of data.daily) {
+      const month = day.slice(0, 6)
+      // 非今年数据默认阶梯为 1
+      const level = month.startsWith(thisYear) ? monthLevels[month] || latestLevel : 1
+      seven.push({ value, level })
     }
   }
 
@@ -119,7 +228,7 @@ const addBarChart = (widget, data) => {
   container.bottomAlignContent()
 
   const gap = config.widgetFamily === 'medium' ? rpt(6) : undefined
-  const max = Math.max(...seven.map(({ value }) => value))
+  const max = Math.max(0, ...seven.map(({ value }) => value)) || 1
   const maxHeight = height - vp * 2
   const w = config.widgetFamily === 'medium' ? rpt(6) : rpt(8)
   for (const [i, { value, level }] of seven.entries()) {
@@ -155,11 +264,7 @@ const addStepProgress = (container, data) => {
   const threeLevelColor = new Color('#D0580D')
   const threeLevelBg = new Color(threeLevelColor.hex, 0.1)
   const transparent = new Color('#000000', 0)
-  let totalYearPq = 0
-  if (data.stepElecQuantity?.[0]) {
-    const [{ electricParticulars }] = data.stepElecQuantity
-    totalYearPq = electricParticulars.totalYearPq
-  }
+  const totalYearPq = data.stepPq
 
   const stack = container.addStack()
   stack.size = new Size(-1, rpt(4))
@@ -260,11 +365,7 @@ const addLabelValue = (stack, { label, value }) => {
  */
 const addMediumSteps = (stack, data, { width }) => {
   const { oneLevelPq, twoLevelPq } = preference
-  let totalYearPq = 0
-  if (data.stepElecQuantity?.[0]) {
-    const [{ electricParticulars }] = data.stepElecQuantity
-    totalYearPq = electricParticulars.totalYearPq
-  }
+  const totalYearPq = data.stepPq
 
   const c = stack.addStack()
   c.layoutVertically()
@@ -370,7 +471,7 @@ const createMediumWidget = async () => {
   const label = left.addText(!data.arrearsOfFees ? '剩余电费' : '待缴电费')
   label.font = Font.systemFont(rpt(10))
   label.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#FFFFFF', 0.7))
-  const number = left.addText(`${data.eleBill.sumMoney}`)
+  const number = left.addText(data.balance)
   number.minimumScaleFactor = 0.5
   number.font = Font.boldRoundedSystemFont(rpt(18))
   number.textColor = Color.dynamic(new Color('#18231C'), new Color('#FFFFFF'))
@@ -388,19 +489,19 @@ const createMediumWidget = async () => {
   })
   await add((stack) => addLabelValue(stack, {
     label: '上期电费',
-    value: data.stepElecQuantity?.[0].electricParticulars.totalAmount || '0.00'
+    value: data.lastAmount
   }))
   await add((stack) => addLabelValue(stack, {
     label: '上期电量',
-    value: data.stepElecQuantity?.[0].electricParticulars.totalPq || '0.00'
+    value: data.lastPq
   }))
   await add((stack) => addLabelValue(stack, {
     label: '年度电费',
-    value: data.monthElecQuantity.dataInfo?.totalEleCost || 0
+    value: data.yearAmount
   }))
   await add((stack) => addLabelValue(stack, {
     label: '年度电量',
-    value: data.monthElecQuantity.dataInfo?.totalEleNum || 0
+    value: data.yearPq
   }))
   right.addSpacer(rpt(6))
   addMediumSteps(right, data, { width: sizes.medium - widgetPadding * 2 - leftWidth - lrGap })
@@ -435,17 +536,13 @@ const createWidget = async () => {
   widget.addSpacer()
   const bottom = widget.addStack()
   bottom.layoutVertically()
-  let totalAmount = 0
-  if (data.stepElecQuantity?.[0]) {
-    const { electricParticulars } = data.stepElecQuantity[0]
-    totalAmount = electricParticulars.totalAmount
-  }
-  const l = bottom.addText(`余额${totalAmount ? `(上期:${totalAmount})` : ''}`)
+  const { lastAmount } = data
+  const l = bottom.addText(`余额${Number(lastAmount) ? `(上期:${lastAmount})` : ''}`)
   l.font = Font.systemFont(rpt(12))
   l.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#ffffff', 0.7))
   const w = bottom.addStack()
   w.centerAlignContent()
-  const p = w.addText(`${data.eleBill.sumMoney}`)
+  const p = w.addText(data.balance)
   p.font = Font.boldRoundedSystemFont(rpt(24))
   p.textColor = Color.dynamic(new Color('#18231C'), new Color('#ffffff'))
   w.addSpacer()
@@ -455,8 +552,93 @@ const createWidget = async () => {
   return widget
 }
 
+const createErrorWidget = (message) => {
+  const widget = new ListWidget()
+  widget.setPadding(12, 12, 12, 12)
+  const title = widget.addText('网上国网')
+  title.font = Font.boldSystemFont(14)
+  title.textColor = Color.dynamic(new Color('#18231C'), new Color('#ffffff'))
+  widget.addSpacer(6)
+  const text = widget.addText(message)
+  text.font = Font.systemFont(12)
+  text.minimumScaleFactor = 0.6
+  text.textColor = Color.dynamic(new Color('#18231C', 0.7), new Color('#ffffff', 0.7))
+  widget.addSpacer()
+  return widget
+}
+
+const presentAlert = async (title, message) => {
+  const alert = new Alert()
+  alert.title = title
+  alert.message = message
+  alert.addAction(i18n(['OK', '确定']))
+  await alert.presentAlert()
+}
+
+const sendSms = async () => {
+  let app
+  try {
+    app = createApp()
+  } catch (e) {
+    await presentAlert('提示', e.message)
+    return
+  }
+  try {
+    const codeKey = await app.sendDeviceSms()
+    app.st(app.sk(K.sms), { user: app.user, codeKey, ts: Date.now(), used: '' })
+    await presentAlert(
+      '短信验证码已发送',
+      `验证码已发至 ${app.user.slice(0, 3)}****${app.user.slice(-4)}，请在 15 分钟内填入「短信验证码」后预览组件`
+    )
+  } catch (e) {
+    console.error(e)
+    await presentAlert('发送失败', e.message || String(e))
+  }
+}
+
+const clearCache = async () => {
+  const fm = FileManager.local()
+  const filePath = fm.joinPath(cache.cacheDirectory, dataFilename)
+  if (fm.fileExists(filePath)) fm.remove(filePath)
+  await presentAlert('已清除', '下次刷新将重新请求国网数据')
+}
+
 await withSettings({
   formItems: [
+    {
+      label: i18n(['Account', '网上国网账号']),
+      type: 'group',
+      items: [
+        {
+          label: i18n(['Phone', '手机号']),
+          name: 'phone',
+          type: 'tel',
+          default: preference.phone
+        },
+        {
+          label: i18n(['Password', '密码']),
+          name: 'password',
+          type: 'password',
+          default: preference.password
+        },
+        {
+          label: i18n(['Send SMS code', '发送短信验证码']),
+          name: 'sendSms',
+          type: 'cell'
+        },
+        {
+          label: i18n(['SMS code', '短信验证码']),
+          name: 'smsCode',
+          type: 'text',
+          default: preference.smsCode
+        },
+        {
+          label: i18n(['Clear data cache', '清除数据缓存']),
+          name: 'clearCache',
+          type: 'cell'
+        }
+      ]
+    },
     {
       label: i18n(['Daily or monthly', '每日或每月']),
       name: 'dimension',
@@ -492,10 +674,25 @@ await withSettings({
       default: preference.twoLevelPq
     }
   ],
+  onItemClick: async ({ name }, { settings }) => {
+    Object.assign(preference, settings)
+    switch (name) {
+      case 'sendSms':
+        await sendSms()
+        break
+      case 'clearCache':
+        await clearCache()
+        break
+    }
+  },
   render: async ({ family, settings }) => {
     family && (config.widgetFamily = family)
     Object.assign(preference, settings)
-    const widget = await createWidget()
-    return widget
+    try {
+      return await createWidget()
+    } catch (e) {
+      console.error(e)
+      return createErrorWidget(e.message || String(e))
+    }
   }
 })
