@@ -147,9 +147,14 @@ const normalize = (data) => {
     ? 0
     : daily.filter(({ day }) => day.startsWith(ym)).reduce((sum, { value }) => sum + value, 0)
 
+  const arrearsOfFees = !!data.arrearsOfFees
+  // 后付费用户 sumMoney 为账单应缴金额，余额应取账户预存款 accountBalance
+  const isPostPaid = Object.prototype.hasOwnProperty.call(eleBill, 'accountBalance')
+  const balance = isPostPaid && !arrearsOfFees ? eleBill.accountBalance : eleBill.sumMoney
+
   return {
-    arrearsOfFees: !!data.arrearsOfFees,
-    balance: toNumber(eleBill.sumMoney).toFixed(2),
+    arrearsOfFees,
+    balance: toNumber(balance).toFixed(2),
     lastAmount: last ? last.cost.toFixed(2) : '0.00',
     lastPq: last ? last.pq : 0,
     yearPq,

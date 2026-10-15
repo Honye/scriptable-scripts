@@ -7,7 +7,7 @@
  * 如何添加多户：长按桌面小组件，编辑添加参数，输入从 0 开始的整数，0 代表第一户，1 代表第二户，以此类推
  * 数据：直连网上国网 App 接口，协议移植自 https://github.com/stevenjoezhang/hass-state-grid (MIT)
  *
- * @version 1.4.0
+ * @version 1.4.1
  * @author Honye
  */
 
@@ -1876,9 +1876,14 @@ const normalize = (data) => {
     ? 0
     : daily.filter(({ day }) => day.startsWith(ym)).reduce((sum, { value }) => sum + value, 0);
 
+  const arrearsOfFees = !!data.arrearsOfFees;
+  // 后付费用户 sumMoney 为账单应缴金额，余额应取账户预存款 accountBalance
+  const isPostPaid = Object.prototype.hasOwnProperty.call(eleBill, 'accountBalance');
+  const balance = isPostPaid && !arrearsOfFees ? eleBill.accountBalance : eleBill.sumMoney;
+
   return {
-    arrearsOfFees: !!data.arrearsOfFees,
-    balance: toNumber(eleBill.sumMoney).toFixed(2),
+    arrearsOfFees,
+    balance: toNumber(balance).toFixed(2),
     lastAmount: last ? last.cost.toFixed(2) : '0.00',
     lastPq: last ? last.pq : 0,
     yearPq,
